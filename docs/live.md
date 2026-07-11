@@ -148,12 +148,85 @@ templates directly.
 html("<p>Hello {flv(user.name)}</p>")
 ```
 
+## Phase 3a additions — forms, broadcast, shared state
+
+Phase 3a extends the plumbing without changing the API surface much.
+Three patterns land: forms with `data-flv-submit`, shared state via
+top-level `let`, and multi-client broadcast with `ws.broadcast(...)`.
+
+### Forms
+
+The client runtime intercepts any `<form data-flv-submit="event_name">`
+submission, prevents the default page reload, and packages every named
+input into a `Map<Str, Str>` payload:
+
+```html
+<form data-flv-submit="save_note">
+  <input name="title" />
+  <textarea name="body"></textarea>
+</form>
+```
+
+The server side receives it as:
+
+```fitz
+if (frame.event == "save_note") {
+  let title = frame.payload["title"]
+  let body = frame.payload["body"]
+  // ...
+}
+```
+
+### Shared state via top-level `let`
+
+For multi-user views, declare state at the top level of the file:
+
+```fitz
+type ChatRoom { messages: List<Message> = [] }
+let chat_room: ChatRoom = ChatRoom { messages: [] }
+```
+
+Fitz's F17 wraps every top-level `let` in `Arc<Mutex<T>>`, so mutations
+from any WebSocket handler are safely visible to all connections. No
+Redis, no pub-sub library.
+
+### Broadcast
+
+Use `ws.broadcast(msg)` to send a frame to every client connected to
+the same `@ws(...)` endpoint. It follows the Phoenix/Socket.IO
+convention: the sender receives the broadcast too.
+
+```fitz
+@ws("/live/chat")
+async fn chat_socket(ws: WsConn<LiveFrame>) {
+  loop {
+    let frame = ws.recv()?
+    // ... mutate shared state ...
+    ws.broadcast(LiveFrame { html: render_chat(chat_room).raw, ... })?
+  }
+}
+```
+
+The `examples/chat/` project shows all three patterns together.
+
+## Known limitations of the Phase 3a MVP
+
+- **Form inputs reset on every server render.** Because we replace the
+  root `outerHTML` on each patch, focused inputs lose their value and
+  cursor position. A proper morphdom-style diff engine (Phase 3b)
+  patches the DOM in place and preserves this state.
+- **No persistence.** Shared state is in memory. Persistent storage
+  plugs into Fitz's ORM (Phase 4 territory).
+- **No fine-grained events.** `data-flv-click` and `data-flv-submit`
+  are the only two client-side event bindings. `data-flv-input`,
+  `data-flv-change`, `data-flv-keydown`, debouncing — all lands in
+  Phase 3b.
+
 ## What is coming next
 
-- **Phase 3** — HTML diff engine (send only what changed), template
-  control flow (`{#for}`, `{#if}`), forms (`data-flv-submit`),
-  broadcast to multiple clients of the same LiveView.
-- **Phase 4** — Stateful child components (`LiveComponent`), shared
-  state, per-user presence primitives.
+- **Phase 3b** — HTML diff engine, `data-flv-input` / `data-flv-change`,
+  debouncing, lifecycle hooks, `@every(N secs)` for periodic pushes.
+- **Phase 4** — Stateful child components (`LiveComponent`), per-user
+  presence primitives.
 - **Phase 6** — VSCode extension with HTML highlighting inside
   `html("""...""")`, autocomplete for state fields and event handlers.

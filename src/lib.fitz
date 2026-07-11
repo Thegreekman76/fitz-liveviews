@@ -229,6 +229,17 @@ let LIVE_CLIENT_JS: Str = """(function() \{
       ws.send(JSON.stringify(\{ event: t.dataset.flvClick, payload: \{\}, html: '' \}));
     \}
   \});
+  document.body.addEventListener('submit', function(e) \{
+    const form = e.target.closest('[data-flv-submit]');
+    if (form && ws.readyState === WebSocket.OPEN) \{
+      e.preventDefault();
+      const payload = \{\};
+      for (const el of form.elements) \{
+        if (el.name) payload[el.name] = el.value;
+      \}
+      ws.send(JSON.stringify(\{ event: form.dataset.flvSubmit, payload: payload, html: '' \}));
+    \}
+  \});
 \})();"""
 
 
@@ -304,4 +315,15 @@ fn live_layout_js_braces_are_literal_not_escape_sequences() {
   let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
   assert(full.raw.contains("(function() \{"))
   assert(full.raw.contains("\})();"))
+}
+
+@test
+fn live_layout_includes_form_submit_handler() {
+  // Phase 3a — client JS handles <form data-flv-submit="..."> by
+  // preventing the default page reload and packaging every named form
+  // field into the payload map.
+  let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
+  assert(full.raw.contains("data-flv-submit"))
+  assert(full.raw.contains("preventDefault"))
+  assert(full.raw.contains("form.elements"))
 }

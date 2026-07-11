@@ -78,19 +78,33 @@ Server + WS + JS client end-to-end.
 **Milestone reached: it works end-to-end.** First blog post draft "It works"
 lives internally for now.
 
-## Phase 3 — Real-world features 📦
+## Phase 3a — Forms + broadcast + shared state 📦
 
-Everything you need for actual apps.
+The "wow moment" of LiveViews — multi-user real-time.
 
-- [ ] `@submit` handler for forms with typed form data
-- [ ] `@input`, `@change`, `@keydown` handlers
+- [x] Forms via `data-flv-submit` (client packages named inputs into
+      payload map, prevents default reload)
+- [x] Broadcast via `ws.broadcast(msg)` — sends to every client of the
+      endpoint (Phoenix / Socket.IO convention: sender included)
+- [x] Shared state pattern: top-level `let` wrapped in `Arc<Mutex>` by
+      Fitz's F17. Documented in `docs/live.md`.
+- [x] Example: **multi-user chat** (`examples/chat/`) — verified
+      end-to-end with two browser windows
+
+## Phase 3b — Real-world polish 📦
+
+Deferred from Phase 3a because Chat MVP proves the concept without them.
+
+- [ ] Server-side HTML diff engine → patch list (fixes input-clearing
+      on every render)
+- [ ] Template control flow `{#for x in xs}...{/for}`,
+      `{#if cond}...{/if}` — needs a mini template engine
+- [ ] `data-flv-input`, `data-flv-change`, `data-flv-keydown` handlers
 - [ ] Debouncing configuration on inputs (client-side)
 - [ ] Loops with stable keys (`{#for x in xs key=x.id}`) for efficient diff
-- [ ] Broadcast to multiple clients of the same LiveView
 - [ ] Auth integration (`@authenticated @live(...)`, user injected)
 - [ ] `@on_mount` and `@on_disconnect` lifecycle hooks
 - [ ] `@every(N secs)` for server-pushed periodic updates
-- [ ] Example: **multi-user chat** (`examples/chat/`) — full stack
 
 ## Phase 4 — Stateful components (LiveComponents) 🧩
 

@@ -1,0 +1,11 @@
+[package]
+name = "chat-example"
+version = "0.0.1"
+edition = "2026"
+description = "Fitz LiveViews — multi-user chat with broadcast (Phase 3a)"
+
+[bin]
+main = "src/main.fitz"
+
+[dependencies]
+fitz_liveviews = { path = "../.." }

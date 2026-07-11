@@ -1,0 +1,96 @@
+// Fitz LiveViews — multi-user chat (Phase 3a hello world for real-time).
+//
+// Run:   fitz run
+// Then open http://127.0.0.1:3000/ in two browser windows. Type a
+// name and a message in one window; the other window receives it
+// instantly via WebSocket broadcast.
+//
+// Shared state pattern: `chat_room` is a top-level `let` — F17 wraps
+// it in Arc<Mutex> automatically, so mutations from any WebSocket
+// handler are visible to all connections.
+
+from fitz_liveviews import Html, html, flv, live_layout, html_response, LiveFrame, h_join
+
+
+// -----------------------------------------------------------------------------
+// State
+// -----------------------------------------------------------------------------
+
+type Message {
+  author: Str
+  text: Str
+}
+
+type ChatRoom {
+  messages: List<Message> = []
+}
+
+// Shared across all WebSocket connections.
+let chat_room: ChatRoom = ChatRoom { messages: [] }
+
+
+// -----------------------------------------------------------------------------
+// Render
+// -----------------------------------------------------------------------------
+
+fn render_message(m: Message) -> Html {
+  return html("""<li><strong>{flv(m.author)}:</strong> {flv(m.text)}</li>""")
+}
+
+fn render_chat(room: ChatRoom) -> Html {
+  let items = room.messages.map(fn(m) => render_message(m))
+  return html("""<div id="chat-app">
+  <h1>Fitz LiveViews Chat</h1>
+  <ul>
+    {h_join(items)}
+  </ul>
+  <form data-flv-submit="send_message">
+    <input name="author" placeholder="Your name" required autocomplete="off" />
+    <input name="text" placeholder="Your message" required autocomplete="off" />
+    <button type="submit">Send</button>
+  </form>
+</div>""")
+}
+
+
+// -----------------------------------------------------------------------------
+// HTTP GET — initial render
+// -----------------------------------------------------------------------------
+
+@get("/")
+fn chat_page() -> Response {
+  return html_response(live_layout("/live/chat", "chat-app", render_chat(chat_room)))
+}
+
+
+// -----------------------------------------------------------------------------
+// WebSocket — event + broadcast cycle
+// -----------------------------------------------------------------------------
+
+@ws("/live/chat")
+async fn chat_socket(ws: WsConn<LiveFrame>) {
+  loop {
+    let frame = ws.recv()?
+    if (frame.event == "send_message") {
+      if (frame.payload.has("author")) {
+        if (frame.payload.has("text")) {
+          let author = frame.payload["author"]
+          let text = frame.payload["text"]
+          chat_room.messages.push(Message { author: author, text: text })
+          // Broadcast the new HTML to every connected client (including
+          // the sender — Fitz's ws.broadcast follows the Phoenix/Socket.IO
+          // convention of "send to all, including me").
+          ws.broadcast(LiveFrame { event: "", payload: {}, html: render_chat(chat_room).raw })?
+        }
+      }
+    }
+  }
+}
+
+
+// -----------------------------------------------------------------------------
+// Server
+// -----------------------------------------------------------------------------
+
+@server(3000)
+fn main() => 0
