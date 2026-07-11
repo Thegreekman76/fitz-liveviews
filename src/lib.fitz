@@ -176,3 +176,132 @@ fn h_either_picks_by_condition() {
   assert_eq(h_either(true, html("yes"), html("no")), "yes")
   assert_eq(h_either(false, html("yes"), html("no")), "no")
 }
+
+
+// -----------------------------------------------------------------------------
+// LiveView protocol (Phase 2)
+// -----------------------------------------------------------------------------
+
+// A LiveView frame — the envelope that travels over the WebSocket in both
+// directions.
+//
+// Client → Server: `event` holds the event name (matching a
+// `data-flv-click` attribute on the DOM element that triggered it),
+// `payload` holds extra data.
+//
+// Server → Client: `html` holds the new HTML for the LiveView root
+// element (Phase 2 does full-body replacement — the diff engine that
+// sends per-node patches lands in Phase 3).
+//
+// This one-type approach is a Phase 2 pragmatic choice — bidirectional
+// `WsConn<In, Out>` is a Fitz-language deuda whose closure would let us
+// split the two directions into distinct types.
+type LiveFrame {
+  event: Str = ""
+  payload: Map<Str, Str> = {}
+  html: Str = ""
+}
+
+
+// -----------------------------------------------------------------------------
+// Client-side runtime (embedded JavaScript)
+// -----------------------------------------------------------------------------
+
+// Braces used by JavaScript syntax are escaped with a backslash (\{, \})
+// because Fitz strings use { for interpolation. The backslash produces
+// a literal brace at runtime — the browser sees valid JS.
+let LIVE_CLIENT_JS: Str = """(function() \{
+  const s = document.currentScript;
+  const wsPath = s.dataset.flvWs;
+  const rootId = s.dataset.flvRoot;
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(proto + '//' + location.host + wsPath);
+  ws.onmessage = function(e) \{
+    const msg = JSON.parse(e.data);
+    if (msg.html) \{
+      const el = document.getElementById(rootId);
+      if (el) el.outerHTML = msg.html;
+    \}
+  \};
+  document.body.addEventListener('click', function(e) \{
+    const t = e.target.closest('[data-flv-click]');
+    if (t && ws.readyState === WebSocket.OPEN) \{
+      ws.send(JSON.stringify(\{ event: t.dataset.flvClick, payload: \{\}, html: '' \}));
+    \}
+  \});
+\})();"""
+
+
+// -----------------------------------------------------------------------------
+// LiveView layout
+// -----------------------------------------------------------------------------
+
+// Wraps the initial HTML render with the client-side runtime <script>.
+// Return the result from your @get(...) handler; the matching @ws(...)
+// handler at `ws_path` should recv/send LiveFrame messages.
+//
+// Parameters:
+//   ws_path  — URL where the @ws(...) handler is mounted.
+//   root_id  — id of the root DOM element. Must match the `id="..."` on
+//              the outermost tag of `initial`. Patches replace this
+//              element's outerHTML.
+//   initial  — the first server render of the view.
+fn live_layout(ws_path: Str, root_id: Str, initial: Html) -> Html {
+  let js = LIVE_CLIENT_JS
+  return html("""{initial.raw}
+<script data-flv-ws="{ws_path}" data-flv-root="{root_id}">{js}</script>""")
+}
+
+
+// Wraps an Html value in a Response with `Content-Type: text/html`. Use
+// this in your @get(...) handlers instead of returning Html directly,
+// otherwise Fitz will serialize the Html as JSON (a shape Fitz uses for
+// every typed return by default).
+fn html_response(h: Html) -> Response {
+  return Response {
+    status: 200,
+    content_type: "text/html; charset=utf-8",
+    body: h.raw
+  }
+}
+
+
+// -----------------------------------------------------------------------------
+// LiveView tests
+// -----------------------------------------------------------------------------
+
+@test
+fn live_layout_embeds_initial_html() {
+  let initial = html("<div id=\"root\">hi</div>")
+  let full = live_layout("/live/x", "root", initial)
+  assert(full.raw.contains("<div id=\"root\">hi</div>"))
+}
+
+@test
+fn live_layout_sets_ws_path_attribute() {
+  let full = live_layout("/live/counter", "app", html("<div id=\"app\"></div>"))
+  assert(full.raw.contains("data-flv-ws=\"/live/counter\""))
+}
+
+@test
+fn live_layout_sets_root_id_attribute() {
+  let full = live_layout("/live/x", "counter-app", html("<div id=\"counter-app\"></div>"))
+  assert(full.raw.contains("data-flv-root=\"counter-app\""))
+}
+
+@test
+fn live_layout_includes_client_runtime() {
+  let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
+  assert(full.raw.contains("new WebSocket"))
+  assert(full.raw.contains("data-flv-click"))
+}
+
+@test
+fn live_layout_js_braces_are_literal_not_escape_sequences() {
+  // Guard: if Fitz did not un-escape `\{` at runtime, the browser would
+  // choke on the emitted script. This asserts the runtime brace made it
+  // through as a real `{`.
+  let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
+  assert(full.raw.contains("(function() \{"))
+  assert(full.raw.contains("\})();"))
+}

@@ -52,18 +52,31 @@ The foundation: build HTML from Fitz.
 
 ## Phase 2 — LiveView core (MVP) 🚀
 
-Server + WS + JS client + diff engine end-to-end.
+Server + WS + JS client end-to-end.
 
-- [ ] `@live("/path")` decorator (mounts HTTP GET + WS handler)
-- [ ] `@on("event")` decorator for event handlers
-- [ ] Initial HTML render on HTTP GET (SEO-friendly first paint)
-- [ ] Vanilla JS client (~500 LoC) served at `/live/client.js`
-- [ ] Client → server event protocol over WebSocket
-- [ ] Server-side HTML diff engine → patch list
-- [ ] Server → client patch protocol
-- [ ] Example: **counter** (`examples/counter/`) — the "hello world"
+- [x] Explicit `@get(...)` + `@ws(...)` pattern (native Fitz decorators;
+      language-level `@live` deferred to Phase 6+)
+- [x] `LiveFrame` type — envelope used by WS in both directions
+- [x] `live_layout(ws_path, root_id, initial)` — wraps initial HTML with
+      the client `<script>`
+- [x] `html_response(h)` — wraps `Html` with `Content-Type: text/html`
+- [x] Initial HTML render on HTTP GET (SEO-friendly first paint)
+- [x] Embedded vanilla JS client (~30 LoC, injected inline)
+- [x] Client → server event protocol over WebSocket (JSON `LiveFrame`)
+- [x] Server → client patch protocol (JSON `LiveFrame` with `html`)
+- [x] Example: **counter** (`examples/counter/`) — verified with
+      `fitz run` + `curl` (HTML+content-type OK) + manual browser test
+- [x] `docs/live.md` with the API, design decisions, and walkthrough
 
-**Milestone: first blog post draft "It works" (internal, not published yet)**
+**Deferred to Phase 3** (proven pattern first, engine later):
+
+- Server-side HTML diff engine → patch list (full replace works for MVP)
+- Template control flow `{#for}`, `{#if}` (see Phase 1 deferral)
+- Forms with `data-flv-submit` and typed form data
+- Broadcast to multiple clients of the same LiveView
+
+**Milestone reached: it works end-to-end.** First blog post draft "It works"
+lives internally for now.
 
 ## Phase 3 — Real-world features 📦
 

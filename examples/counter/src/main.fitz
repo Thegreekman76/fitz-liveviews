@@ -1,0 +1,69 @@
+// Fitz LiveViews — real-time counter (Phase 2 hello world).
+//
+// Run:   fitz run
+// Then open http://127.0.0.1:3000/ in two browser tabs — both stay in
+// sync as you click the buttons. Each connection has its own state
+// (multi-user shared state lands in Phase 4).
+
+from fitz_liveviews import Html, html, live_layout, html_response, LiveFrame
+
+
+// -----------------------------------------------------------------------------
+// State + render
+// -----------------------------------------------------------------------------
+
+type CounterState {
+  count: Int = 0
+}
+
+fn render(state: CounterState) -> Html {
+  return html("""<div id="counter-app">
+  <h1>Fitz LiveViews Counter</h1>
+  <p>Count: {state.count}</p>
+  <button data-flv-click="increment">+1</button>
+  <button data-flv-click="decrement">-1</button>
+  <button data-flv-click="reset">Reset</button>
+</div>""")
+}
+
+
+// -----------------------------------------------------------------------------
+// HTTP GET — initial render + client runtime
+// -----------------------------------------------------------------------------
+
+@get("/")
+fn counter_page() -> Response {
+  let initial = render(CounterState { count: 0 })
+  return html_response(live_layout("/live/counter", "counter-app", initial))
+}
+
+
+// -----------------------------------------------------------------------------
+// WebSocket — event/patch cycle
+// -----------------------------------------------------------------------------
+
+@ws("/live/counter")
+async fn counter_socket(ws: WsConn<LiveFrame>) {
+  let state = CounterState { count: 0 }
+  loop {
+    let frame = ws.recv()?
+    if (frame.event == "increment") {
+      state = CounterState { count: state.count + 1 }
+    }
+    if (frame.event == "decrement") {
+      state = CounterState { count: state.count - 1 }
+    }
+    if (frame.event == "reset") {
+      state = CounterState { count: 0 }
+    }
+    ws.send(LiveFrame { event: "", payload: {}, html: render(state).raw })?
+  }
+}
+
+
+// -----------------------------------------------------------------------------
+// Server config
+// -----------------------------------------------------------------------------
+
+@server(3000)
+fn main() => 0

@@ -1,0 +1,11 @@
+[package]
+name = "counter-example"
+version = "0.0.1"
+edition = "2026"
+description = "Fitz LiveViews — real-time counter (Phase 2 hello world)"
+
+[bin]
+main = "src/main.fitz"
+
+[dependencies]
+fitz_liveviews = { path = "../.." }
