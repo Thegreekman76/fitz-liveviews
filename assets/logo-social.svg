@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1280 640"
+     width="1280" height="640">
+  <title>Fitz LiveViews — Social Preview</title>
+  <desc>1280×640 image for GitHub Social Preview and link previews.
+        Logo (Rust gear + compressed Fitz Roy + signal waves) on the
+        left, project name and tagline on the right.</desc>
+
+  <defs>
+    <rect id="tooth"
+          x="116" y="8" width="24" height="32"
+          rx="3" ry="3"
+          fill="#CE412B"/>
+
+    <clipPath id="hueco-clip-social">
+      <circle cx="128" cy="128" r="68"/>
+    </clipPath>
+  </defs>
+
+  <!-- White background — legible in all themes (light + dark). -->
+  <rect width="1280" height="640" fill="#FFFFFF"/>
+
+  <!-- ===== Logo (256×256) positioned on the left, vertically centered ===== -->
+  <g transform="translate(80, 192)">
+    <use href="#tooth" transform="rotate(0 128 128)"/>
+    <use href="#tooth" transform="rotate(30 128 128)"/>
+    <use href="#tooth" transform="rotate(60 128 128)"/>
+    <use href="#tooth" transform="rotate(90 128 128)"/>
+    <use href="#tooth" transform="rotate(120 128 128)"/>
+    <use href="#tooth" transform="rotate(150 128 128)"/>
+    <use href="#tooth" transform="rotate(180 128 128)"/>
+    <use href="#tooth" transform="rotate(210 128 128)"/>
+    <use href="#tooth" transform="rotate(240 128 128)"/>
+    <use href="#tooth" transform="rotate(270 128 128)"/>
+    <use href="#tooth" transform="rotate(300 128 128)"/>
+    <use href="#tooth" transform="rotate(330 128 128)"/>
+    <circle cx="128" cy="128" r="100" fill="#CE412B"/>
+    <circle cx="128" cy="128" r="68" fill="#FFFFFF"/>
+    <g clip-path="url(#hueco-clip-social)">
+      <path d="M 112 130 A 16 16 0 0 1 144 130"
+            fill="none" stroke="#CE412B" stroke-width="4"
+            stroke-linecap="round"/>
+      <path d="M 96 130 A 32 32 0 0 1 160 130"
+            fill="none" stroke="#CE412B" stroke-width="4"
+            stroke-linecap="round"/>
+      <path d="M 80 130 A 48 48 0 0 1 176 130"
+            fill="none" stroke="#CE412B" stroke-width="4"
+            stroke-linecap="round"/>
+      <path d="M 50 200
+               L 92 160
+               L 110 176
+               L 128 130
+               L 148 171
+               L 168 147
+               L 206 200
+               Z"
+            fill="#CE412B"/>
+    </g>
+  </g>
+
+  <!-- ===== Text on the right of the logo ===== -->
+  <!-- Project title -->
+  <text x="400" y="290"
+        font-family="Segoe UI, Arial, Helvetica, sans-serif"
+        font-size="90"
+        font-weight="bold"
+        fill="#CE412B">Fitz LiveViews</text>
+
+  <!-- Tagline 1 -->
+  <text x="400" y="370"
+        font-family="Segoe UI, Arial, Helvetica, sans-serif"
+        font-size="38"
+        font-weight="normal"
+        fill="#333333">Real-time server-rendered UI for Fitz</text>
+
+  <!-- Tagline 2 (smaller, lighter gray) -->
+  <text x="400" y="425"
+        font-family="Segoe UI, Arial, Helvetica, sans-serif"
+        font-size="28"
+        font-weight="normal"
+        fill="#666666">WebSocket diffing · Zero JS build · Phoenix LiveView-inspired</text>
+</svg>

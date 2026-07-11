@@ -1,0 +1,12 @@
+{
+  "name": "fitz-liveviews-assets",
+  "private": true,
+  "type": "module",
+  "description": "Build tooling to render fitz-liveviews SVG logos to PNG.",
+  "scripts": {
+    "build:icon": "node build-icon.mjs"
+  },
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2"
+  }
+}

@@ -1,0 +1,12 @@
+// fitz-liveviews — Real-time server-rendered UI for Fitz
+//
+// Public API (planned — see ROADMAP.md):
+//   html(template)         Build a typed Html value from a template string
+//   @live("/path")         Mount a LiveView at an HTTP route
+//   @on("event")           Handle events sent from the client
+//   @on_mount              Lifecycle: called when a client connects
+//   @on_disconnect         Lifecycle: called when a client disconnects
+//
+// This file is currently a placeholder. Real exports land in Phase 1 of the MVP.
+
+fn version() -> Str => "0.0.1"

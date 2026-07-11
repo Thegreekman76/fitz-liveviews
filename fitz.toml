@@ -1,0 +1,9 @@
+[package]
+name = "fitz-liveviews"
+version = "0.0.1"
+description = "Real-time server-rendered UI for Fitz. WebSocket diffing, zero JS build, Phoenix LiveView-inspired."
+authors = ["Martín Palopoli"]
+license = "MIT"
+
+[lib]
+entry = "src/lib.fitz"
