@@ -30,14 +30,25 @@ even before any real code lands.
 
 The foundation: build HTML from Fitz.
 
-- [ ] `Html` opaque type (tree structure, not a string)
-- [ ] `html(template: Str) -> Html` core function
-- [ ] String interpolation `{expr}` inside templates (reuses Fitz's)
-- [ ] Template control flow: `{#for x in xs}...{/for}`, `{#if cond}...{/if}`
-- [ ] Component composition via `fn` params of type `Html`
-- [ ] Auto-escaping of user content (XSS-safe by default)
-- [ ] Unit tests for template rendering
-- [ ] Example: `examples/hello-html/` — render a static HTML page
+- [x] `Html` opaque type (`type Html { raw: Str }` — tree postponed to Phase 2)
+- [x] `html(raw: Str) -> Html` constructor
+- [x] `raw_html(s: Str) -> Html` alias for explicit "unsafe intent"
+- [x] `flv(s: Str) -> Str` — escape user data (branded name for
+      "fitz-liveviews escape")
+- [x] String interpolation `{expr}` inside templates (reuses Fitz's native)
+- [x] Component composition via `fn` params of type `Html`
+- [x] Composition helpers: `h_join`, `h_when`, `h_either`
+- [x] Convention-based XSS-safety (manual `flv()` for user data —
+      auto-escaping via lint rule in Phase 6)
+- [x] Unit tests via `@test` (15 tests in `src/lib.fitz`)
+- [x] Documentation: `docs/html.md` with API + XSS convention + example
+- [ ] Runnable example `examples/hello-html/` — deferred to Phase 2, when
+      `@live` and HTTP integration land
+
+**Deferred to Phase 3** (proven pattern first, template engine later):
+
+- Template control flow `{#for x in xs}...{/for}`, `{#if cond}...{/if}` —
+  the `h_*` helpers cover the same ground with slightly more boilerplate
 
 ## Phase 2 — LiveView core (MVP) 🚀
 

@@ -1,12 +1,178 @@
 // fitz-liveviews — Real-time server-rendered UI for Fitz
 //
-// Public API (planned — see ROADMAP.md):
-//   html(template)         Build a typed Html value from a template string
-//   @live("/path")         Mount a LiveView at an HTTP route
-//   @on("event")           Handle events sent from the client
-//   @on_mount              Lifecycle: called when a client connects
-//   @on_disconnect         Lifecycle: called when a client disconnects
+// Phase 1: Templates and stateless components.
 //
-// This file is currently a placeholder. Real exports land in Phase 1 of the MVP.
+// Public API:
+//   type Html { raw: Str }
+//
+//   fn html(raw)          Wrap raw HTML you produced (server-controlled).
+//   fn raw_html(s)        Explicit alias for html(), reads as "unsafe intent".
+//   fn flv(s)             Escape a user-supplied string for HTML.
+//                          Short for "fitz-liveviews escape".
+//
+//   fn h_join(items)      Concatenate a List<Html> into a Str.
+//   fn h_when(c, h)       Render `h` if `c` is true, else the empty string.
+//   fn h_either(c, a, b)  Ternary render.
+//
+// XSS-safety convention:
+//   Always wrap user-controlled data in flv() before interpolating into
+//   an html("""...""") template. Static / server-controlled values do
+//   not need it. See docs/html.md for the full convention.
+//
+//     html("<p>Hi {flv(user.name)}</p>")      // user data → wrap
+//     html("<p>Count: {state.count}</p>")     // Int, no risk
+//     html("<p>Version: {VERSION}</p>")       // constant, no risk
 
-fn version() -> Str => "0.0.1"
+
+// -----------------------------------------------------------------------------
+// Type
+// -----------------------------------------------------------------------------
+
+type Html {
+  raw: Str
+}
+
+
+// -----------------------------------------------------------------------------
+// Constructors
+// -----------------------------------------------------------------------------
+
+fn html(raw: Str) -> Html => Html { raw: raw }
+
+fn raw_html(s: Str) -> Html => Html { raw: s }
+
+
+// -----------------------------------------------------------------------------
+// Escaping
+// -----------------------------------------------------------------------------
+
+// Escapes the five HTML-critical characters (& < > " ').
+//
+// The ampersand replacement MUST come first — if we replaced `<` first,
+// its output `&lt;` would then get double-encoded to `&amp;lt;` when the
+// ampersand pass ran.
+fn flv(s: Str) -> Str {
+  return s
+    .replace("&", "&amp;")
+    .replace("<", "&lt;")
+    .replace(">", "&gt;")
+    .replace("\"", "&quot;")
+    .replace("'", "&#39;")
+}
+
+
+// -----------------------------------------------------------------------------
+// Composition helpers
+// -----------------------------------------------------------------------------
+//
+// These return Str so they can be interpolated directly into an html()
+// template call:
+//
+//     html("<ul>{h_join(rows)}</ul>")
+//     html("<div>{h_when(is_admin, admin_panel)}</div>")
+
+fn h_join(items: List<Html>) -> Str {
+  let result = ""
+  for item in items {
+    result = "{result}{item.raw}"
+  }
+  return result
+}
+
+fn h_when(cond: Bool, h: Html) -> Str {
+  return if (cond) { h.raw } else { "" }
+}
+
+fn h_either(cond: Bool, if_true: Html, if_false: Html) -> Str {
+  return if (cond) { if_true.raw } else { if_false.raw }
+}
+
+
+// -----------------------------------------------------------------------------
+// Tests
+// -----------------------------------------------------------------------------
+
+@test
+fn html_wraps_raw_string() {
+  let h = html("<p>hi</p>")
+  assert_eq(h.raw, "<p>hi</p>")
+}
+
+@test
+fn raw_html_is_alias_for_html() {
+  let a = html("<b>x</b>")
+  let b = raw_html("<b>x</b>")
+  assert_eq(a.raw, b.raw)
+}
+
+@test
+fn flv_escapes_ampersand() {
+  assert_eq(flv("&"), "&amp;")
+}
+
+@test
+fn flv_escapes_less_than() {
+  assert_eq(flv("<"), "&lt;")
+}
+
+@test
+fn flv_escapes_greater_than() {
+  assert_eq(flv(">"), "&gt;")
+}
+
+@test
+fn flv_escapes_double_quote() {
+  assert_eq(flv("\""), "&quot;")
+}
+
+@test
+fn flv_escapes_single_quote() {
+  assert_eq(flv("'"), "&#39;")
+}
+
+@test
+fn flv_escapes_ampersand_before_lt() {
+  // Order matters: if we escaped `<` first, "<" would become "&lt;" and
+  // then a second pass replacing "&" would double-encode it to "&amp;lt;".
+  assert_eq(flv("<a&b>"), "&lt;a&amp;b&gt;")
+}
+
+@test
+fn flv_leaves_safe_chars_alone() {
+  assert_eq(flv("hola mundo 123 ~!@#$%^*()"), "hola mundo 123 ~!@#$%^*()")
+}
+
+@test
+fn flv_neutralizes_a_script_tag() {
+  let attack = "<script>alert('xss')</script>"
+  let safe = flv(attack)
+  assert_eq(safe, "&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;")
+}
+
+@test
+fn h_join_concatenates_html_fragments() {
+  let items = [html("<li>a</li>"), html("<li>b</li>"), html("<li>c</li>")]
+  assert_eq(h_join(items), "<li>a</li><li>b</li><li>c</li>")
+}
+
+@test
+fn h_join_empty_list_is_empty_string() {
+  let items: List<Html> = []
+  assert_eq(h_join(items), "")
+}
+
+@test
+fn h_when_renders_if_true() {
+  assert_eq(h_when(true, html("<b>ok</b>")), "<b>ok</b>")
+}
+
+@test
+fn h_when_empty_if_false() {
+  assert_eq(h_when(false, html("<b>ok</b>")), "")
+}
+
+@test
+fn h_either_picks_by_condition() {
+  assert_eq(h_either(true, html("yes"), html("no")), "yes")
+  assert_eq(h_either(false, html("yes"), html("no")), "no")
+}
