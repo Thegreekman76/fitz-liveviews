@@ -108,6 +108,77 @@ Five things you don't get anywhere else in one package:
 
 ---
 
+## Why this works in Fitz
+
+Most "LiveView-style" projects in other ecosystems have to ship an entire
+runtime alongside the framework: a WebSocket layer, an async story, a
+session/state model, sometimes even a mini language for events. That is
+why they are heavy and hard to type end-to-end.
+
+Fitz LiveViews is intentionally thin because the language already brings
+the pieces that matter:
+
+- **`@ws("/path")` + `WsConn<T>`** — typed WebSockets are a first-class
+  citizen of the language, not a library. The diff channel just uses them.
+- **`async fn` + `.await` + `Future<T>`** — the server never blocks on an
+  event handler. No threadpool tuning, no callback hell.
+- **`@get`/`@post` + native ORM** — the same handler that renders the
+  initial HTML can also query the database, with no ceremony.
+- **Compiler-enforced types** — state, events, and templates are all
+  checked at build time. No `defineProps<T>()`, no runtime schema drift.
+- **`fitz run` ↔ `fitz build` parity** — hot reload in dev, single
+  standalone binary in prod. The runtime story is the same in both.
+
+The Elixir community solved this by pinning everything to OTP + Phoenix.
+JS/Ruby/Python solve it by inventing the WebSocket + serialization layer
+**outside** the language. Fitz is closer to the Elixir model: the library
+leans on primitives that the compiler already validates.
+
+---
+
+## What it is for
+
+Concrete use cases where LiveViews shines:
+
+- **Collaborative editing** — kanban boards, shared documents, live
+  cursors (see the [kanban example](examples/kanban.md)).
+- **Real-time dashboards** — metrics, order status, alerts that update
+  without a page reload.
+- **Live-validated forms** — server checks each field as you type,
+  errors appear in place with no `fetch` roundtrip written by hand.
+- **Multi-user apps** — chat, comments, live reactions
+  (see the [chat example](examples/chat.md)).
+- **Admin panels** — internal tools where you want fast iteration and
+  don't want to maintain a separate SPA + API.
+
+Not a fit: fully offline-first apps, heavy client-side animation, or
+apps that must work without a persistent WebSocket connection.
+
+---
+
+## The advantage: Vue+Vuetify ergonomics with a LiveView reactive model
+
+As the library grows into `@live_component` + templates + (eventually) a
+UI companion, writing components will feel a lot like Vue with Vuetify:
+props, slots, ready-made buttons/inputs/dialogs, no CSS by hand.
+
+But the **reactive model** stays LiveView, not Vue: state lives on the
+server, events travel over WebSocket, the server pushes diffs to the
+client. Vue does it the other way around — reactivity in the browser
+with a virtual DOM.
+
+That combo is the sweet spot that neither side covers alone:
+
+- Elixir LiveView is powerful but the HTML/CSS story is bare.
+- Vue+Vuetify is beautiful but forces you to maintain an API + client
+  state + sync layer.
+
+Fitz LiveViews bets on having both at once — the ergonomics of Vue+Vuetify
+with the simplicity of a server-authoritative model, on top of a compiled
+binary and a typed core.
+
+---
+
 ## Comparison
 
 |                              | Vue + FastAPI          | Phoenix LiveView  | HTMX + Go        | **fitz-liveviews**  |
