@@ -102,22 +102,28 @@ Five things you don't get anywhere else in one package:
 | Auto OpenAPI + AsyncAPI      | ❌                     | ❌                | ❌               | ✅ (from Fitz)      |
 | Deploy                       | Node + Python + Nginx  | BEAM release      | Single binary    | Single binary       |
 
-## Quick start (aspirational — lands with Phase 2)
+## Quick start
+
+**Prerequisites:** the `fitz` binary. The [Fitz install guide](https://thegreekman76.github.io/fitz/curso/m1-setup/c1-instalacion/)
+covers Windows, macOS, and Linux — plus VSCode extension setup and
+troubleshooting.
 
 ```bash
-# Install Fitz
-curl -fsSL https://get.fitz.dev | sh
+# Clone the repo
+git clone https://github.com/Thegreekman76/fitz-liveviews
+cd fitz-liveviews
 
-# Create a project with LiveViews
-fitz new my-live-app --with liveviews
-cd my-live-app
-
-# Dev mode with hot reload
-fitz dev
+# Run the counter (real-time, single user)
+cd examples/counter
+fitz run
 ```
 
-Then open `http://localhost:3000` and edit `src/app.fitz` — the browser
-updates on save without losing state.
+Open `http://127.0.0.1:3000/` to see the counter. Click `+1` and watch
+the number update instantly — no page reload, no `fetch` call, no
+JavaScript build step.
+
+For the multi-user chat demo, `cd examples/chat && fitz run` and open
+`http://127.0.0.1:3000/` in **two** browser windows.
 
 ## Documentation
 
@@ -137,7 +143,12 @@ syntax highlighting inside `html("""...""")` templates and 11 snippets
 for the common Phase 2 + 3 patterns (`liveview`, `render`, `get`, `ws`,
 `broadcast`, `flv`, `hwhen`, `heither`, `hjoin`, `btnclick`, `flvform`).
 
-Install from the local `.vsix` (until Marketplace publish):
+**Prerequisites:** the base **Fitz Language** extension has to be
+installed first. It ships as a `.vsix` in [Fitz's own releases](https://github.com/Thegreekman76/fitz/releases)
+(not on the VSCode Marketplace yet). The [Fitz install guide](https://thegreekman76.github.io/fitz/curso/m1-setup/c1-instalacion/)
+walks through the setup.
+
+Once you have Fitz Language installed, install Fitz LiveViews:
 
 ```powershell
 cd editors/vscode
@@ -145,8 +156,9 @@ npx @vscode/vsce package --no-dependencies
 code --install-extension fitz-liveviews-*.vsix
 ```
 
-Requires the base [Fitz Language extension](https://marketplace.visualstudio.com/items?itemName=thegreekman76.fitz-language),
-which VSCode will offer to install automatically.
+Once VSCode publishes both extensions to the Marketplace we will
+switch to `code --install-extension thegreekman76.fitz-liveviews`
+and drop the manual packaging step.
 
 ## Contributing
 

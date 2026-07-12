@@ -124,29 +124,27 @@ Five things you don't get anywhere else in one package:
 
 ---
 
-## Quick start (aspirational — will land in Phase 5)
+## Quick start
+
+**Prerequisites:** the `fitz` binary. The [Fitz install guide](https://thegreekman76.github.io/fitz/curso/m1-setup/c1-instalacion/)
+covers Windows, macOS, Linux, plus VSCode extension setup and
+troubleshooting.
 
 ```bash
-# Install Fitz
-curl -fsSL https://get.fitz.dev | sh
-
-# Create a project with LiveViews
-fitz new my-live-app --with liveviews
-cd my-live-app
-
-# Dev mode with hot reload
-fitz dev
-```
-
-Meanwhile, the working way to start:
-
-```bash
+# Clone the repo
 git clone https://github.com/Thegreekman76/fitz-liveviews
-cd fitz-liveviews/examples/counter
+cd fitz-liveviews
+
+# Run the counter (real-time, single user)
+cd examples/counter
 fitz run
 ```
 
-Open `http://127.0.0.1:3000/`.
+Open `http://127.0.0.1:3000/`. Click `+1` and the number updates in
+real time — no page reload, no `fetch`, no JavaScript build step.
+
+For the multi-user chat, `cd examples/chat && fitz run` and open the
+URL in **two** browser windows to see broadcast in action.
 
 ---
 
