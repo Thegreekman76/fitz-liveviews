@@ -176,6 +176,13 @@ Per-instance state without hoisting everything to the parent.
 - [x] `.github/workflows/release.yml` — packages the VSCode `.vsix`
       on every `v*.*.*` tag and attaches it to the GitHub Release
 - [x] CI status badge in the README
+- [x] **Deploy guide** (`docs/deploy.md`) — production patterns for apps built
+      with fitz-liveviews: standalone binary from `fitz build`, Dockerfile
+      multi-stage → distroless (~30 MB image) via `fitz docker init`, reverse
+      proxy configs (nginx / Traefik / Caddy) with WebSocket upgrade + TLS
+      termination, systemd unit example, sticky sessions for horizontal scale,
+      health/readiness endpoints via auto-mounted `/healthz`. Verified against
+      the counter example.
 - [ ] CSS scoping (BEM convention or scoped `<style>` tag support)
 - [ ] Client-side directive escape hatches (dropdowns, tooltips)
 - [ ] Blog post ES + EN — launch narrative
