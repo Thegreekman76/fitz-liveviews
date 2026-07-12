@@ -223,9 +223,11 @@ URL in **two** browser windows to see broadcast in action.
 
 - **[HTML primitives](html.md)** — how `Html`, `flv()`, `h_join`, and friends work
 - **[LiveViews](live.md)** — the pattern, the client runtime, the diff engine, and known limits
+- **[LiveComponents](components.md)** 🧩 — reusable server-rendered components with per-instance state
 - **[Counter example](examples/counter.md)** — the "hello world"
 - **[Chat example](examples/chat.md)** — multi-user real-time with broadcast + patches
-- **[Kanban example](examples/kanban.md)** ⭐ — flagship showcase: shared state, `data-flv-value-*` payloads, and a compact 3-column responsive board
+- **[Kanban example](examples/kanban.md)** ⭐ — flagship showcase: shared state, `data-flv-value-*` payloads, and a compact 3-column responsive board with a per-card `@live_component("card_editor")`
+- **[Dashboard example](examples/dashboard.md)** 🧩 — grid of six independent `metric_tile` instances driven by a zero-branch parent WS handler
 
 ---
 

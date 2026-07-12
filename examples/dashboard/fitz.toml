@@ -1,0 +1,11 @@
+[package]
+name = "dashboard-example"
+version = "0.0.1"
+edition = "2026"
+description = "Fitz LiveViews — reusable metric tiles via @live_component (Phase 4 showcase)"
+
+[bin]
+main = "src/main.fitz"
+
+[dependencies]
+fitz_liveviews = { path = "../.." }

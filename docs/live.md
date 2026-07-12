@@ -373,67 +373,57 @@ Explicitly NOT supported (documented so you know what to avoid):
   version-numbering is in Phase 3b. Real production apps would want
   a version protocol; queue it up for a future phase.
 
-## LiveComponents (Phase 4, framework layer landed)
+## LiveComponents (Phase 4)
 
 Reusable server-rendered components with independent per-instance
-state. The framework layer landed 2026-07-12 in `src/lib.fitz`. A
-dedicated guide (`docs/components.md`) arrives in Session 3 together
-with a refactored kanban + a new dashboard example.
+state — one component definition, many instances, each keeping its
+own slice of UI state in the framework's store.
 
-The API in a nutshell:
+Session 3 shipped the full user-facing surface: the framework
+builtins (`flv_register` / `component` / `dispatch_component_events`),
+Fitz core validation of the three decorators (`@live_component`,
+`@render_for`, `@on`), a refactored kanban with a per-card
+`card_editor`, a new `examples/dashboard/` with six independent
+tile instances, and a dedicated guide.
+
+**Full walkthrough**: [`docs/components.md`](components.md).
+
+A five-second preview:
 
 ```fitz
-@live_component("card_editor")
-type CardEditor { text: Str = "", is_editing: Bool = false }
+@live_component("row_toggle")
+type RowToggle { is_open: Bool = false }
 
-@render_for("card_editor")
-fn card_editor_render(state: CardEditor) -> Html {
-  return html("""<div>
-    <p>{flv(state.text)}</p>
-    <button data-flv-click="save">Save</button>
-  </div>""")
+@render_for("row_toggle")
+fn row_toggle_render(state: RowToggle) {
+  if (state.is_open) { return html("<button data-flv-click=\"close\">▼</button>") }
+  return html("<button data-flv-click=\"open\">▶</button>")
 }
 
-@on("card_editor", "save")
-fn card_editor_save(state: CardEditor, payload: Map<Str, Str>) -> CardEditor {
-  return CardEditor { text: payload["text"], is_editing: false }
+@on("row_toggle", "open")
+fn row_toggle_open(s: RowToggle, p: Map<Str, Str>) -> RowToggle {
+  return RowToggle { is_open: true }
 }
 
-// Register at boot:
-flv_register(
-  "card_editor",
-  CardEditor {},
-  card_editor_render,
-  { "save": card_editor_save }
-)
+// Boot:
+flv_register("row_toggle", RowToggle {}, row_toggle_render, { "open": row_toggle_open })
 
-// Embed in the parent template:
-// html("""<div>{component("card_editor", "card-42").raw}</div>""")
+// Parent template:
+// {component("row_toggle", "row-42").raw}
 
-// Route events at the top of the @ws loop:
-// if (dispatch_component_events(frame)) {
-//   // handled by component
-// } else {
-//   // parent-level event
-// }
+// @ws loop:
+// if (dispatch_component_events(frame)) { /* handled */ } else { /* parent */ }
 ```
-
-The Fitz-core decorators (`@live_component`, `@render_for`, `@on`) are
-validated by the checker today; the runtime wiring still calls
-`flv_register(...)` explicitly. A future codegen pass can turn the
-decorators into an implicit registration without changing the public
-API. See the roadmap for the phase plan.
 
 ## What is coming next
 
-- **Phase 4 (Session 3)** — Refactor `examples/kanban/` to use
-  `@live_component("card_editor")` for card edit mode; add a new
-  `examples/dashboard/` — grid of live tiles; dedicated
-  `docs/components.md`.
 - **Phase 4 (Session 4)** — Release coordination for Fitz core +
   framework layer + VSCode extension v0.3.0 (already shipped
-  with `livecomp` / `renderfor` / `onevent` snippets).
-- **Beyond Phase 4** — presence primitives (per-user state across
-  connections), `@every(N secs)` for periodic server-driven pushes,
-  fine-grained events (`data-flv-input`, `data-flv-change`,
-  `data-flv-keydown`, debouncing).
+  with `livecomp` / `renderfor` / `onevent` / `flvcomp` /
+  `dispatchcomp` snippets).
+- **Beyond Phase 4** — implicit registration from decorators (no
+  explicit `flv_register`), per-instance init payload, presence
+  primitives (per-user state across connections), `@every(N secs)`
+  for periodic server-driven pushes, fine-grained events
+  (`data-flv-input`, `data-flv-change`, `data-flv-keydown`,
+  debouncing).

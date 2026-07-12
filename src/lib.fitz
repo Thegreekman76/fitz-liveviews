@@ -1514,6 +1514,14 @@ fn dispatch_component_events(frame: LiveFrame) -> Bool {
   if (not reg.event_handlers.has(frame.event)) { return false }
   let handler = reg.event_handlers[frame.event]
   let key = flv_state_key(name, id)
+  // Seed state on first hit — protects against races where a click
+  // event arrives before the parent's initial render has stored the
+  // instance (or against a stray frame for an instance that was never
+  // rendered). Without this the raw `COMPONENT_STATE_STORE[key]`
+  // lookup would crash with "clave no encontrada".
+  if (not COMPONENT_STATE_STORE.has(key)) {
+    COMPONENT_STATE_STORE[key] = reg.initial_state
+  }
   let state = COMPONENT_STATE_STORE[key]
   let new_state = handler(state, frame.payload)
   COMPONENT_STATE_STORE[key] = new_state
@@ -1634,6 +1642,29 @@ fn p4_dispatch_returns_false_when_component_unknown_or_event_missing() {
     }
   }
   assert_eq(dispatch_component_events(f2), false)
+}
+
+@test
+fn p4_dispatch_seeds_state_on_first_hit_for_never_rendered_instance() {
+  // Regression: a component event arriving BEFORE the parent has
+  // rendered the instance (or for an id the parent never rendered)
+  // must not crash. Dispatch seeds the state from initial_state and
+  // applies the handler on top.
+  flv_register("p4_seed_on_dispatch", __P4Counter { count: 0 }, __p4_counter_render,
+               { "increment": __p4_counter_increment })
+  // Note: no `component("p4_seed_on_dispatch", "cold")` call before this.
+  let frame = LiveFrame {
+    event: "increment",
+    payload: {
+      "component_name": "p4_seed_on_dispatch",
+      "instance_id": "cold"
+    }
+  }
+  let handled = dispatch_component_events(frame)
+  assert(handled)
+  let r = component("p4_seed_on_dispatch", "cold")
+  // Initial was 0; one increment on the seeded state → 1.
+  assert(r.raw.contains("Count: 1"))
 }
 
 @test

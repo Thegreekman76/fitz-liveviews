@@ -1,0 +1,260 @@
+// Fitz LiveViews — dashboard of metric tiles (Phase 4 showcase).
+//
+// Run:   fitz run
+// Open http://127.0.0.1:3000/ in two browser windows. Each tile is
+// an independent instance of the same `@live_component("metric_tile")`
+// — pressing "+1" or "reset" on one tile updates ONLY that tile's
+// state, and every open window sees the patch via broadcast.
+//
+// Showcases:
+//   - **Component reuse**: one `metric_tile` component definition,
+//     six instances with per-instance state, all keyed by
+//     `component("metric_tile", "<instance_id>")`.
+//   - **Composition**: the parent supplies the per-tile label and
+//     color via a wrapping card; the component supplies the counter
+//     and buttons. Concerns split cleanly.
+//   - **Broadcast + diff**: patches are computed against the entire
+//     dashboard so one tile update sends a compact set of text
+//     patches, not a full HTML replace.
+//   - **Responsive**: 3-col grid on desktop → 2-col on tablet →
+//     stacked on mobile, using CSS Grid `auto-fill` with `minmax`.
+
+from fitz_liveviews import Html, html, flv, live_layout, html_response, LiveFrame, h_join, diff_html, component, dispatch_component_events, flv_register
+
+
+// -----------------------------------------------------------------------------
+// Metric tile — @live_component
+// -----------------------------------------------------------------------------
+
+@live_component("metric_tile")
+type MetricTile {
+  count: Int = 0
+}
+
+// See kanban's card_editor_render for why the return type is
+// omitted: Fitz core's `@render_for` checker accepts `Str`/`Any`
+// but not the fitz-liveviews `Html` nominal. The framework calls
+// `.raw` at runtime; the returned `Html` value works fine.
+@render_for("metric_tile")
+fn metric_tile_render(state: MetricTile) {
+  return html("""<div class="tile-body">
+    <div class="tile-count">{state.count}</div>
+    <div class="tile-buttons">
+      <button class="btn btn-inc" data-flv-click="bump">+1</button>
+      <button class="btn btn-reset" data-flv-click="reset">reset</button>
+    </div>
+  </div>""")
+}
+
+@on("metric_tile", "bump")
+fn metric_tile_bump(state: MetricTile, payload: Map<Str, Str>) -> MetricTile {
+  return MetricTile { count: state.count + 1 }
+}
+
+@on("metric_tile", "reset")
+fn metric_tile_reset(state: MetricTile, payload: Map<Str, Str>) -> MetricTile {
+  return MetricTile { count: 0 }
+}
+
+
+// -----------------------------------------------------------------------------
+// Tile configuration (per-tile styling supplied by the parent)
+// -----------------------------------------------------------------------------
+//
+// The component owns per-instance STATE (count). The parent owns
+// per-tile CONFIG (label + accent color). They compose cleanly: the
+// tile is wrapped in a styled card that carries the label and accent
+// class; the component fills in the counter body.
+
+type TileConfig {
+  id: Str          // becomes the component instance_id
+  label: Str
+  accent: Str      // css class suffix: "blue" | "green" | "purple" | "orange" | "red" | "teal"
+}
+
+let TILES: List<TileConfig> = [
+  TileConfig { id: "signups", label: "Users Signed Up", accent: "blue" },
+  TileConfig { id: "revenue", label: "Revenue Events", accent: "green" },
+  TileConfig { id: "errors",  label: "Errors Logged",  accent: "red" },
+  TileConfig { id: "deploys", label: "Deploys Today",  accent: "purple" },
+  TileConfig { id: "orders",  label: "Orders Placed",  accent: "orange" },
+  TileConfig { id: "sla",     label: "SLA Uptime %",   accent: "teal" }
+]
+
+
+// -----------------------------------------------------------------------------
+// Render
+// -----------------------------------------------------------------------------
+
+fn render_tile(tile: TileConfig) -> Html {
+  let inner = component("metric_tile", tile.id)
+  return html("""<article class="tile tile-{tile.accent}">
+    <header class="tile-header">
+      <h3 class="tile-label">{flv(tile.label)}</h3>
+    </header>
+    {inner.raw}
+  </article>""")
+}
+
+// CSS: literal `{`/`}` used by CSS syntax are escaped as `\{`/`\}` so
+// Fitz doesn't parse them as interpolation delimiters.
+let DASHBOARD_CSS: Str = """  * \{ box-sizing: border-box; \}
+  #dashboard-app \{
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: #222;
+  \}
+  #dashboard-app h1 \{
+    margin: 0 0 0.25rem 0;
+    font-size: 1.5rem;
+    color: #CE412B;
+  \}
+  #dashboard-app .sub \{
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+  \}
+  .tile-grid \{
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+  \}
+  .tile \{
+    background: white;
+    border-radius: 10px;
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border-top: 4px solid #ccc;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  \}
+  .tile-blue \{ border-top-color: #3b82f6; \}
+  .tile-green \{ border-top-color: #10b981; \}
+  .tile-red \{ border-top-color: #ef4444; \}
+  .tile-purple \{ border-top-color: #8b5cf6; \}
+  .tile-orange \{ border-top-color: #f97316; \}
+  .tile-teal \{ border-top-color: #14b8a6; \}
+  .tile-header \{ margin: 0; \}
+  .tile-label \{
+    margin: 0;
+    font-size: 0.8rem;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  \}
+  .tile-body \{
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  \}
+  .tile-count \{
+    font-size: 2.5rem;
+    font-weight: 700;
+    line-height: 1;
+    color: #222;
+  \}
+  .tile-buttons \{
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  \}
+  .btn \{
+    border: none;
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    background: #e0e0e0;
+    color: #333;
+  \}
+  .btn:hover \{ background: #d0d0d0; \}
+  .btn-inc \{ background: #dbeafe; color: #1e40af; \}
+  .btn-inc:hover \{ background: #bfdbfe; \}
+  .btn-reset \{ background: #f3f4f6; color: #555; \}
+  .btn-reset:hover \{ background: #e5e7eb; \}
+  @media (max-width: 480px) \{
+    .tile-grid \{ grid-template-columns: 1fr; \}
+    #dashboard-app \{ padding: 0.5rem; \}
+    .tile-count \{ font-size: 2rem; \}
+  \}"""
+
+let last_dashboard_html: Str = ""
+
+fn render_dashboard() -> Html {
+  let tile_items = TILES.map(fn(t) => render_tile(t))
+  let css = DASHBOARD_CSS
+  return html("""<div id="dashboard-app">
+<style>
+{css}
+</style>
+  <h1>Fitz LiveViews Dashboard</h1>
+  <p class="sub">Each tile is an independent instance of the same <code>@live_component("metric_tile")</code>. Click <em>+1</em> or <em>reset</em> — only that tile's state changes, and every open window sees the patch.</p>
+  <div class="tile-grid">
+    {h_join(tile_items)}
+  </div>
+</div>""")
+}
+
+
+// -----------------------------------------------------------------------------
+// Boot — register the metric_tile component once
+// -----------------------------------------------------------------------------
+
+flv_register(
+  "metric_tile",
+  MetricTile { count: 0 },
+  metric_tile_render,
+  {
+    "bump": metric_tile_bump,
+    "reset": metric_tile_reset
+  }
+)
+
+
+// -----------------------------------------------------------------------------
+// HTTP GET
+// -----------------------------------------------------------------------------
+
+@get("/")
+fn dashboard_page() -> Response {
+  return html_response(live_layout("/live/dashboard", "dashboard-app", render_dashboard()))
+}
+
+
+// -----------------------------------------------------------------------------
+// WebSocket handler
+// -----------------------------------------------------------------------------
+//
+// The parent handler has ZERO event branches — every event is a
+// component event (`bump` / `reset` scoped to one tile). If a frame
+// arrives without component context, we just ignore it and re-broadcast
+// the current state.
+
+@ws("/live/dashboard")
+async fn dashboard_socket(ws: WsConn<LiveFrame>) {
+  loop {
+    let frame = ws.recv()?
+    if (last_dashboard_html == "") {
+      last_dashboard_html = render_dashboard().raw
+    }
+    // Route to component; ignore uncontracted frames.
+    let _handled = dispatch_component_events(frame)
+    let new_html = render_dashboard().raw
+    let patches = diff_html(last_dashboard_html, new_html)
+    ws.broadcast(LiveFrame { html: new_html, patches: patches })?
+    last_dashboard_html = new_html
+  }
+}
+
+
+// -----------------------------------------------------------------------------
+// Server
+// -----------------------------------------------------------------------------
+
+@server(3000)
+fn main() => 0

@@ -14,7 +14,7 @@
 
 ---
 
-## Status: ✅ Phase 3b + 🧩 Phase 4 framework layer
+## Status: ✅ Phase 3b + 🧩 Phase 4 (Session 3)
 
 Everything you need to ship a real-time UI works end-to-end today:
 
@@ -23,11 +23,11 @@ Everything you need to ship a real-time UI works end-to-end today:
 - **Phase 3a** — Forms via `data-flv-submit`, shared state, `ws.broadcast(...)`; multi-user chat example
 - **Phase 3b** — HTML parser + tree diff + client walker → compact patches over WS, DOM state preserved
 - **Phase 3b showcase** ⭐ — collaborative kanban board with `data-flv-value-*` payloads, responsive by default
-- **Phase 4 framework layer** 🧩 — `@live_component` / `@render_for` / `@on` decorators (Fitz core), `flv_register` / `component` / `dispatch_component_events` (framework), `fitz new --template liveviews` scaffold; kanban refactor + dashboard example land in Session 3
+- **Phase 4 (Sessions 1–3)** 🧩 — `@live_component` / `@render_for` / `@on` decorators (Fitz core), `flv_register` / `component` / `dispatch_component_events` (framework layer), `fitz new --template liveviews` scaffold, kanban refactored to use `@live_component("card_editor")` for per-card inline editing, new `examples/dashboard/` with six independent `metric_tile` instances, dedicated [`docs/components.md`](docs/components.md) walkthrough
 - **Phase 5** — [Docs site](https://thegreekman76.github.io/fitz-liveviews/) (MkDocs Material) + CI/CD workflows
 - **Phase 6** — VSCode extension v0.3.0 bundled at [`editors/vscode/`](editors/vscode/) — HTML highlighting inside `html("""...""")` + 16 snippets
 
-See [ROADMAP.md](ROADMAP.md) for what is coming in Phase 3c, the rest of Phase 4, and beyond.
+See [ROADMAP.md](ROADMAP.md) for what is coming in Phase 3c, the rest of Phase 4 (release coordination + implicit registration + per-instance init), and beyond.
 
 ---
 
@@ -200,9 +200,11 @@ Or read the source:
 
 - [`docs/html.md`](docs/html.md) — HTML primitives (`Html`, `flv`, `h_join`, `h_when`, `h_either`)
 - [`docs/live.md`](docs/live.md) — LiveView core (`live_layout`, `LiveFrame`, diff engine, `data-flv-value-*`)
+- [`docs/components.md`](docs/components.md) 🧩 — LiveComponents walkthrough (`@live_component`, `@render_for`, `@on`, `flv_register`, `component`, `dispatch_component_events`)
 - [`examples/counter/`](examples/counter/) — real-time counter (Phase 2)
 - [`examples/chat/`](examples/chat/) — multi-user chat with broadcast + patches (Phase 3a + 3b)
-- [`examples/kanban/`](examples/kanban/) ⭐ — collaborative kanban board (Phase 3b showcase)
+- [`examples/kanban/`](examples/kanban/) ⭐ — collaborative kanban board with `@live_component("card_editor")` (Phase 4 showcase)
+- [`examples/dashboard/`](examples/dashboard/) 🧩 — grid of independent `metric_tile` instances (Phase 4 showcase)
 
 ## VSCode extension
 

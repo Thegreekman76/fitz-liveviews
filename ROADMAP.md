@@ -149,7 +149,7 @@ Compact patches over the wire, DOM state preserved on the client.
 - [ ] Version-numbered patches to detect out-of-sync clients (currently
       silent fallback to `html`)
 
-## Phase 4 — Stateful components (LiveComponents) 🧩 (framework layer landed 2026-07-12)
+## Phase 4 — Stateful components (LiveComponents) 🧩 (Session 3 landed 2026-07-12)
 
 Per-instance state without hoisting everything to the parent.
 
@@ -163,17 +163,32 @@ Per-instance state without hoisting everything to the parent.
 - [x] `component(name, id) -> Html` — embed an instance in a parent
       template; injects `data-flv-component-name` + `data-flv-value-instance_id`
 - [x] `dispatch_component_events(frame) -> Bool` — route a `LiveFrame`
-      to the matching component + event handler
+      to the matching component + event handler; auto-seeds state
+      from `initial_state` on the first hit so an event arriving
+      before the parent's render does not crash
 - [x] Per-instance state store keyed by `(component_name, instance_id)`
 - [x] Client runtime walks up to the enclosing component wrapper so
       `<button data-flv-click="save">` inside a component gets
       `component_name` + `instance_id` in its payload automatically
-- [ ] Refactor `examples/kanban/` to use `@live_component("card_editor")`
-      for card edit mode (Session 3)
-- [ ] New `examples/dashboard/` — grid of live component tiles (Session 3)
+- [x] `examples/kanban/` refactored to use `@live_component("card_editor")`
+      for per-card inline title editing (Session 3, 2026-07-12)
+- [x] `examples/dashboard/` — grid of live `metric_tile` components,
+      six independent instances, zero parent event branches (Session 3,
+      2026-07-12)
+- [x] Full component walkthrough in `docs/components.md` covering the
+      three decorators, the three framework builtins, the canonical
+      `@ws` loop, state isolation, component ↔ parent cooperation,
+      and gradual-typing gotchas (Session 3)
+- [x] VSCode extension v0.3.0 with `livecomp` / `renderfor` / `onevent`
+      / `flvcomp` / `dispatchcomp` snippets (Session 2 shipped)
 - [ ] Codegen pass: turn `@live_component` + `@render_for` + `@on`
       into an implicit registration and remove the explicit
       `flv_register(...)` call (future — public API stays the same)
+- [ ] Per-instance init payload — today every instance starts with the
+      same `initial_state`; a `component(name, id, init_payload)` shape
+      would let each instance start with per-instance seed data
+- [ ] `dispatch_to_all(name, event, payload)` for bulk actions across
+      every live instance of a component
 
 ## Phase 5 — Docs site + CI/CD 🌟
 
