@@ -138,33 +138,53 @@ Per-instance state without hoisting everything to the parent.
 - [ ] Parent ↔ child communication patterns
 - [ ] Example: **nested accordions / dashboard tiles**
 
-## Phase 5 — Polish and ecosystem 🌟
+## Phase 5 — Docs site + CI/CD 🌟
 
-Everything needed for a real launch.
-
+- [x] MkDocs Material config (`mkdocs.yml`) with Fitz orange palette
+- [x] Home page (`docs/index.md`) — hero + pitch + comparison table +
+      quick start
+- [x] `docs/html.md` and `docs/live.md` — the two API guides
+- [x] `docs/examples/counter.md` and `docs/examples/chat.md` with the
+      source embedded via `pymdownx.snippets`
+- [x] `.github/workflows/ci.yml` — runs `fitz test` on every push/PR
+      and verifies both examples compile (cached Fitz binary keeps
+      the loop fast)
+- [x] `.github/workflows/docs.yml` — builds MkDocs and deploys to
+      GitHub Pages on every push touching `docs/`, `mkdocs.yml`,
+      `README.md`, or example sources
+- [x] `.github/workflows/release.yml` — packages the VSCode `.vsix`
+      on every `v*.*.*` tag and attaches it to the GitHub Release
+- [x] CI status badge in the README
 - [ ] CSS scoping (BEM convention or scoped `<style>` tag support)
-- [ ] Client-side directive escape hatches (dropdowns, tooltips, focus)
-- [ ] **Docs site** — MkDocs Material, GitHub Pages, custom domain if applicable
-- [ ] **Blog post ES + EN** — launch narrative
-- [ ] **Public release + Show HN**
-- [ ] Companion repo: `fitz-liveviews-ui` — component library
-  (buttons, forms, modals, tables) built on top
+- [ ] Client-side directive escape hatches (dropdowns, tooltips)
+- [ ] Blog post ES + EN — launch narrative
+- [ ] Public release + Show HN
 
 ## Phase 6 — VSCode extension 🎯
 
-First-class editor experience.
-
-- [ ] Repo: `fitz-liveviews-vscode` (depends on base `fitz-language`)
-- [ ] HTML injection grammar inside `html("""...""")`
-- [ ] Autocomplete: HTML tags, attributes, `@directives`
-- [ ] Emmet expansion inside templates
-- [ ] Autocomplete: `@on(...)` handler names
-- [ ] Autocomplete: state fields inside `{...}` interpolation
-- [ ] Go-to-def: component function references
-- [ ] Hover: component signatures
-- [ ] Diagnostics: unclosed tags, unknown handlers, invalid directives
-- [ ] Snippets: `liveview`, `on`, `component`
-- [ ] Publish to VSCode Marketplace
+- [x] Bundled at `editors/vscode/` inside this repo (Fitz core did the
+      same — one repo, easier ecosystem release)
+- [x] `package.json` with `extensionDependencies` on
+      `thegreekman76.fitz-language`, snippets + injection grammar
+      contributions
+- [x] HTML injection grammar inside `string.quoted.triple.fitz` scope
+      — tag names, attributes, entities, comments all get proper
+      HTML scopes; Fitz's `{expr}` interpolation stays intact
+- [x] Fitz LiveViews directives (`data-flv-click`, `data-flv-submit`,
+      `data-flv-input`, `data-flv-change`, `data-flv-keydown`,
+      `data-flv-clear`, `data-flv-ws`, `data-flv-root`) get a
+      distinct highlight
+- [x] Snippets: `liveview`, `render`, `get`, `ws`, `broadcast`,
+      `flv`, `hwhen`, `heither`, `hjoin`, `btnclick`, `flvform`
+- [x] `.vsix` packages cleanly with `@vscode/vsce package` (verified
+      locally at 15.76 KB)
+- [ ] LSP-level autocomplete inside templates (state fields,
+      event handler names)
+- [ ] Emmet expansion inside `html("""...""")`
+- [ ] Hover on component function references
+- [ ] Diagnostics: unclosed tags, unknown handlers
+- [ ] Publish to VSCode Marketplace (manual step — requires publisher
+      account and PAT)
 
 ## Phase 7 — Beyond MVP (deferred, opportunistic) 🔮
 

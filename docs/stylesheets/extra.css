@@ -1,0 +1,15 @@
+/* Fitz LiveViews — custom palette matching Fitz core (Rust orange). */
+:root {
+  --md-primary-fg-color: #CE412B;
+  --md-primary-fg-color--light: #E0503B;
+  --md-primary-fg-color--dark: #A83321;
+  --md-accent-fg-color: #CE412B;
+  --md-accent-fg-color--transparent: rgba(206, 65, 43, 0.1);
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #CE412B;
+  --md-primary-fg-color--light: #E0503B;
+  --md-primary-fg-color--dark: #A83321;
+  --md-accent-fg-color: #E86A56;
+}

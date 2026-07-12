@@ -1,0 +1,74 @@
+site_name: Fitz LiveViews
+site_description: Real-time server-rendered UI for Fitz. WebSocket diffing, zero JS build, Phoenix LiveView-inspired.
+site_author: Martín Palopoli
+site_url: https://thegreekman76.github.io/fitz-liveviews/
+
+repo_url: https://github.com/Thegreekman76/fitz-liveviews
+repo_name: Thegreekman76/fitz-liveviews
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  logo: assets/logo.png
+  favicon: assets/logo.png
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - content.code.annotate
+    - toc.follow
+    - search.suggest
+    - search.highlight
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - Home: index.md
+  - Guide:
+      - HTML primitives: html.md
+      - LiveViews: live.md
+  - Examples:
+      - Counter (Phase 2): examples/counter.md
+      - Chat (Phase 3a + 3b): examples/chat.md
+  - Roadmap: https://github.com/Thegreekman76/fitz-liveviews/blob/main/ROADMAP.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.snippets:
+      base_path:
+        - .
+        - examples
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.details
+
+plugins:
+  - search

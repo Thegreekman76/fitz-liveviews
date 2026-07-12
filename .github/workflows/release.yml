@@ -1,0 +1,38 @@
+# Publishes the VSCode extension .vsix on every tag push (v*.*.*).
+#
+# The .vsix is attached to a fresh GitHub Release. Publishing to the
+# VSCode Marketplace is a manual step:
+#   npx @vscode/vsce publish --pat $VSCE_TOKEN  --packagePath fitz-liveviews-<version>.vsix
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  vsix:
+    name: Package VSCode extension
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Package .vsix
+        working-directory: editors/vscode
+        run: npx --yes @vscode/vsce@latest package --no-dependencies
+
+      - name: Attach .vsix to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: editors/vscode/*.vsix
+          fail_on_unmatched_files: true
+          generate_release_notes: true

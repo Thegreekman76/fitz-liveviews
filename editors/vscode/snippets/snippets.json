@@ -1,0 +1,151 @@
+{
+  "LiveView scaffold": {
+    "prefix": "liveview",
+    "body": [
+      "type ${1:AppState} {",
+      "  ${2:field}: ${3:Int} = ${4:0}",
+      "}",
+      "",
+      "fn render(state: $1) -> Html {",
+      "  return html(\"\"\"<div id=\"${5:app}\">",
+      "    $0",
+      "  </div>\"\"\")",
+      "}",
+      "",
+      "@get(\"/${6:path}\")",
+      "fn ${7:page}() -> Response {",
+      "  return html_response(",
+      "    live_layout(\"/live/$6\", \"$5\", render($1 { $2: $4 }))",
+      "  )",
+      "}",
+      "",
+      "@ws(\"/live/$6\")",
+      "async fn ${8:socket}(ws: WsConn<LiveFrame>) {",
+      "  let state = $1 { $2: $4 }",
+      "  let last_html = render(state).raw",
+      "  loop {",
+      "    let frame = ws.recv()?",
+      "    // handle events here...",
+      "    let new_html = render(state).raw",
+      "    let patches = diff_html(last_html, new_html)",
+      "    ws.send(LiveFrame { html: new_html, patches: patches })?",
+      "    last_html = new_html",
+      "  }",
+      "}",
+      "",
+      "@server(3000)",
+      "fn main() => 0"
+    ],
+    "description": "Full Fitz LiveView scaffold (Phase 2 pattern: type + render + @get + @ws + @server)"
+  },
+
+  "Render function": {
+    "prefix": "render",
+    "body": [
+      "fn render(state: ${1:AppState}) -> Html {",
+      "  return html(\"\"\"<div id=\"${2:app}\">",
+      "    $0",
+      "  </div>\"\"\")",
+      "}"
+    ],
+    "description": "A render function that turns state into Html"
+  },
+
+  "@get handler": {
+    "prefix": "get",
+    "body": [
+      "@get(\"${1:/path}\")",
+      "fn ${2:handler}() -> Response {",
+      "  return html_response(",
+      "    live_layout(\"/live/${3:path}\", \"${4:root-id}\", render(${5:initial_state}))",
+      "  )",
+      "}"
+    ],
+    "description": "HTTP GET handler that returns the initial LiveView HTML"
+  },
+
+  "@ws handler": {
+    "prefix": "ws",
+    "body": [
+      "@ws(\"/live/${1:path}\")",
+      "async fn ${2:socket}(ws: WsConn<LiveFrame>) {",
+      "  let state = ${3:InitialState}",
+      "  let last_html = render(state).raw",
+      "  loop {",
+      "    let frame = ws.recv()?",
+      "    $0",
+      "    let new_html = render(state).raw",
+      "    let patches = diff_html(last_html, new_html)",
+      "    ws.send(LiveFrame { html: new_html, patches: patches })?",
+      "    last_html = new_html",
+      "  }",
+      "}"
+    ],
+    "description": "WebSocket handler with the event/patch cycle"
+  },
+
+  "Broadcast handler (chat-style)": {
+    "prefix": "broadcast",
+    "body": [
+      "@ws(\"/live/${1:path}\")",
+      "async fn ${2:socket}(ws: WsConn<LiveFrame>) {",
+      "  loop {",
+      "    let frame = ws.recv()?",
+      "    if (frame.event == \"${3:event_name}\") {",
+      "      // Lazy-init the snapshot on the first mutation.",
+      "      if (${4:last_shared_html} == \"\") {",
+      "        $4 = render(${5:shared_state}).raw",
+      "      }",
+      "      $0",
+      "      let new_html = render($5).raw",
+      "      let patches = diff_html($4, new_html)",
+      "      ws.broadcast(LiveFrame { html: new_html, patches: patches })?",
+      "      $4 = new_html",
+      "    }",
+      "  }",
+      "}"
+    ],
+    "description": "WebSocket handler with shared-state broadcast + lazy-init snapshot"
+  },
+
+  "flv escape interpolation": {
+    "prefix": "flv",
+    "body": ["{flv(${1:user_data})}"],
+    "description": "Escape user-controlled data for safe HTML interpolation"
+  },
+
+  "h_when conditional render": {
+    "prefix": "hwhen",
+    "body": ["{h_when(${1:cond}, html(\"${2:<span>content</span>}\"))}"],
+    "description": "Render `h` when `cond` is true, otherwise empty string"
+  },
+
+  "h_either ternary render": {
+    "prefix": "heither",
+    "body": ["{h_either(${1:cond}, html(\"${2:<b>yes</b>}\"), html(\"${3:<b>no</b>}\"))}"],
+    "description": "Ternary render — pick between two Html values"
+  },
+
+  "h_join list of Html": {
+    "prefix": "hjoin",
+    "body": ["{h_join(${1:items}.map(fn(${2:x}) => ${3:render_item}($2)))}"],
+    "description": "Concatenate a mapped list of Html fragments"
+  },
+
+  "Button with data-flv-click": {
+    "prefix": "btnclick",
+    "body": ["<button data-flv-click=\"${1:event_name}\">${2:Label}</button>"],
+    "description": "Button that dispatches a LiveView event on click"
+  },
+
+  "Form with data-flv-submit": {
+    "prefix": "flvform",
+    "body": [
+      "<form data-flv-submit=\"${1:event_name}\">",
+      "  <input name=\"${2:field}\" placeholder=\"${3:placeholder}\" ${4:data-flv-clear} />",
+      "  <button type=\"submit\">${5:Send}</button>",
+      "</form>"
+    ],
+    "description": "Form that dispatches an event with named field values"
+  }
+}

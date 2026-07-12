@@ -1,23 +1,26 @@
-<div align="center">
-  <img src="assets/logo.png" alt="Fitz LiveViews logo" width="200" />
+<div align="center" markdown>
+  ![Fitz LiveViews](assets/logo.png){ width="200" }
 
   # Fitz LiveViews
 
   **Real-time server-rendered UI for Fitz.**
 
-  WebSocket diffing · Zero JS build · Phoenix LiveView-inspired
-
-  [![CI](https://github.com/Thegreekman76/fitz-liveviews/actions/workflows/ci.yml/badge.svg)](https://github.com/Thegreekman76/fitz-liveviews/actions/workflows/ci.yml)
-  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-  [![Status: Phase 3b](https://img.shields.io/badge/Status-Phase%203b%20(diff%20engine)-blue.svg)](ROADMAP.md)
+  *WebSocket diffing · Zero JS build · Phoenix LiveView-inspired*
 </div>
 
 ---
 
-## Status: 🚧 Phase 0 — Repo bootstrap
+## Status: Phase 3b — server-side diff engine 🎉
 
-This project is under active design. **Nothing works yet.** Star the repo to
-follow along. See [ROADMAP.md](ROADMAP.md) for the phase-by-phase plan.
+Everything you need to build a real-time UI now works end-to-end:
+
+- **Phase 0** — Repo bootstrap
+- **Phase 1** — `Html` type and templating with XSS-safe `flv()` escape
+- **Phase 2** — LiveView core (`@get` + `@ws` + `live_layout`) with the counter example
+- **Phase 3a** — Forms via `data-flv-submit`, shared state, `ws.broadcast(...)` with the multi-user chat example
+- **Phase 3b** — HTML parser + tree diff engine + client walker → compact patches over the wire, DOM state preserved (input values, focus, cursor position)
+
+See the [Roadmap](https://github.com/Thegreekman76/fitz-liveviews/blob/main/ROADMAP.md) for what is coming in Phase 3c, 4, 5, and 6.
 
 ---
 
@@ -31,24 +34,44 @@ The "hello world" is a real-time counter:
 ```fitz
 type CounterState { count: Int = 0 }
 
-@live("/counter")
-fn counter(state: CounterState) -> Html {
-  return html("""
-    <div>
-      <p>Count: {state.count}</p>
-      <button @click="increment">+1</button>
-    </div>
-  """)
+fn render(state: CounterState) -> Html {
+  return html("""<div id="counter-app">
+    <p>Count: {state.count}</p>
+    <button data-flv-click="increment">+1</button>
+  </div>""")
 }
 
-@on("increment")
-fn increment(state: CounterState) -> CounterState {
-  return CounterState { count: state.count + 1 }
+@get("/")
+fn counter_page() -> Response {
+  return html_response(
+    live_layout("/live/counter", "counter-app", render(CounterState { count: 0 }))
+  )
 }
+
+@ws("/live/counter")
+async fn counter_socket(ws: WsConn<LiveFrame>) {
+  let state = CounterState { count: 0 }
+  let last_html = render(state).raw
+  loop {
+    let frame = ws.recv()?
+    if (frame.event == "increment") {
+      state = CounterState { count: state.count + 1 }
+    }
+    let new_html = render(state).raw
+    let patches = diff_html(last_html, new_html)
+    ws.send(LiveFrame { html: new_html, patches: patches })?
+    last_html = new_html
+  }
+}
+
+@server(3000)
+fn main() => 0
 ```
 
 Click the button, the count updates without a page reload. No React, no
 bundler, no `useState`, no `fetch` call. Just a Fitz function.
+
+---
 
 ## Why?
 
@@ -66,6 +89,8 @@ morphs the DOM on updates. No bundle. No duplicated state. No SPA.
 **But none of those third-way tools exist for a compiled, natively-typed
 language.** `fitz-liveviews` fills that gap.
 
+---
+
 ## What makes this different
 
 Five things you don't get anywhere else in one package:
@@ -81,6 +106,8 @@ Five things you don't get anywhere else in one package:
 5. **Native binary output** — `fitz build` gives you one file. No Node, no
    BEAM, no Python runtime. Deploy is `docker run`.
 
+---
+
 ## Comparison
 
 |                              | Vue + FastAPI          | Phoenix LiveView  | HTMX + Go        | **fitz-liveviews**  |
@@ -91,10 +118,13 @@ Five things you don't get anywhere else in one package:
 | Native binary                | ❌ (Python + Node)     | ❌ (BEAM VM)      | ✅               | ✅                  |
 | Typed state ↔ template       | Volar + TS setup       | Runtime           | ❌               | Compiler-enforced   |
 | WebSocket layer              | Manual (`socket.io`)   | Phoenix Channels  | ❌ (HTTP only)   | Native `WsConn<T>`  |
+| **Server-side diff engine**  | ❌                     | ✅                | ❌               | ✅                  |
 | Auto OpenAPI + AsyncAPI      | ❌                     | ❌                | ❌               | ✅ (from Fitz)      |
 | Deploy                       | Node + Python + Nginx  | BEAM release      | Single binary    | Single binary       |
 
-## Quick start (aspirational — lands with Phase 2)
+---
+
+## Quick start (aspirational — will land in Phase 5)
 
 ```bash
 # Install Fitz
@@ -108,27 +138,26 @@ cd my-live-app
 fitz dev
 ```
 
-Then open `http://localhost:3000` and edit `src/app.fitz` — the browser
-updates on save without losing state.
+Meanwhile, the working way to start:
 
-## Documentation
+```bash
+git clone https://github.com/Thegreekman76/fitz-liveviews
+cd fitz-liveviews/examples/counter
+fitz run
+```
 
-Coming with Phase 5 (see [ROADMAP.md](ROADMAP.md)).
+Open `http://127.0.0.1:3000/`.
 
-Meanwhile, the [`examples/`](examples/) folder is the source of truth
-for what works at each phase.
+---
 
-## Contributing
+## Where to next
 
-Way too early — the project is in Phase 0 (design and bootstrap). If you
-want to follow along:
+- **[HTML primitives](html.md)** — how `Html`, `flv()`, `h_join`, and friends work
+- **[LiveViews](live.md)** — the pattern, the client runtime, the diff engine, and known limits
+- **[Counter example](examples/counter.md)** — the "hello world"
+- **[Chat example](examples/chat.md)** — multi-user real-time with broadcast + patches
 
-- ⭐ Star the repo
-- 👀 Watch releases
-- 💬 Open a discussion if you have ideas about design decisions
-  (see the *Design decisions still open* section of [ROADMAP.md](ROADMAP.md))
-
-Once we reach Phase 2 (working MVP), PRs and issues will be welcome.
+---
 
 ## Credits
 
@@ -141,6 +170,8 @@ Fitz LiveViews stands on the shoulders of:
 
 Bringing the third-way idea to compiled, natively-typed languages.
 
+---
+
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](https://github.com/Thegreekman76/fitz-liveviews/blob/main/LICENSE).

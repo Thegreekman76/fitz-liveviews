@@ -1,0 +1,56 @@
+{
+  "name": "fitz-liveviews",
+  "displayName": "Fitz LiveViews",
+  "description": "HTML highlighting and snippets for Fitz LiveViews templates (html(\"\"\"...\"\"\")).",
+  "version": "0.1.0",
+  "publisher": "thegreekman76",
+  "license": "MIT",
+  "icon": "icon.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets"
+  ],
+  "keywords": [
+    "fitz",
+    "fitz-lang",
+    "liveview",
+    "websocket",
+    "reactive-ui",
+    "server-rendered"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Thegreekman76/fitz-liveviews.git",
+    "directory": "editors/vscode"
+  },
+  "homepage": "https://github.com/Thegreekman76/fitz-liveviews",
+  "bugs": {
+    "url": "https://github.com/Thegreekman76/fitz-liveviews/issues"
+  },
+  "extensionDependencies": [
+    "thegreekman76.fitz-language"
+  ],
+  "contributes": {
+    "grammars": [
+      {
+        "scopeName": "fitz.liveviews.injection",
+        "path": "./syntaxes/fitz-liveviews-injection.json",
+        "injectTo": [
+          "source.fitz"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.html.fitz": "html"
+        }
+      }
+    ],
+    "snippets": [
+      {
+        "language": "fitz",
+        "path": "./snippets/snippets.json"
+      }
+    ]
+  }
+}

@@ -13,6 +13,13 @@ fitz.lock
 # Node.js (for assets/ build tooling)
 node_modules/
 
+# MkDocs build output
+site/
+
+# VSCode extension packaging
+editors/vscode/*.vsix
+editors/vscode/node_modules/
+
 # Editor / IDE
 .vscode/
 .idea/

@@ -1,0 +1,97 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "scopeName": "fitz.liveviews.injection",
+  "injectionSelector": "L:source.fitz string.quoted.triple.fitz - (comment)",
+  "patterns": [
+    {
+      "include": "#html-embedded"
+    }
+  ],
+  "repository": {
+    "html-embedded": {
+      "name": "meta.embedded.block.html.fitz",
+      "patterns": [
+        { "include": "#html-comment" },
+        { "include": "#html-doctype" },
+        { "include": "#html-tag" },
+        { "include": "#fitz-interpolation" },
+        { "include": "#html-entity" }
+      ]
+    },
+    "fitz-interpolation": {
+      "comment": "Don't touch Fitz's own interpolation — let the base grammar handle it.",
+      "begin": "(?<!\\\\)\\{",
+      "end": "\\}",
+      "name": "meta.embedded.expression.fitz",
+      "captures": {
+        "0": { "name": "punctuation.section.embedded.fitz" }
+      }
+    },
+    "html-comment": {
+      "name": "comment.block.html",
+      "begin": "<!--",
+      "end": "-->"
+    },
+    "html-doctype": {
+      "name": "meta.tag.metadata.doctype.html",
+      "begin": "(?i)(<!)(DOCTYPE)",
+      "end": ">",
+      "captures": {
+        "1": { "name": "punctuation.definition.tag.html" },
+        "2": { "name": "entity.name.tag.doctype.html" }
+      }
+    },
+    "html-tag": {
+      "patterns": [
+        {
+          "name": "meta.tag.html",
+          "begin": "(</?)([a-zA-Z][a-zA-Z0-9-]*)",
+          "end": "(/?>)",
+          "beginCaptures": {
+            "1": { "name": "punctuation.definition.tag.begin.html" },
+            "2": { "name": "entity.name.tag.html" }
+          },
+          "endCaptures": {
+            "1": { "name": "punctuation.definition.tag.end.html" }
+          },
+          "patterns": [
+            { "include": "#html-attribute" }
+          ]
+        }
+      ]
+    },
+    "html-attribute": {
+      "patterns": [
+        {
+          "comment": "Fitz LiveViews directives — highlighted like decorators to stand out.",
+          "match": "\\b(data-flv-click|data-flv-submit|data-flv-input|data-flv-change|data-flv-keydown|data-flv-clear|data-flv-ws|data-flv-root)(=)?",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.liveviews.fitz" },
+            "2": { "name": "punctuation.separator.key-value.html" }
+          }
+        },
+        {
+          "comment": "Standard HTML attribute name.",
+          "match": "\\b([a-zA-Z][a-zA-Z0-9-]*)(=)?",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.html" },
+            "2": { "name": "punctuation.separator.key-value.html" }
+          }
+        },
+        {
+          "name": "string.quoted.double.html",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            { "include": "#fitz-interpolation" },
+            { "include": "#html-entity" }
+          ]
+        }
+      ]
+    },
+    "html-entity": {
+      "name": "constant.character.entity.html",
+      "match": "&(#[0-9]+|#x[0-9a-fA-F]+|[a-zA-Z0-9]+);"
+    }
+  }
+}
