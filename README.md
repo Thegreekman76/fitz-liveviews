@@ -14,7 +14,7 @@
 
 ---
 
-## Status: ✅ Phase 3b — server-side diff engine landed
+## Status: ✅ Phase 3b — server-side diff engine + kanban showcase
 
 Everything you need to ship a real-time UI works end-to-end today:
 
@@ -22,8 +22,9 @@ Everything you need to ship a real-time UI works end-to-end today:
 - **Phase 2** — `@get` + `@ws` + `live_layout` pattern; counter example
 - **Phase 3a** — Forms via `data-flv-submit`, shared state, `ws.broadcast(...)`; multi-user chat example
 - **Phase 3b** — HTML parser + tree diff + client walker → compact patches over WS, DOM state preserved
+- **Phase 3b showcase** ⭐ — collaborative kanban board with `data-flv-value-*` payloads, responsive by default
 - **Phase 5** — [Docs site](https://thegreekman76.github.io/fitz-liveviews/) (MkDocs Material) + CI/CD workflows
-- **Phase 6** — VSCode extension bundled at [`editors/vscode/`](editors/vscode/) — HTML highlighting inside `html("""...""")` + 11 snippets
+- **Phase 6** — VSCode extension v0.2.0 bundled at [`editors/vscode/`](editors/vscode/) — HTML highlighting inside `html("""...""")` + 12 snippets
 
 See [ROADMAP.md](ROADMAP.md) for what is coming in Phase 3c, 4, and 7.
 
@@ -132,9 +133,10 @@ Full docs site: **[thegreekman76.github.io/fitz-liveviews](https://thegreekman76
 Or read the source:
 
 - [`docs/html.md`](docs/html.md) — HTML primitives (`Html`, `flv`, `h_join`, `h_when`, `h_either`)
-- [`docs/live.md`](docs/live.md) — LiveView core (`live_layout`, `LiveFrame`, diff engine)
+- [`docs/live.md`](docs/live.md) — LiveView core (`live_layout`, `LiveFrame`, diff engine, `data-flv-value-*`)
 - [`examples/counter/`](examples/counter/) — real-time counter (Phase 2)
 - [`examples/chat/`](examples/chat/) — multi-user chat with broadcast + patches (Phase 3a + 3b)
+- [`examples/kanban/`](examples/kanban/) ⭐ — collaborative kanban board (Phase 3b showcase)
 
 ## VSCode extension
 

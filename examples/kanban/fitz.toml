@@ -1,0 +1,11 @@
+[package]
+name = "kanban-example"
+version = "0.0.1"
+edition = "2026"
+description = "Fitz LiveViews — collaborative kanban board (Phase 3b showcase)"
+
+[bin]
+main = "src/main.fitz"
+
+[dependencies]
+fitz_liveviews = { path = "../.." }

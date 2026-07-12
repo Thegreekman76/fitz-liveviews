@@ -1,0 +1,319 @@
+// Fitz LiveViews — collaborative kanban board (Phase 3b showcase).
+//
+// Run:   fitz run
+// Open http://127.0.0.1:3000/ in two browser windows. Add cards, move
+// them between columns, delete them. Every action broadcasts to every
+// other window with a compact patch — no full HTML replace, no lost
+// focus in the form.
+//
+// Showcases the whole stack:
+//   - Shared state via top-level `let` (F17 = Arc<Mutex>)
+//   - Forms with `data-flv-submit` + `data-flv-clear`
+//   - Click events with `data-flv-value-<key>` payload (card_id)
+//   - Broadcast via `ws.broadcast(...)`
+//   - Server-side diff engine → append/remove/set_attr patches
+//   - Responsive by default (3 columns desktop → stacked on mobile)
+
+from fitz_liveviews import Html, html, flv, live_layout, html_response, LiveFrame, h_join, h_when, diff_html
+
+
+// -----------------------------------------------------------------------------
+// State
+// -----------------------------------------------------------------------------
+
+type Card {
+  id: Str
+  title: Str
+  author: Str
+  column: Str          // "todo" | "in_progress" | "done"
+}
+
+type Board {
+  cards: List<Card> = []
+  next_id: Int = 1
+}
+
+// Shared across every connection. F17 wraps this in Arc<Mutex>.
+let board: Board = Board { cards: [], next_id: 1 }
+let last_board_html: Str = ""
+
+
+// -----------------------------------------------------------------------------
+// Column progression helpers
+// -----------------------------------------------------------------------------
+
+fn next_column(current: Str) -> Str {
+  if (current == "todo") { return "in_progress" }
+  if (current == "in_progress") { return "done" }
+  return current
+}
+
+fn prev_column(current: Str) -> Str {
+  if (current == "done") { return "in_progress" }
+  if (current == "in_progress") { return "todo" }
+  return current
+}
+
+fn maybe_move(target_id: Str, direction: Str, c: Card) -> Card {
+  if (c.id != target_id) { return c }
+  let new_col = if (direction == "right") { next_column(c.column) } else { prev_column(c.column) }
+  return Card { id: c.id, title: c.title, author: c.author, column: new_col }
+}
+
+
+// -----------------------------------------------------------------------------
+// Render
+// -----------------------------------------------------------------------------
+
+fn render_card(c: Card) -> Html {
+  let can_left = c.column != "todo"
+  let can_right = c.column != "done"
+  let move_left_btn = h_when(
+    can_left,
+    html("<button class=\"btn\" data-flv-click=\"move_left\" data-flv-value-card_id=\"{flv(c.id)}\" aria-label=\"Move left\">←</button>")
+  )
+  let move_right_btn = h_when(
+    can_right,
+    html("<button class=\"btn\" data-flv-click=\"move_right\" data-flv-value-card_id=\"{flv(c.id)}\" aria-label=\"Move right\">→</button>")
+  )
+  return html("""<li class="card">
+      <div class="card-title">{flv(c.title)}</div>
+      <div class="card-author">— {flv(c.author)}</div>
+      <div class="card-actions">
+        {move_left_btn}
+        {move_right_btn}
+        <button class="btn btn-del" data-flv-click="delete_card" data-flv-value-card_id="{flv(c.id)}" aria-label="Delete card">×</button>
+      </div>
+    </li>""")
+}
+
+fn cards_in(board: Board, col: Str) -> List<Card> {
+  return board.cards.filter(fn(c) => c.column == col)
+}
+
+fn render_column(board: Board, col_id: Str, title: Str) -> Html {
+  let cards = cards_in(board, col_id)
+  let items = cards.map(fn(c) => render_card(c))
+  return html("""<section class="column">
+    <h2>{flv(title)} <span class="count">({cards.len()})</span></h2>
+    <ul class="card-list">
+      {h_join(items)}
+    </ul>
+  </section>""")
+}
+
+// CSS lives in its own constant so we escape braces once. Every `{` and
+// `}` used by CSS syntax is written as `\{` and `\}` — Fitz would
+// otherwise treat them as interpolation delimiters. Interpolations
+// (`{something}`) inside render_board stay unescaped.
+let KANBAN_CSS: Str = """  * \{ box-sizing: border-box; \}
+  #kanban-app \{
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: #222;
+  \}
+  #kanban-app h1 \{
+    margin: 0 0 1rem 0;
+    font-size: 1.5rem;
+    color: #CE412B;
+  \}
+  #kanban-app .sub \{
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+  \}
+  #kanban-app form \{
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  \}
+  #kanban-app form input \{
+    flex: 1 1 200px;
+    min-width: 0;
+    padding: 0.5rem 0.75rem;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  \}
+  #kanban-app form input:focus \{
+    outline: none;
+    border-color: #CE412B;
+  \}
+  #kanban-app form button \{
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 4px;
+    background: #CE412B;
+    color: white;
+    cursor: pointer;
+  \}
+  #kanban-app form button:hover \{ background: #A83321; \}
+  .board \{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  \}
+  .column \{
+    background: #f4f4f4;
+    border-radius: 8px;
+    padding: 1rem;
+    min-height: 200px;
+  \}
+  .column h2 \{
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+    color: #333;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  \}
+  .column .count \{ color: #888; font-weight: normal; \}
+  .card-list \{
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  \}
+  .card \{
+    background: white;
+    border-radius: 6px;
+    padding: 0.75rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  \}
+  .card-title \{
+    font-weight: 600;
+    word-wrap: break-word;
+    line-height: 1.3;
+  \}
+  .card-author \{
+    font-size: 0.85rem;
+    color: #666;
+  \}
+  .card-actions \{
+    display: flex;
+    gap: 0.25rem;
+    justify-content: flex-end;
+    margin-top: 0.25rem;
+  \}
+  .btn \{
+    border: none;
+    padding: 0.35rem 0.6rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    background: #e0e0e0;
+    color: #333;
+    min-width: 2rem;
+  \}
+  .btn:hover \{ background: #d0d0d0; \}
+  .btn-del \{ background: #f5c6cb; color: #a94442; \}
+  .btn-del:hover \{ background: #eaa0a7; \}
+  @media (max-width: 768px) \{
+    .board \{ grid-template-columns: 1fr; \}
+    #kanban-app \{ padding: 0.5rem; \}
+  \}"""
+
+fn render_board(board: Board) -> Html {
+  let todo_col = render_column(board, "todo", "To Do")
+  let ip_col = render_column(board, "in_progress", "In Progress")
+  let done_col = render_column(board, "done", "Done")
+  let css = KANBAN_CSS
+  return html("""<div id="kanban-app">
+<style>
+{css}
+</style>
+  <h1>Fitz LiveViews Kanban</h1>
+  <p class="sub">Open in two browser windows — actions sync in real time via broadcast patches.</p>
+  <form data-flv-submit="create_card">
+    <input name="title" placeholder="Card title" required autocomplete="off" data-flv-clear />
+    <input name="author" placeholder="Your name" required autocomplete="off" />
+    <button type="submit">Add Card</button>
+  </form>
+  <div class="board">
+    {todo_col.raw}
+    {ip_col.raw}
+    {done_col.raw}
+  </div>
+</div>""")
+}
+
+
+// -----------------------------------------------------------------------------
+// HTTP GET
+// -----------------------------------------------------------------------------
+
+@get("/")
+fn kanban_page() -> Response {
+  return html_response(live_layout("/live/kanban", "kanban-app", render_board(board)))
+}
+
+
+// -----------------------------------------------------------------------------
+// WebSocket handler
+// -----------------------------------------------------------------------------
+
+@ws("/live/kanban")
+async fn kanban_socket(ws: WsConn<LiveFrame>) {
+  loop {
+    let frame = ws.recv()?
+    // Lazy-init the snapshot BEFORE any mutation so the first diff
+    // produces clean append patches instead of an empty→full replace.
+    if (last_board_html == "") {
+      last_board_html = render_board(board).raw
+    }
+    if (frame.event == "create_card") {
+      if (frame.payload.has("title")) {
+        if (frame.payload.has("author")) {
+          let id = "{board.next_id}"
+          board.cards.push(Card {
+            id: id,
+            title: frame.payload["title"],
+            author: frame.payload["author"],
+            column: "todo"
+          })
+          board.next_id = board.next_id + 1
+        }
+      }
+    }
+    if (frame.event == "move_right") {
+      if (frame.payload.has("card_id")) {
+        let target_id = frame.payload["card_id"]
+        board.cards = board.cards.map(fn(c) => maybe_move(target_id, "right", c))
+      }
+    }
+    if (frame.event == "move_left") {
+      if (frame.payload.has("card_id")) {
+        let target_id = frame.payload["card_id"]
+        board.cards = board.cards.map(fn(c) => maybe_move(target_id, "left", c))
+      }
+    }
+    if (frame.event == "delete_card") {
+      if (frame.payload.has("card_id")) {
+        let target_id = frame.payload["card_id"]
+        board.cards = board.cards.filter(fn(c) => c.id != target_id)
+      }
+    }
+    // Broadcast the diff to every connected client.
+    let new_html = render_board(board).raw
+    let patches = diff_html(last_board_html, new_html)
+    ws.broadcast(LiveFrame { html: new_html, patches: patches })?
+    last_board_html = new_html
+  }
+}
+
+
+// -----------------------------------------------------------------------------
+// Server
+// -----------------------------------------------------------------------------
+
+@server(3000)
+fn main() => 0

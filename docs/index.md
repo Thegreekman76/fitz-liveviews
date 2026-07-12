@@ -154,6 +154,7 @@ URL in **two** browser windows to see broadcast in action.
 - **[LiveViews](live.md)** — the pattern, the client runtime, the diff engine, and known limits
 - **[Counter example](examples/counter.md)** — the "hello world"
 - **[Chat example](examples/chat.md)** — multi-user real-time with broadcast + patches
+- **[Kanban example](examples/kanban.md)** ⭐ — flagship showcase: shared state, `data-flv-value-*` payloads, and a compact 3-column responsive board
 
 ---
 

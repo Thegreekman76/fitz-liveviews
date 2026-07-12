@@ -332,8 +332,18 @@ let LIVE_CLIENT_JS: Str = """(function() \{
 //   initial  — the first server render of the view.
 fn live_layout(ws_path: Str, root_id: Str, initial: Html) -> Html {
   let js = LIVE_CLIENT_JS
-  return html("""{initial.raw}
-<script data-flv-ws="{ws_path}" data-flv-root="{root_id}">{js}</script>""")
+  return html("""<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fitz LiveView</title>
+</head>
+<body>
+{initial.raw}
+<script data-flv-ws="{ws_path}" data-flv-root="{root_id}">{js}</script>
+</body>
+</html>""")
 }
 
 
@@ -420,6 +430,20 @@ fn live_layout_includes_data_flv_value_extraction() {
   let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
   assert(full.raw.contains("data-flv-value-"))
   assert(full.raw.contains("startsWith"))
+}
+
+@test
+fn live_layout_wraps_in_full_html_document() {
+  // Phase 3b polish + kanban prep — live_layout wraps the initial
+  // render in a full HTML5 document with proper <head> so mobile
+  // gets width=device-width and desktop gets a valid doctype.
+  let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
+  assert(full.raw.contains("<!doctype html>"))
+  assert(full.raw.contains("<html>"))
+  assert(full.raw.contains("<head>"))
+  assert(full.raw.contains("<body>"))
+  assert(full.raw.contains("<meta name=\"viewport\" content=\"width=device-width"))
+  assert(full.raw.contains("<meta charset=\"utf-8\""))
 }
 
 @test

@@ -91,6 +91,27 @@ The "wow moment" of LiveViews — multi-user real-time.
 - [x] Example: **multi-user chat** (`examples/chat/`) — verified
       end-to-end with two browser windows
 
+## Phase 3b showcase — collaborative Kanban ⭐ (2026-07-12)
+
+The flagship demo of Fitz LiveViews. Three-column kanban board with
+card create/move/delete, broadcast to every connected client, DOM
+state preserved across every render, responsive from 320px up.
+Built without Phase 4 LiveComponents intentionally — makes the
+motivation for that phase clear from real code.
+
+- [x] `data-flv-value-*` convention — click / submit events auto-
+      serialize `data-flv-value-<key>="<val>"` attributes into the
+      event payload map (Phoenix-style `phx-value-*`)
+- [x] `live_layout` upgraded to emit a full HTML5 document with
+      `<meta viewport>` and doctype (breaking change from fragment
+      output; test coverage confirms all 61 tests still green)
+- [x] `examples/kanban/` — types, shared state, 4 handlers, CSS
+      in its own escaped constant, docs walk-through
+- [x] Responsive by design: grid on desktop, stacked on mobile
+      (memory rule: fitz-liveviews UIs are always responsive)
+- [x] VSCode extension v0.2.0 — grammar recognizes
+      `data-flv-value-*`, snippet `btnvalue` for value payloads
+
 ## Phase 3b — Server-side diff engine 🔬
 
 Compact patches over the wire, DOM state preserved on the client.

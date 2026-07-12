@@ -48,6 +48,7 @@ nav:
   - Examples:
       - Counter (Phase 2): examples/counter.md
       - Chat (Phase 3a + 3b): examples/chat.md
+      - Kanban (Phase 3b showcase): examples/kanban.md
   - Roadmap: https://github.com/Thegreekman76/fitz-liveviews/blob/main/ROADMAP.md
 
 markdown_extensions:
