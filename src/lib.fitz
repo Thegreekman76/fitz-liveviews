@@ -200,6 +200,7 @@ type LiveFrame {
   event: Str = ""
   payload: Map<Str, Str> = {}
   html: Str = ""
+  patches: List<Patch> = []
 }
 
 
@@ -216,17 +217,71 @@ let LIVE_CLIENT_JS: Str = """(function() \{
   const rootId = s.dataset.flvRoot;
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const ws = new WebSocket(proto + '//' + location.host + wsPath);
+  const decoder = document.createElement('textarea');
+  function decodeHtml(str) \{
+    decoder.innerHTML = str;
+    return decoder.value;
+  \}
+  function walk(root, path) \{
+    if (path.length === 0) return root;
+    if (path[0] !== 0) throw new Error('unexpected top-level path');
+    let node = root;
+    for (let i = 1; i < path.length; i++) \{
+      node = node.childNodes[path[i]];
+      if (!node) throw new Error('path not found');
+    \}
+    return node;
+  \}
+  function applyPatches(root, patches) \{
+    for (const p of patches) \{
+      const target = walk(root, p.path);
+      switch (p.op) \{
+        case 'text':
+          target.nodeValue = decodeHtml(p.content);
+          break;
+        case 'replace': \{
+          const tmpl = document.createElement('template');
+          tmpl.innerHTML = p.content;
+          target.replaceWith(tmpl.content.firstChild);
+          break;
+        \}
+        case 'append': \{
+          const tmpl = document.createElement('template');
+          tmpl.innerHTML = p.content;
+          target.appendChild(tmpl.content.firstChild);
+          break;
+        \}
+        case 'remove':
+          target.remove();
+          break;
+        case 'set_attr':
+          target.setAttribute(p.name, decodeHtml(p.content));
+          break;
+        case 'remove_attr':
+          target.removeAttribute(p.name);
+          break;
+      \}
+    \}
+  \}
   ws.onmessage = function(e) \{
     const msg = JSON.parse(e.data);
+    const root = document.getElementById(rootId);
+    if (!root) return;
+    if (msg.patches && msg.patches.length > 0) \{
+      try \{
+        applyPatches(root, msg.patches);
+        return;
+      \} catch (err) \{
+      \}
+    \}
     if (msg.html) \{
-      const el = document.getElementById(rootId);
-      if (el) el.outerHTML = msg.html;
+      root.outerHTML = msg.html;
     \}
   \};
   document.body.addEventListener('click', function(e) \{
     const t = e.target.closest('[data-flv-click]');
     if (t && ws.readyState === WebSocket.OPEN) \{
-      ws.send(JSON.stringify(\{ event: t.dataset.flvClick, payload: \{\}, html: '' \}));
+      ws.send(JSON.stringify(\{ event: t.dataset.flvClick, payload: \{\}, html: '', patches: [] \}));
     \}
   \});
   document.body.addEventListener('submit', function(e) \{
@@ -237,7 +292,12 @@ let LIVE_CLIENT_JS: Str = """(function() \{
       for (const el of form.elements) \{
         if (el.name) payload[el.name] = el.value;
       \}
-      ws.send(JSON.stringify(\{ event: form.dataset.flvSubmit, payload: payload, html: '' \}));
+      ws.send(JSON.stringify(\{ event: form.dataset.flvSubmit, payload: payload, html: '', patches: [] \}));
+      for (const el of form.elements) \{
+        if (el.hasAttribute('data-flv-clear')) \{
+          el.value = '';
+        \}
+      \}
     \}
   \});
 \})();"""
@@ -326,4 +386,909 @@ fn live_layout_includes_form_submit_handler() {
   assert(full.raw.contains("data-flv-submit"))
   assert(full.raw.contains("preventDefault"))
   assert(full.raw.contains("form.elements"))
+}
+
+@test
+fn live_layout_includes_data_flv_clear_opt_in() {
+  // Phase 3b polish — inputs marked with `data-flv-clear` are wiped
+  // after their form submits. Lets chat-style UIs keep the author
+  // input while clearing the message input on each send.
+  let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
+  assert(full.raw.contains("data-flv-clear"))
+  assert(full.raw.contains("hasAttribute"))
+}
+
+@test
+fn live_layout_includes_patch_walker() {
+  // Phase 3b — client JS applies incremental patches by walking the
+  // DOM using the path list emitted by the server.
+  let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
+  assert(full.raw.contains("applyPatches"))
+  assert(full.raw.contains("msg.patches"))
+  assert(full.raw.contains("root.outerHTML"))
+}
+
+@test
+fn live_layout_includes_all_six_patch_ops() {
+  let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
+  assert(full.raw.contains("case 'text'"))
+  assert(full.raw.contains("case 'replace'"))
+  assert(full.raw.contains("case 'append'"))
+  assert(full.raw.contains("case 'remove'"))
+  assert(full.raw.contains("case 'set_attr'"))
+  assert(full.raw.contains("case 'remove_attr'"))
+}
+
+
+// =============================================================================
+// PHASE 3b — SERVER-SIDE DIFF ENGINE
+// =============================================================================
+//
+// Everything below powers the "small patches over the wire" model:
+//   render(state) -> Html   (a string like before, unchanged surface)
+//   parse_html(str)         a minimal HTML parser into a Node tree
+//   diff_trees(old, new)    (Phase 3b.2) walks two trees, emits Patch list
+//
+// The parser is intentionally restricted to what our templates emit —
+// no HTML comments, no `<script>` inside the LiveView root, quoted
+// attribute values only. See docs/live.md for the full subset.
+
+
+// -----------------------------------------------------------------------------
+// HTML tree types
+// -----------------------------------------------------------------------------
+
+type Attr {
+  name: Str
+  value: Str
+}
+
+// A parsed HTML node.
+//
+// `kind` is either "elem" or "text":
+//   elem → tag, attrs, children populated; text unused
+//   text → text populated; the rest unused
+//
+// Sum types via a discriminator field is a Fitz idiom (no unions in the
+// type system as of today).
+type Node {
+  kind: Str
+  tag: Str = ""
+  attrs: List<Attr> = []
+  children: List<Node> = []
+  text: Str = ""
+}
+
+
+// -----------------------------------------------------------------------------
+// Parser return helpers (Fitz has no tuples)
+// -----------------------------------------------------------------------------
+
+type ParseNode {
+  node: Node
+  pos: Int
+}
+
+type ParseNodes {
+  nodes: List<Node>
+  pos: Int
+}
+
+type ParseStr {
+  value: Str
+  pos: Int
+}
+
+type ParseAttrs {
+  attrs: List<Attr>
+  self_closing: Bool
+  pos: Int
+}
+
+
+// -----------------------------------------------------------------------------
+// Character predicates
+// -----------------------------------------------------------------------------
+
+fn is_void_element(tag: Str) -> Bool {
+  let voids = ["input", "br", "img", "hr", "meta", "link", "area", "base",
+               "col", "embed", "source", "track", "wbr"]
+  return voids.contains(tag)
+}
+
+fn is_space(c: Str) -> Bool {
+  if (c == " ") { return true }
+  if (c == "\t") { return true }
+  if (c == "\n") { return true }
+  if (c == "\r") { return true }
+  return false
+}
+
+fn is_name_char(c: Str) -> Bool {
+  // Names in our templates: ASCII letters + digits + `-` + `_`.
+  // Explicit lookup list to avoid depending on Str comparison ops.
+  let letters = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l",
+                 "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x",
+                 "y", "z",
+                 "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L",
+                 "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X",
+                 "Y", "Z",
+                 "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+                 "-", "_"]
+  return letters.contains(c)
+}
+
+
+// -----------------------------------------------------------------------------
+// Low-level readers
+// -----------------------------------------------------------------------------
+
+fn skip_ws(chars: List<Str>, start: Int) -> Int {
+  let pos = start
+  loop {
+    if (pos >= chars.len()) { break }
+    if (is_space(chars[pos])) {
+      pos = pos + 1
+    } else {
+      break
+    }
+  }
+  return pos
+}
+
+fn read_name(chars: List<Str>, start: Int) -> ParseStr {
+  let pos = start
+  let name = ""
+  loop {
+    if (pos >= chars.len()) { break }
+    let c = chars[pos]
+    if (is_name_char(c)) {
+      name = "{name}{c}"
+      pos = pos + 1
+    } else {
+      break
+    }
+  }
+  return ParseStr { value: name, pos: pos }
+}
+
+// Expects chars[start] == `"`. Reads until the next `"`. Returns the
+// content between the quotes (exclusive) and pos AFTER the closing quote.
+fn read_quoted_value(chars: List<Str>, start: Int) -> ParseStr {
+  let pos = start + 1
+  let value = ""
+  loop {
+    if (pos >= chars.len()) { break }
+    let c = chars[pos]
+    if (c == "\"") {
+      pos = pos + 1
+      break
+    }
+    value = "{value}{c}"
+    pos = pos + 1
+  }
+  return ParseStr { value: value, pos: pos }
+}
+
+
+// -----------------------------------------------------------------------------
+// Attribute parser
+// -----------------------------------------------------------------------------
+
+fn read_attrs(chars: List<Str>, start: Int) -> ParseAttrs {
+  let pos = skip_ws(chars, start)
+  let attrs: List<Attr> = []
+  let self_closing = false
+  loop {
+    if (pos >= chars.len()) { break }
+    let c = chars[pos]
+    if (c == ">") {
+      pos = pos + 1
+      break
+    }
+    if (c == "/") {
+      self_closing = true
+      pos = pos + 1
+      pos = skip_ws(chars, pos)
+      if (pos < chars.len()) {
+        if (chars[pos] == ">") {
+          pos = pos + 1
+        }
+      }
+      break
+    }
+    let name_result = read_name(chars, pos)
+    if (name_result.value == "") {
+      // Guard against infinite loop on an unexpected character.
+      pos = pos + 1
+    } else {
+      pos = name_result.pos
+      pos = skip_ws(chars, pos)
+      let attr_value = ""
+      if (pos < chars.len()) {
+        if (chars[pos] == "=") {
+          pos = pos + 1
+          pos = skip_ws(chars, pos)
+          if (pos < chars.len()) {
+            if (chars[pos] == "\"") {
+              let v = read_quoted_value(chars, pos)
+              attr_value = v.value
+              pos = v.pos
+            }
+          }
+        }
+      }
+      attrs.push(Attr { name: name_result.value, value: attr_value })
+      pos = skip_ws(chars, pos)
+    }
+  }
+  return ParseAttrs { attrs: attrs, self_closing: self_closing, pos: pos }
+}
+
+
+// -----------------------------------------------------------------------------
+// Node parsers (recursive descent)
+// -----------------------------------------------------------------------------
+
+fn parse_text(chars: List<Str>, start: Int) -> ParseNode {
+  let pos = start
+  let text = ""
+  loop {
+    if (pos >= chars.len()) { break }
+    let c = chars[pos]
+    if (c == "<") { break }
+    text = "{text}{c}"
+    pos = pos + 1
+  }
+  return ParseNode {
+    node: Node { kind: "text", text: text },
+    pos: pos
+  }
+}
+
+// Expects chars[start] == `<` (and NOT `</`).
+fn parse_element(chars: List<Str>, start: Int) -> ParseNode {
+  let pos = start + 1
+  let name_result = read_name(chars, pos)
+  let tag = name_result.value
+  pos = name_result.pos
+  let attrs_result = read_attrs(chars, pos)
+  pos = attrs_result.pos
+  if (attrs_result.self_closing or is_void_element(tag)) {
+    return ParseNode {
+      node: Node { kind: "elem", tag: tag, attrs: attrs_result.attrs },
+      pos: pos
+    }
+  }
+  let children_result = parse_nodes(chars, pos, tag)
+  pos = children_result.pos
+  // Consume closing tag `</tag>` if present.
+  if (pos < chars.len()) {
+    if (chars[pos] == "<") {
+      pos = pos + 1
+      if (pos < chars.len()) {
+        if (chars[pos] == "/") {
+          pos = pos + 1
+          let close_name = read_name(chars, pos)
+          pos = close_name.pos
+          pos = skip_ws(chars, pos)
+          if (pos < chars.len()) {
+            if (chars[pos] == ">") {
+              pos = pos + 1
+            }
+          }
+        }
+      }
+    }
+  }
+  return ParseNode {
+    node: Node {
+      kind: "elem",
+      tag: tag,
+      attrs: attrs_result.attrs,
+      children: children_result.nodes
+    },
+    pos: pos
+  }
+}
+
+fn parse_nodes(chars: List<Str>, start: Int, stop_tag: Str) -> ParseNodes {
+  let pos = start
+  let nodes: List<Node> = []
+  loop {
+    if (pos >= chars.len()) { break }
+    let c = chars[pos]
+    if (c == "<") {
+      // A `</` at this position means our parent's closing tag.
+      if (pos + 1 < chars.len()) {
+        if (chars[pos + 1] == "/") {
+          break
+        }
+      }
+      let elem_result = parse_element(chars, pos)
+      nodes.push(elem_result.node)
+      pos = elem_result.pos
+    } else {
+      let text_result = parse_text(chars, pos)
+      if (text_result.node.text != "") {
+        nodes.push(text_result.node)
+      }
+      pos = text_result.pos
+    }
+  }
+  return ParseNodes { nodes: nodes, pos: pos }
+}
+
+
+// -----------------------------------------------------------------------------
+// Public API
+// -----------------------------------------------------------------------------
+
+fn parse_html(input: Str) -> List<Node> {
+  let chars = input.chars()
+  let result = parse_nodes(chars, 0, "")
+  return result.nodes
+}
+
+
+// -----------------------------------------------------------------------------
+// Parser tests
+// -----------------------------------------------------------------------------
+
+@test
+fn parse_empty_string_returns_empty_list() {
+  let nodes = parse_html("")
+  assert_eq(nodes.len(), 0)
+}
+
+@test
+fn parse_plain_text_returns_one_text_node() {
+  let nodes = parse_html("hello")
+  assert_eq(nodes.len(), 1)
+  assert_eq(nodes[0].kind, "text")
+  assert_eq(nodes[0].text, "hello")
+}
+
+@test
+fn parse_empty_div() {
+  let nodes = parse_html("<div></div>")
+  assert_eq(nodes.len(), 1)
+  assert_eq(nodes[0].kind, "elem")
+  assert_eq(nodes[0].tag, "div")
+  assert_eq(nodes[0].attrs.len(), 0)
+  assert_eq(nodes[0].children.len(), 0)
+}
+
+@test
+fn parse_div_with_text_child() {
+  let nodes = parse_html("<div>hi</div>")
+  assert_eq(nodes.len(), 1)
+  assert_eq(nodes[0].tag, "div")
+  assert_eq(nodes[0].children.len(), 1)
+  assert_eq(nodes[0].children[0].kind, "text")
+  assert_eq(nodes[0].children[0].text, "hi")
+}
+
+@test
+fn parse_div_with_id_attr() {
+  let nodes = parse_html("<div id=\"app\"></div>")
+  assert_eq(nodes.len(), 1)
+  assert_eq(nodes[0].attrs.len(), 1)
+  assert_eq(nodes[0].attrs[0].name, "id")
+  assert_eq(nodes[0].attrs[0].value, "app")
+}
+
+@test
+fn parse_div_with_multiple_attrs() {
+  let nodes = parse_html("<div id=\"app\" class=\"container\"></div>")
+  assert_eq(nodes[0].attrs.len(), 2)
+  assert_eq(nodes[0].attrs[0].name, "id")
+  assert_eq(nodes[0].attrs[0].value, "app")
+  assert_eq(nodes[0].attrs[1].name, "class")
+  assert_eq(nodes[0].attrs[1].value, "container")
+}
+
+@test
+fn parse_void_element_without_closing_tag() {
+  let nodes = parse_html("<br>")
+  assert_eq(nodes.len(), 1)
+  assert_eq(nodes[0].kind, "elem")
+  assert_eq(nodes[0].tag, "br")
+}
+
+@test
+fn parse_self_closing_element() {
+  let nodes = parse_html("<br/>")
+  assert_eq(nodes.len(), 1)
+  assert_eq(nodes[0].tag, "br")
+}
+
+@test
+fn parse_self_closing_with_space_before_slash() {
+  let nodes = parse_html("<br />")
+  assert_eq(nodes.len(), 1)
+  assert_eq(nodes[0].tag, "br")
+}
+
+@test
+fn parse_boolean_attribute_has_empty_value() {
+  let nodes = parse_html("<input required>")
+  assert_eq(nodes[0].attrs.len(), 1)
+  assert_eq(nodes[0].attrs[0].name, "required")
+  assert_eq(nodes[0].attrs[0].value, "")
+}
+
+@test
+fn parse_nested_elements() {
+  let nodes = parse_html("<div><p>hi</p></div>")
+  assert_eq(nodes[0].tag, "div")
+  assert_eq(nodes[0].children.len(), 1)
+  let p = nodes[0].children[0]
+  assert_eq(p.tag, "p")
+  assert_eq(p.children.len(), 1)
+  assert_eq(p.children[0].text, "hi")
+}
+
+@test
+fn parse_mixed_text_and_elements() {
+  let nodes = parse_html("<div>a<p>b</p>c</div>")
+  assert_eq(nodes[0].children.len(), 3)
+  assert_eq(nodes[0].children[0].kind, "text")
+  assert_eq(nodes[0].children[0].text, "a")
+  assert_eq(nodes[0].children[1].kind, "elem")
+  assert_eq(nodes[0].children[1].tag, "p")
+  assert_eq(nodes[0].children[2].kind, "text")
+  assert_eq(nodes[0].children[2].text, "c")
+}
+
+@test
+fn parse_multiple_top_level_nodes() {
+  let nodes = parse_html("<p>a</p><p>b</p>")
+  assert_eq(nodes.len(), 2)
+  assert_eq(nodes[0].children[0].text, "a")
+  assert_eq(nodes[1].children[0].text, "b")
+}
+
+@test
+fn parse_data_attribute_with_hyphens() {
+  let nodes = parse_html("<button data-flv-click=\"increment\">+1</button>")
+  assert_eq(nodes[0].attrs[0].name, "data-flv-click")
+  assert_eq(nodes[0].attrs[0].value, "increment")
+}
+
+@test
+fn parse_preserves_html_entities_in_text() {
+  let nodes = parse_html("<p>&amp;lt;</p>")
+  assert_eq(nodes[0].children[0].text, "&amp;lt;")
+}
+
+
+// =============================================================================
+// PHASE 3b.2 — TREE DIFF
+// =============================================================================
+//
+// Emits a compact list of Patch operations to turn `old_tree` into
+// `new_tree`. Six op kinds cover the full state space:
+//
+//   text        change a text node's content
+//   replace     replace a node entirely (with `content` as new HTML)
+//   append      append a new child at the parent path
+//   remove      remove the node at path
+//   set_attr    set attribute `name` on element at path to `content`
+//   remove_attr remove attribute `name` from element at path
+//
+// The `path` is a list of child indices from the root — `[0, 2, 1]`
+// means "root's 1st child, its 3rd child, its 2nd child".
+
+
+// -----------------------------------------------------------------------------
+// Patch type
+// -----------------------------------------------------------------------------
+
+type Patch {
+  op: Str
+  path: List<Int> = []
+  content: Str = ""
+  name: Str = ""
+}
+
+
+// -----------------------------------------------------------------------------
+// Helpers
+// -----------------------------------------------------------------------------
+
+// Create a fresh list = path + [i]. We can't just push to path directly
+// because Fitz lists are Arc<Mutex>, shared aliases would mutate together.
+fn extend_path(path: List<Int>, i: Int) -> List<Int> {
+  let out: List<Int> = []
+  for x in path {
+    out.push(x)
+  }
+  out.push(i)
+  return out
+}
+
+// Serialize a Node subtree back to HTML — used for `replace` and `append`
+// patches so the client can insert the new markup verbatim.
+fn node_to_html(node: Node) -> Str {
+  if (node.kind == "text") {
+    return node.text
+  }
+  let attrs_str = ""
+  for attr in node.attrs {
+    if (attr.value == "") {
+      attrs_str = "{attrs_str} {attr.name}"
+    } else {
+      attrs_str = "{attrs_str} {attr.name}=\"{attr.value}\""
+    }
+  }
+  if (is_void_element(node.tag)) {
+    return "<{node.tag}{attrs_str}>"
+  }
+  let children_str = ""
+  for child in node.children {
+    children_str = "{children_str}{node_to_html(child)}"
+  }
+  return "<{node.tag}{attrs_str}>{children_str}</{node.tag}>"
+}
+
+
+// -----------------------------------------------------------------------------
+// Attribute diff
+// -----------------------------------------------------------------------------
+
+fn diff_attrs(old: List<Attr>, new: List<Attr>, path: List<Int>) -> List<Patch> {
+  let patches: List<Patch> = []
+  // Old attrs missing from new → remove_attr.
+  for old_attr in old {
+    let found = false
+    for new_attr in new {
+      if (new_attr.name == old_attr.name) {
+        found = true
+      }
+    }
+    if (not found) {
+      patches.push(Patch { op: "remove_attr", path: path, name: old_attr.name })
+    }
+  }
+  // Attrs in new that are missing from old, or whose value changed → set_attr.
+  for new_attr in new {
+    let existed = false
+    let old_value = ""
+    for old_attr in old {
+      if (old_attr.name == new_attr.name) {
+        existed = true
+        old_value = old_attr.value
+      }
+    }
+    if (not existed) {
+      patches.push(Patch {
+        op: "set_attr",
+        path: path,
+        name: new_attr.name,
+        content: new_attr.value
+      })
+    } else {
+      if (old_value != new_attr.value) {
+        patches.push(Patch {
+          op: "set_attr",
+          path: path,
+          name: new_attr.name,
+          content: new_attr.value
+        })
+      }
+    }
+  }
+  return patches
+}
+
+
+// -----------------------------------------------------------------------------
+// Tree diff (recursive)
+// -----------------------------------------------------------------------------
+
+fn diff_at_level(old_list: List<Node>, new_list: List<Node>, path: List<Int>) -> List<Patch> {
+  let patches: List<Patch> = []
+  let old_len = old_list.len()
+  let new_len = new_list.len()
+  let min_len = old_len
+  if (new_len < min_len) {
+    min_len = new_len
+  }
+  // Pairwise diff of positions that exist in both lists.
+  let i = 0
+  while (i < min_len) {
+    let child_path = extend_path(path, i)
+    let old_node = old_list[i]
+    let new_node = new_list[i]
+    if (old_node.kind != new_node.kind) {
+      patches.push(Patch {
+        op: "replace",
+        path: child_path,
+        content: node_to_html(new_node)
+      })
+    } else {
+      if (old_node.kind == "text") {
+        if (old_node.text != new_node.text) {
+          patches.push(Patch {
+            op: "text",
+            path: child_path,
+            content: new_node.text
+          })
+        }
+      } else {
+        // Both elem — check tag first, then attrs, then recurse.
+        if (old_node.tag != new_node.tag) {
+          patches.push(Patch {
+            op: "replace",
+            path: child_path,
+            content: node_to_html(new_node)
+          })
+        } else {
+          let attr_patches = diff_attrs(old_node.attrs, new_node.attrs, child_path)
+          for p in attr_patches {
+            patches.push(p)
+          }
+          let child_patches = diff_at_level(old_node.children, new_node.children, child_path)
+          for p in child_patches {
+            patches.push(p)
+          }
+        }
+      }
+    }
+    i = i + 1
+  }
+  // Extras in new → append at parent path.
+  let j = min_len
+  while (j < new_len) {
+    patches.push(Patch {
+      op: "append",
+      path: path,
+      content: node_to_html(new_list[j])
+    })
+    j = j + 1
+  }
+  // Extras in old → remove. Emit in reverse so earlier indices stay valid
+  // as the client applies patches in order.
+  let k = old_len - 1
+  while (k >= min_len) {
+    patches.push(Patch {
+      op: "remove",
+      path: extend_path(path, k)
+    })
+    k = k - 1
+  }
+  return patches
+}
+
+
+// -----------------------------------------------------------------------------
+// Public API
+// -----------------------------------------------------------------------------
+
+fn diff_html(old: Str, new: Str) -> List<Patch> {
+  let old_tree = parse_html(old)
+  let new_tree = parse_html(new)
+  // Guard: both sides must be a single top-level element with the same
+  // tag. Otherwise emit no patches so the client cleanly falls back to
+  // `html` full replace instead of appending or replacing the root
+  // element (which would double-mount the LiveView root — the bug we
+  // fixed on the chat's first-message path where old was empty and new
+  // was the full chat-app div).
+  if (old_tree.len() != 1) { return [] }
+  if (new_tree.len() != 1) { return [] }
+  let old_root = old_tree[0]
+  let new_root = new_tree[0]
+  if (old_root.kind != "elem") { return [] }
+  if (new_root.kind != "elem") { return [] }
+  if (old_root.tag != new_root.tag) { return [] }
+  return diff_at_level(old_tree, new_tree, [])
+}
+
+
+// -----------------------------------------------------------------------------
+// Diff tests
+// -----------------------------------------------------------------------------
+
+@test
+fn diff_identical_trees_emits_no_patches() {
+  let patches = diff_html("<div>hi</div>", "<div>hi</div>")
+  assert_eq(patches.len(), 0)
+}
+
+@test
+fn diff_text_change_emits_text_patch() {
+  let patches = diff_html("<p>hello</p>", "<p>world</p>")
+  assert_eq(patches.len(), 1)
+  assert_eq(patches[0].op, "text")
+  assert_eq(patches[0].content, "world")
+  assert_eq(patches[0].path.len(), 2)
+  assert_eq(patches[0].path[0], 0)
+  assert_eq(patches[0].path[1], 0)
+}
+
+@test
+fn diff_added_attribute_emits_set_attr() {
+  let patches = diff_html("<div></div>", "<div id=\"x\"></div>")
+  assert_eq(patches.len(), 1)
+  assert_eq(patches[0].op, "set_attr")
+  assert_eq(patches[0].name, "id")
+  assert_eq(patches[0].content, "x")
+}
+
+@test
+fn diff_removed_attribute_emits_remove_attr() {
+  let patches = diff_html("<div id=\"x\"></div>", "<div></div>")
+  assert_eq(patches.len(), 1)
+  assert_eq(patches[0].op, "remove_attr")
+  assert_eq(patches[0].name, "id")
+}
+
+@test
+fn diff_changed_attribute_emits_set_attr() {
+  let patches = diff_html("<div id=\"a\"></div>", "<div id=\"b\"></div>")
+  assert_eq(patches.len(), 1)
+  assert_eq(patches[0].op, "set_attr")
+  assert_eq(patches[0].name, "id")
+  assert_eq(patches[0].content, "b")
+}
+
+@test
+fn diff_different_root_tag_forces_html_fallback() {
+  // Superseded by the guard added in diff_html — different root tags
+  // return empty patches so the client uses `html` full replace. Kept
+  // as a documentation test.
+  let patches = diff_html("<p>hi</p>", "<span>hi</span>")
+  assert_eq(patches.len(), 0)
+}
+
+@test
+fn diff_kind_change_emits_replace() {
+  let patches = diff_html("<div>text</div>", "<div><p>elem</p></div>")
+  // Old div's child: text "text". New div's child: elem <p>. → replace
+  assert_eq(patches.len(), 1)
+  assert_eq(patches[0].op, "replace")
+}
+
+@test
+fn diff_appended_child_emits_append() {
+  let patches = diff_html("<ul><li>a</li></ul>", "<ul><li>a</li><li>b</li></ul>")
+  assert_eq(patches.len(), 1)
+  assert_eq(patches[0].op, "append")
+  assert_eq(patches[0].content, "<li>b</li>")
+  // Append goes at the parent (ul at path [0]).
+  assert_eq(patches[0].path.len(), 1)
+  assert_eq(patches[0].path[0], 0)
+}
+
+@test
+fn diff_removed_child_emits_remove() {
+  let patches = diff_html("<ul><li>a</li><li>b</li></ul>", "<ul><li>a</li></ul>")
+  assert_eq(patches.len(), 1)
+  assert_eq(patches[0].op, "remove")
+  // Remove targets the child directly.
+  assert_eq(patches[0].path.len(), 2)
+  assert_eq(patches[0].path[0], 0)
+  assert_eq(patches[0].path[1], 1)
+}
+
+@test
+fn diff_nested_text_change_has_correct_path() {
+  let patches = diff_html("<div><section><p>a</p></section></div>",
+                           "<div><section><p>b</p></section></div>")
+  assert_eq(patches.len(), 1)
+  assert_eq(patches[0].op, "text")
+  assert_eq(patches[0].content, "b")
+  // path: div (0) → section (0) → p (0) → text (0) = [0, 0, 0, 0]
+  assert_eq(patches[0].path.len(), 4)
+}
+
+@test
+fn diff_counter_case_int_change_is_single_text_patch() {
+  let patches = diff_html("<p>Count: 5</p>", "<p>Count: 6</p>")
+  assert_eq(patches.len(), 1)
+  assert_eq(patches[0].op, "text")
+  assert_eq(patches[0].content, "Count: 6")
+}
+
+@test
+fn diff_chat_case_new_message_is_append() {
+  let patches = diff_html("<ul><li>Alice: hi</li></ul>",
+                           "<ul><li>Alice: hi</li><li>Bob: hey</li></ul>")
+  assert_eq(patches.len(), 1)
+  assert_eq(patches[0].op, "append")
+  assert_eq(patches[0].content, "<li>Bob: hey</li>")
+}
+
+@test
+fn diff_multiple_attrs_changed_at_once() {
+  let patches = diff_html("<div id=\"a\" class=\"one\"></div>",
+                           "<div id=\"b\" class=\"two\"></div>")
+  assert_eq(patches.len(), 2)
+  assert_eq(patches[0].op, "set_attr")
+  assert_eq(patches[1].op, "set_attr")
+}
+
+@test
+fn diff_removes_emitted_in_reverse_order() {
+  // Removing children 1 and 2 (of [0, 1, 2]) — must emit index 2 first,
+  // then index 1, so the client's earlier remove doesn't shift indices.
+  let patches = diff_html("<ul><li>a</li><li>b</li><li>c</li></ul>",
+                           "<ul><li>a</li></ul>")
+  assert_eq(patches.len(), 2)
+  assert_eq(patches[0].op, "remove")
+  assert_eq(patches[1].op, "remove")
+  // First patch removes index 2, second removes index 1.
+  assert_eq(patches[0].path[1], 2)
+  assert_eq(patches[1].path[1], 1)
+}
+
+@test
+fn diff_empty_string_vs_empty_string() {
+  let patches = diff_html("", "")
+  assert_eq(patches.len(), 0)
+}
+
+@test
+fn node_to_html_roundtrip_preserves_structure() {
+  // Parse then serialize should give back an equivalent tree
+  // (whitespace preservation is enough for our diff use case).
+  let original = "<div id=\"x\"><p>hi</p></div>"
+  let tree = parse_html(original)
+  assert_eq(node_to_html(tree[0]), original)
+}
+
+@test
+fn diff_empty_old_html_returns_no_patches_forcing_full_replace() {
+  // Regression: on the first message of a chat with shared state,
+  // last_chat_html starts as "". If we let diff_at_level run, it would
+  // emit an Append at path [] with the full new div HTML — and the
+  // client would append the entire LiveView root as a child of itself.
+  // Guard returns empty patches instead; client's html fallback kicks in.
+  let patches = diff_html("", "<div id=\"chat-app\"><p>hi</p></div>")
+  assert_eq(patches.len(), 0)
+}
+
+@test
+fn diff_multiple_top_level_nodes_returns_no_patches() {
+  // Templates must render a single top-level element. If not, force
+  // full html replace via empty patches.
+  let patches = diff_html("<p>a</p><p>b</p>", "<p>a</p><p>c</p>")
+  assert_eq(patches.len(), 0)
+}
+
+@test
+fn diff_root_tag_changed_returns_no_patches() {
+  // Root replaced with a different tag → the whole thing changed.
+  // Fall back to html rather than try to patch it.
+  let patches = diff_html("<div>hi</div>", "<span>hi</span>")
+  assert_eq(patches.len(), 0)
+}
+
+@test
+fn diff_counter_full_template_with_whitespace() {
+  // Regression test — mimics the real counter render output with
+  // newlines and indentation. The bug we hit shipping to a browser
+  // is that patches came back as [] even though the p's text
+  // changed. This test guards against that.
+  let s1 = """<div id="counter-app">
+  <h1>Fitz LiveViews Counter</h1>
+  <p>Count: 0</p>
+  <button data-flv-click="increment">+1</button>
+</div>"""
+  let s2 = """<div id="counter-app">
+  <h1>Fitz LiveViews Counter</h1>
+  <p>Count: 1</p>
+  <button data-flv-click="increment">+1</button>
+</div>"""
+  let patches = diff_html(s1, s2)
+  // Expected: exactly one text patch on the Count text node.
+  assert(patches.len() > 0)
+  let found_text = false
+  for p in patches {
+    if (p.op == "text") {
+      found_text = true
+    }
+  }
+  assert(found_text)
 }

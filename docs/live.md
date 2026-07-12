@@ -209,18 +209,121 @@ async fn chat_socket(ws: WsConn<LiveFrame>) {
 
 The `examples/chat/` project shows all three patterns together.
 
-## Known limitations of the Phase 3a MVP
+## Phase 3b additions — server-side diff engine
 
-- **Form inputs reset on every server render.** Because we replace the
-  root `outerHTML` on each patch, focused inputs lose their value and
-  cursor position. A proper morphdom-style diff engine (Phase 3b)
-  patches the DOM in place and preserves this state.
+Phase 3b upgrades the patch protocol from "send the whole HTML" to
+"send only what changed". The server parses the previous and next
+renders into node trees, computes a minimal patch list, and ships it
+over the WebSocket. The client applies patches directly to the DOM,
+which preserves focus, input values, and cursor position on any
+element that wasn't rewritten.
+
+### Anatomy of the patch pipeline
+
+1. Your `render(state)` returns an `Html`.
+2. Server computes `diff_html(last_html, new_html) -> List<Patch>`.
+3. Server sends `LiveFrame { html: new_html, patches: patches }`.
+4. Client tries `patches` first. If any patch fails (e.g., the client
+   is out of sync), it silently falls back to `html` and replaces the
+   root's `outerHTML`.
+
+### Six patch ops
+
+| Op            | `path` targets       | `content`                    | `name`        |
+|---------------|----------------------|------------------------------|---------------|
+| `text`        | text node            | new text (entities decoded)  | —             |
+| `replace`     | element to replace   | new HTML fragment            | —             |
+| `append`      | parent element       | new child HTML fragment      | —             |
+| `remove`      | element to remove    | —                            | —             |
+| `set_attr`    | element              | new attribute value          | attribute name|
+| `remove_attr` | element              | —                            | attribute name|
+
+`path` is a list of child indices starting from the root's outer-most
+element. Path `[0]` refers to the root. Path `[0, 2]` refers to the
+root's third child. And so on.
+
+### The pattern in your handler
+
+Track a snapshot of the last HTML you broadcast, then diff on every event:
+
+```fitz
+@ws("/live/counter")
+async fn counter_socket(ws: WsConn<LiveFrame>) {
+  let state = CounterState { count: 0 }
+  let last_html = render(state).raw
+  loop {
+    let frame = ws.recv()?
+    // ... update `state` ...
+    let new_html = render(state).raw
+    let patches = diff_html(last_html, new_html)
+    ws.send(LiveFrame { html: new_html, patches: patches })?
+    last_html = new_html
+  }
+}
+```
+
+For shared-state / broadcast handlers, keep `last_html` at the top
+level (shared) instead of local, so every broadcast diffs against the
+canonical server snapshot.
+
+### Clearing inputs after submit
+
+Since patches only touch what changed, the form inputs keep whatever
+the user typed — great for a "name" input, annoying for a "message"
+input on a chat. Opt in with `data-flv-clear` on any input that should
+be wiped after its form submits:
+
+```html
+<form data-flv-submit="send_message">
+  <input name="author" placeholder="Your name" />
+  <input name="text" placeholder="Your message" data-flv-clear />
+</form>
+```
+
+The client empties every input in the submitted form that carries
+`data-flv-clear`, right after sending the event over the WebSocket.
+Inputs without the attribute keep their value — that is the whole
+point of Phase 3b's DOM preservation.
+
+### The parser scope
+
+We ship a minimal HTML parser that covers everything our templates
+emit. Explicitly supported:
+
+- Elements with `<tag>...</tag>` and `<tag />`
+- Void elements: `<br>`, `<input>`, `<img>`, `<hr>`, `<meta>`,
+  `<link>`, `<area>`, `<base>`, `<col>`, `<embed>`, `<source>`,
+  `<track>`, `<wbr>`
+- Attributes with double-quoted values: `<div id="x">`
+- Boolean attributes: `<input required>`
+- Nested elements to arbitrary depth
+- HTML entities preserved as-is in text (`&amp;`, `&lt;`, etc.)
+
+Explicitly NOT supported (documented so you know what to avoid):
+
+- HTML comments `<!-- ... -->`
+- Attributes with single quotes: `<div id='x'>` — use double quotes
+- Unquoted attribute values: `<div id=x>`
+- `<script>` and `<style>` inside the LiveView root (the client JS is
+  attached OUTSIDE the root by `live_layout`)
+- CDATA and DOCTYPE
+- Element replacement of the root itself (kind or tag change of the
+  outer wrapper) — this triggers the `html` fallback
+
+## Known limitations of the current MVP
+
 - **No persistence.** Shared state is in memory. Persistent storage
   plugs into Fitz's ORM (Phase 4 territory).
 - **No fine-grained events.** `data-flv-click` and `data-flv-submit`
   are the only two client-side event bindings. `data-flv-input`,
   `data-flv-change`, `data-flv-keydown`, debouncing — all lands in
-  Phase 3b.
+  Phase 3c.
+- **Race on newly-connected clients during broadcast.** If a client
+  finishes its HTTP `GET` and then receives a broadcast patch that was
+  diffed from an older server snapshot, the patches may not apply
+  cleanly. The `html` fallback recovers, but silently — no explicit
+  version-numbering is in Phase 3b. Real production apps would want
+  a version protocol; queue it up for a future phase.
 
 ## What is coming next
 

@@ -91,20 +91,42 @@ The "wow moment" of LiveViews — multi-user real-time.
 - [x] Example: **multi-user chat** (`examples/chat/`) — verified
       end-to-end with two browser windows
 
-## Phase 3b — Real-world polish 📦
+## Phase 3b — Server-side diff engine 🔬
 
-Deferred from Phase 3a because Chat MVP proves the concept without them.
+Compact patches over the wire, DOM state preserved on the client.
 
-- [ ] Server-side HTML diff engine → patch list (fixes input-clearing
-      on every render)
+- [x] Minimal HTML parser in Fitz (`parse_html`) — supports our
+      template subset; ~200 LoC + 15 tests
+- [x] Node tree types (`type Node { kind, tag, attrs, children, text }`,
+      `type Attr { name, value }`)
+- [x] Tree diff algorithm (`diff_html(old_str, new_str)`) with 6 patch
+      ops: `text`, `replace`, `append`, `remove`, `set_attr`,
+      `remove_attr`; ~200 LoC + 16 tests
+- [x] `type Patch { op, path, content, name }` — single-type
+      discriminator (no unions in Fitz)
+- [x] `LiveFrame` extended with `patches: List<Patch> = []`
+- [x] Client JS grows a DOM walker + `applyPatches` (~40 LoC of JS);
+      tries patches first, falls back to `html` outerHTML replace on
+      error or absence
+- [x] Counter and chat examples updated to send patches; verified
+      end-to-end via curl + browser
+- [x] `docs/live.md` gains the "Phase 3b additions" section (patch
+      protocol, patch ops table, canonical handler pattern, parser
+      scope, race caveat)
+
+## Phase 3c — Real-world polish 📦
+
 - [ ] Template control flow `{#for x in xs}...{/for}`,
       `{#if cond}...{/if}` — needs a mini template engine
 - [ ] `data-flv-input`, `data-flv-change`, `data-flv-keydown` handlers
 - [ ] Debouncing configuration on inputs (client-side)
-- [ ] Loops with stable keys (`{#for x in xs key=x.id}`) for efficient diff
+- [ ] Loops with stable keys (`{#for x in xs key=x.id}`) for efficient
+      diff (currently we don't handle reordering well)
 - [ ] Auth integration (`@authenticated @live(...)`, user injected)
 - [ ] `@on_mount` and `@on_disconnect` lifecycle hooks
 - [ ] `@every(N secs)` for server-pushed periodic updates
+- [ ] Version-numbered patches to detect out-of-sync clients (currently
+      silent fallback to `html`)
 
 ## Phase 4 — Stateful components (LiveComponents) 🧩
 

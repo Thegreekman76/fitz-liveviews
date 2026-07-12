@@ -5,7 +5,7 @@
 // sync as you click the buttons. Each connection has its own state
 // (multi-user shared state lands in Phase 4).
 
-from fitz_liveviews import Html, html, live_layout, html_response, LiveFrame
+from fitz_liveviews import Html, html, live_layout, html_response, LiveFrame, diff_html
 
 
 // -----------------------------------------------------------------------------
@@ -45,6 +45,7 @@ fn counter_page() -> Response {
 @ws("/live/counter")
 async fn counter_socket(ws: WsConn<LiveFrame>) {
   let state = CounterState { count: 0 }
+  let last_html = render(state).raw
   loop {
     let frame = ws.recv()?
     if (frame.event == "increment") {
@@ -56,7 +57,14 @@ async fn counter_socket(ws: WsConn<LiveFrame>) {
     if (frame.event == "reset") {
       state = CounterState { count: 0 }
     }
-    ws.send(LiveFrame { event: "", payload: {}, html: render(state).raw })?
+    // Phase 3b — compute the incremental patch from last_html to the
+    // new render. Client applies these directly to the DOM (preserves
+    // focus, input state, and ships fewer bytes over the wire). Client
+    // falls back to `html` if patch application fails.
+    let new_html = render(state).raw
+    let patches = diff_html(last_html, new_html)
+    ws.send(LiveFrame { html: new_html, patches: patches })?
+    last_html = new_html
   }
 }
 

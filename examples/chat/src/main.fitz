@@ -9,7 +9,7 @@
 // it in Arc<Mutex> automatically, so mutations from any WebSocket
 // handler are visible to all connections.
 
-from fitz_liveviews import Html, html, flv, live_layout, html_response, LiveFrame, h_join
+from fitz_liveviews import Html, html, flv, live_layout, html_response, LiveFrame, h_join, diff_html
 
 
 // -----------------------------------------------------------------------------
@@ -27,6 +27,12 @@ type ChatRoom {
 
 // Shared across all WebSocket connections.
 let chat_room: ChatRoom = ChatRoom { messages: [] }
+
+// Server-side snapshot of the last HTML we broadcast. Diffing against
+// this yields the compact patch list every WS event ships to clients.
+// Shared (like `chat_room`) because every broadcast is derived from the
+// canonical server state, not any individual connection.
+let last_chat_html: Str = ""
 
 
 // -----------------------------------------------------------------------------
@@ -46,7 +52,7 @@ fn render_chat(room: ChatRoom) -> Html {
   </ul>
   <form data-flv-submit="send_message">
     <input name="author" placeholder="Your name" required autocomplete="off" />
-    <input name="text" placeholder="Your message" required autocomplete="off" />
+    <input name="text" placeholder="Your message" required autocomplete="off" data-flv-clear />
     <button type="submit">Send</button>
   </form>
 </div>""")
@@ -76,11 +82,24 @@ async fn chat_socket(ws: WsConn<LiveFrame>) {
         if (frame.payload.has("text")) {
           let author = frame.payload["author"]
           let text = frame.payload["text"]
+          // Lazy-init the pre-mutation snapshot on the first message
+          // ever. If we didn't do this, the first diff would be
+          // `"" → full div`, which the guard in diff_html rejects, and
+          // the client would fall back to full html replace — wiping
+          // the form values the user just typed. Snapshotting the
+          // BEFORE-mutation render lets the first diff produce clean
+          // append patches for the new <li> without touching the form.
+          if (last_chat_html == "") {
+            last_chat_html = render_chat(chat_room).raw
+          }
           chat_room.messages.push(Message { author: author, text: text })
-          // Broadcast the new HTML to every connected client (including
-          // the sender — Fitz's ws.broadcast follows the Phoenix/Socket.IO
-          // convention of "send to all, including me").
-          ws.broadcast(LiveFrame { event: "", payload: {}, html: render_chat(chat_room).raw })?
+          // Broadcast both `patches` and `html`. Clients up-to-date
+          // with the last snapshot apply patches (fewer bytes, no form
+          // reset). Fresh clients fall back to `html`.
+          let new_html = render_chat(chat_room).raw
+          let patches = diff_html(last_chat_html, new_html)
+          ws.broadcast(LiveFrame { html: new_html, patches: patches })?
+          last_chat_html = new_html
         }
       }
     }
