@@ -14,10 +14,18 @@
 
 ---
 
-## Status: 🚧 Phase 0 — Repo bootstrap
+## Status: ✅ Phase 3b — server-side diff engine landed
 
-This project is under active design. **Nothing works yet.** Star the repo to
-follow along. See [ROADMAP.md](ROADMAP.md) for the phase-by-phase plan.
+Everything you need to ship a real-time UI works end-to-end today:
+
+- **Phase 1** — `Html` type + `flv()` XSS escape + composition helpers
+- **Phase 2** — `@get` + `@ws` + `live_layout` pattern; counter example
+- **Phase 3a** — Forms via `data-flv-submit`, shared state, `ws.broadcast(...)`; multi-user chat example
+- **Phase 3b** — HTML parser + tree diff + client walker → compact patches over WS, DOM state preserved
+- **Phase 5** — [Docs site](https://thegreekman76.github.io/fitz-liveviews/) (MkDocs Material) + CI/CD workflows
+- **Phase 6** — VSCode extension bundled at [`editors/vscode/`](editors/vscode/) — HTML highlighting inside `html("""...""")` + 11 snippets
+
+See [ROADMAP.md](ROADMAP.md) for what is coming in Phase 3c, 4, and 7.
 
 ---
 
@@ -113,10 +121,32 @@ updates on save without losing state.
 
 ## Documentation
 
-Coming with Phase 5 (see [ROADMAP.md](ROADMAP.md)).
+Full docs site: **[thegreekman76.github.io/fitz-liveviews](https://thegreekman76.github.io/fitz-liveviews/)**
 
-Meanwhile, the [`examples/`](examples/) folder is the source of truth
-for what works at each phase.
+Or read the source:
+
+- [`docs/html.md`](docs/html.md) — HTML primitives (`Html`, `flv`, `h_join`, `h_when`, `h_either`)
+- [`docs/live.md`](docs/live.md) — LiveView core (`live_layout`, `LiveFrame`, diff engine)
+- [`examples/counter/`](examples/counter/) — real-time counter (Phase 2)
+- [`examples/chat/`](examples/chat/) — multi-user chat with broadcast + patches (Phase 3a + 3b)
+
+## VSCode extension
+
+An extension bundled at [`editors/vscode/`](editors/vscode/) adds HTML
+syntax highlighting inside `html("""...""")` templates and 11 snippets
+for the common Phase 2 + 3 patterns (`liveview`, `render`, `get`, `ws`,
+`broadcast`, `flv`, `hwhen`, `heither`, `hjoin`, `btnclick`, `flvform`).
+
+Install from the local `.vsix` (until Marketplace publish):
+
+```powershell
+cd editors/vscode
+npx @vscode/vsce package --no-dependencies
+code --install-extension fitz-liveviews-*.vsix
+```
+
+Requires the base [Fitz Language extension](https://marketplace.visualstudio.com/items?itemName=thegreekman76.fitz-language),
+which VSCode will offer to install automatically.
 
 ## Contributing
 
