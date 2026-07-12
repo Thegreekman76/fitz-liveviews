@@ -278,16 +278,29 @@ let LIVE_CLIENT_JS: Str = """(function() \{
       root.outerHTML = msg.html;
     \}
   \};
+  function collectValues(el, payload) \{
+    for (const attr of el.attributes) \{
+      if (attr.name.startsWith('data-flv-value-')) \{
+        const key = attr.name.slice('data-flv-value-'.length);
+        if (!(key in payload)) payload[key] = attr.value;
+      \}
+    \}
+  \}
+  function enrichWithComponentContext(target, payload) \{
+    const comp = target.closest('[data-flv-component-name]');
+    if (comp) \{
+      collectValues(comp, payload);
+      if (!('component_name' in payload)) \{
+        payload['component_name'] = comp.getAttribute('data-flv-component-name');
+      \}
+    \}
+  \}
   document.body.addEventListener('click', function(e) \{
     const t = e.target.closest('[data-flv-click]');
     if (t && ws.readyState === WebSocket.OPEN) \{
       const payload = \{\};
-      for (const attr of t.attributes) \{
-        if (attr.name.startsWith('data-flv-value-')) \{
-          const key = attr.name.slice('data-flv-value-'.length);
-          payload[key] = attr.value;
-        \}
-      \}
+      collectValues(t, payload);
+      enrichWithComponentContext(t, payload);
       ws.send(JSON.stringify(\{ event: t.dataset.flvClick, payload: payload, html: '', patches: [] \}));
     \}
   \});
@@ -296,12 +309,8 @@ let LIVE_CLIENT_JS: Str = """(function() \{
     if (form && ws.readyState === WebSocket.OPEN) \{
       e.preventDefault();
       const payload = \{\};
-      for (const attr of form.attributes) \{
-        if (attr.name.startsWith('data-flv-value-')) \{
-          const key = attr.name.slice('data-flv-value-'.length);
-          payload[key] = attr.value;
-        \}
-      \}
+      collectValues(form, payload);
+      enrichWithComponentContext(form, payload);
       for (const el of form.elements) \{
         if (el.name) payload[el.name] = el.value;
       \}
@@ -430,6 +439,21 @@ fn live_layout_includes_data_flv_value_extraction() {
   let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
   assert(full.raw.contains("data-flv-value-"))
   assert(full.raw.contains("startsWith"))
+}
+
+@test
+fn live_layout_includes_component_context_walkup() {
+  // Phase 4 — inside a `component(name, id)` wrapper, click/submit
+  // handlers walk up the DOM to the enclosing element that has
+  // `data-flv-component-name`, harvest its `data-flv-value-*` attrs
+  // into the payload, and add `component_name` explicitly. Lets the
+  // server's `dispatch_component_events(frame)` route the frame back
+  // to the right component + instance without user boilerplate on
+  // every button.
+  let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
+  assert(full.raw.contains("enrichWithComponentContext"))
+  assert(full.raw.contains("data-flv-component-name"))
+  assert(full.raw.contains("component_name"))
 }
 
 @test
@@ -1339,4 +1363,307 @@ fn diff_counter_full_template_with_whitespace() {
     }
   }
   assert(found_text)
+}
+
+
+// =============================================================================
+// PHASE 4 — LIVE COMPONENTS (registration + dispatch)
+// =============================================================================
+//
+// Reusable server-rendered components with independent per-instance
+// state. A component is:
+//   - a `type` for its state,
+//   - a `fn(state) -> Html` render function,
+//   - zero or more event handlers `fn(state, payload) -> state`.
+//
+// The user registers each component once at boot with `flv_register(...)`
+// and embeds instances in parent templates with `component(name, id)`.
+// The framework holds the state store and routes events by (name, id).
+//
+// Event dispatch — the client runtime added in Phase 4 walks up from
+// every click/submit target to its enclosing `[data-flv-component-name]`
+// element and merges its `data-flv-value-*` attributes + the component
+// name itself into the payload. So a plain `<button data-flv-click="save">`
+// inside a component reaches `dispatch_component_events` with
+// payload["component_name"] and payload["instance_id"] already set.
+//
+// Fitz core exposes `@live_component`, `@render_for` and `@on` decorators
+// (Sessions 1.a/1.b) so the checker knows a fn is a component render or
+// event handler — the runtime wiring is still explicit `flv_register(...)`
+// in this Phase 4 MVP. A future codegen pass can turn the decorators
+// into an implicit registration and remove the explicit call, without
+// changing the public `component(...)` / `dispatch_component_events(...)`
+// surface.
+
+
+// -----------------------------------------------------------------------------
+// Registry types
+// -----------------------------------------------------------------------------
+
+// A single registered component.
+//
+// `render_fn` and each entry of `event_handlers` are stored as `Any`
+// because they carry concrete Fitz function values with user-defined
+// signatures (Fn(CardEditor) -> Html, Fn(CardEditor, Map<Str, Str>)
+// -> CardEditor, etc.). Fitz's gradual typing lets us pass them
+// through the framework opaquely and invoke them via runtime dispatch.
+//
+// `initial_state` is the value used to seed the state store the first
+// time an instance is rendered. Typically a struct literal like
+// `CardEditor { text: "", is_editing: false }`.
+type ComponentReg {
+  render_fn: Any
+  event_handlers: Map<Str, Any>
+  initial_state: Any
+}
+
+// The component registry — `component_name` → `ComponentReg`.
+// Populated at boot by user code calling `flv_register(...)`.
+let COMPONENT_REGISTRY: Map<Str, ComponentReg> = {}
+
+// The state store — `"{component_name}:{instance_id}"` → state value.
+// The state value is whatever type the user registered (via
+// `initial_state`); we keep it as `Any` so users can register
+// components of different shapes without changing the framework.
+let COMPONENT_STATE_STORE: Map<Str, Any> = {}
+
+
+// -----------------------------------------------------------------------------
+// Registry API
+// -----------------------------------------------------------------------------
+
+fn flv_state_key(name: Str, id: Str) -> Str => "{name}:{id}"
+
+// Register a component. Call once per component name at program boot,
+// before any `@get` handler renders a `component(...)` reference.
+//
+// Parameters:
+//   name             — string ID; must match `component(name, id)` calls
+//                       and the argument of `@live_component("name")`.
+//   initial_state    — value seeded into the store on first render of
+//                       any instance. Usually a struct literal.
+//   render_fn        — a `fn(state) -> Html`. Signature is checked at
+//                       the call site (gradual typing).
+//   event_handlers   — a Map from event name to `fn(state, payload) -> state`.
+fn flv_register(name: Str, initial_state: Any, render_fn: Any, event_handlers: Map<Str, Any>) -> Null {
+  COMPONENT_REGISTRY[name] = ComponentReg {
+    render_fn: render_fn,
+    event_handlers: event_handlers,
+    initial_state: initial_state
+  }
+  return null
+}
+
+// Render an instance of a registered component. The wrapper injects
+// `data-flv-component-name="{name}"` and `data-flv-value-instance_id="{id}"`
+// so the Phase 4 client runtime can attach that context to any event
+// fired from inside the component.
+//
+// Errors:
+//   - If `name` was never registered, this crashes with a Fitz runtime
+//     "clave no encontrada" — same shape as other Map lookups. That is
+//     intentional: forgetting to register a component is a programmer
+//     error, not a runtime condition to recover from.
+fn component(name: Str, id: Str) -> Html {
+  let key = flv_state_key(name, id)
+  let reg = COMPONENT_REGISTRY[name]
+  if (not COMPONENT_STATE_STORE.has(key)) {
+    COMPONENT_STATE_STORE[key] = reg.initial_state
+  }
+  let state = COMPONENT_STATE_STORE[key]
+  // `reg.render_fn(state)` would be parsed as a method call, so we
+  // bind the field to a local first to force the fn-value dispatch.
+  let render_fn = reg.render_fn
+  let inner = render_fn(state)
+  return html("<div data-flv-component-name=\"{name}\" data-flv-value-instance_id=\"{id}\">{inner.raw}</div>")
+}
+
+
+// -----------------------------------------------------------------------------
+// Dispatch
+// -----------------------------------------------------------------------------
+
+// Route a LiveFrame to a registered component's event handler.
+//
+// Returns `true` iff the frame was a component event AND was handled:
+//   - payload has both "component_name" and "instance_id",
+//   - the named component is registered,
+//   - the frame's event has a handler in that component.
+//
+// Otherwise returns `false` — call sites should treat that as "handle
+// this frame yourself" (a non-component event, or a component the user
+// forgot to register).
+//
+// Idiomatic usage:
+//   loop {
+//     let frame = ws.recv()?
+//     if (dispatch_component_events(frame)) {
+//       // component handler already updated its state
+//     } else {
+//       // handle parent-level events here
+//     }
+//     ... re-render + ws.send(...)
+//   }
+fn dispatch_component_events(frame: LiveFrame) -> Bool {
+  if (not frame.payload.has("component_name")) { return false }
+  if (not frame.payload.has("instance_id")) { return false }
+  let name = frame.payload["component_name"]
+  let id = frame.payload["instance_id"]
+  if (not COMPONENT_REGISTRY.has(name)) { return false }
+  let reg = COMPONENT_REGISTRY[name]
+  if (not reg.event_handlers.has(frame.event)) { return false }
+  let handler = reg.event_handlers[frame.event]
+  let key = flv_state_key(name, id)
+  let state = COMPONENT_STATE_STORE[key]
+  let new_state = handler(state, frame.payload)
+  COMPONENT_STATE_STORE[key] = new_state
+  return true
+}
+
+
+// -----------------------------------------------------------------------------
+// Phase 4 tests
+// -----------------------------------------------------------------------------
+//
+// Each test registers a component under a UNIQUE name so tests do not
+// interfere with each other via the top-level state / registry.
+
+type __P4Counter {
+  count: Int = 0
+}
+
+fn __p4_counter_render(state: __P4Counter) -> Html {
+  return html("<span>Count: {state.count}</span>")
+}
+
+fn __p4_counter_increment(state: __P4Counter, payload: Map<Str, Str>) -> __P4Counter {
+  return __P4Counter { count: state.count + 1 }
+}
+
+fn __p4_counter_reset(state: __P4Counter, payload: Map<Str, Str>) -> __P4Counter {
+  return __P4Counter { count: 0 }
+}
+
+@test
+fn p4_component_wraps_render_output_with_context_attrs() {
+  flv_register("p4_wrap", __P4Counter { count: 0 }, __p4_counter_render,
+               { "increment": __p4_counter_increment })
+  let out = component("p4_wrap", "inst-1")
+  assert(out.raw.contains("data-flv-component-name=\"p4_wrap\""))
+  assert(out.raw.contains("data-flv-value-instance_id=\"inst-1\""))
+  assert(out.raw.contains("Count: 0"))
+}
+
+@test
+fn p4_component_seeds_state_from_initial_on_first_render() {
+  flv_register("p4_seed", __P4Counter { count: 7 }, __p4_counter_render,
+               { "increment": __p4_counter_increment })
+  let out = component("p4_seed", "only")
+  assert(out.raw.contains("Count: 7"))
+}
+
+@test
+fn p4_dispatch_updates_state_and_next_render_reflects_it() {
+  flv_register("p4_inc", __P4Counter { count: 0 }, __p4_counter_render,
+               { "increment": __p4_counter_increment })
+  let r1 = component("p4_inc", "a")
+  assert(r1.raw.contains("Count: 0"))
+  let frame = LiveFrame {
+    event: "increment",
+    payload: {
+      "component_name": "p4_inc",
+      "instance_id": "a"
+    }
+  }
+  let handled = dispatch_component_events(frame)
+  assert(handled)
+  let r2 = component("p4_inc", "a")
+  assert(r2.raw.contains("Count: 1"))
+}
+
+@test
+fn p4_dispatch_isolates_state_between_instances_of_the_same_component() {
+  flv_register("p4_iso", __P4Counter { count: 0 }, __p4_counter_render,
+               { "increment": __p4_counter_increment })
+  component("p4_iso", "a")
+  component("p4_iso", "b")
+  let frame = LiveFrame {
+    event: "increment",
+    payload: {
+      "component_name": "p4_iso",
+      "instance_id": "a"
+    }
+  }
+  dispatch_component_events(frame)
+  let ra = component("p4_iso", "a")
+  let rb = component("p4_iso", "b")
+  assert(ra.raw.contains("Count: 1"))
+  assert(rb.raw.contains("Count: 0"))
+}
+
+@test
+fn p4_dispatch_returns_false_when_payload_lacks_component_context() {
+  flv_register("p4_ctx", __P4Counter { count: 0 }, __p4_counter_render,
+               { "increment": __p4_counter_increment })
+  // No component_name / instance_id in the payload — this frame is a
+  // parent-level event, dispatch must yield to the caller.
+  let frame = LiveFrame { event: "increment", payload: {} }
+  let handled = dispatch_component_events(frame)
+  assert_eq(handled, false)
+}
+
+@test
+fn p4_dispatch_returns_false_when_component_unknown_or_event_missing() {
+  flv_register("p4_known", __P4Counter { count: 0 }, __p4_counter_render,
+               { "increment": __p4_counter_increment })
+  // Component was never registered.
+  let f1 = LiveFrame {
+    event: "increment",
+    payload: {
+      "component_name": "p4_never_registered",
+      "instance_id": "x"
+    }
+  }
+  assert_eq(dispatch_component_events(f1), false)
+  // Component is registered but the event has no handler.
+  let f2 = LiveFrame {
+    event: "decrement",
+    payload: {
+      "component_name": "p4_known",
+      "instance_id": "x"
+    }
+  }
+  assert_eq(dispatch_component_events(f2), false)
+}
+
+@test
+fn p4_multiple_event_handlers_route_to_the_right_one() {
+  flv_register(
+    "p4_multi",
+    __P4Counter { count: 10 },
+    __p4_counter_render,
+    {
+      "increment": __p4_counter_increment,
+      "reset": __p4_counter_reset
+    }
+  )
+  component("p4_multi", "x")
+  let f_inc = LiveFrame {
+    event: "increment",
+    payload: {
+      "component_name": "p4_multi",
+      "instance_id": "x"
+    }
+  }
+  dispatch_component_events(f_inc)
+  assert(component("p4_multi", "x").raw.contains("Count: 11"))
+  let f_reset = LiveFrame {
+    event: "reset",
+    payload: {
+      "component_name": "p4_multi",
+      "instance_id": "x"
+    }
+  }
+  dispatch_component_events(f_reset)
+  assert(component("p4_multi", "x").raw.contains("Count: 0"))
 }

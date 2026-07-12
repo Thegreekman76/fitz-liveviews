@@ -149,15 +149,31 @@ Compact patches over the wire, DOM state preserved on the client.
 - [ ] Version-numbered patches to detect out-of-sync clients (currently
       silent fallback to `html`)
 
-## Phase 4 — Stateful components (LiveComponents) 🧩
+## Phase 4 — Stateful components (LiveComponents) 🧩 (framework layer landed 2026-07-12)
 
 Per-instance state without hoisting everything to the parent.
 
-- [ ] `@live_component(name)` decorator
-- [ ] Per-instance state with stable component IDs
-- [ ] Component lifecycle (mount, update, unmount)
-- [ ] Parent ↔ child communication patterns
-- [ ] Example: **nested accordions / dashboard tiles**
+- [x] `@live_component(name)`, `@render_for(name)` and `@on(name, event)`
+      decorators in Fitz core (Sessions 1.a + 1.b — checker validates
+      shape and registers metadata; runtime wiring is explicit for now)
+- [x] `fitz new my-app --template liveviews` template CLI (Session 1.c)
+      scaffolds a working starter from `templates/basic/`
+- [x] `flv_register(name, initial_state, render_fn, event_handlers)` —
+      register a component at boot
+- [x] `component(name, id) -> Html` — embed an instance in a parent
+      template; injects `data-flv-component-name` + `data-flv-value-instance_id`
+- [x] `dispatch_component_events(frame) -> Bool` — route a `LiveFrame`
+      to the matching component + event handler
+- [x] Per-instance state store keyed by `(component_name, instance_id)`
+- [x] Client runtime walks up to the enclosing component wrapper so
+      `<button data-flv-click="save">` inside a component gets
+      `component_name` + `instance_id` in its payload automatically
+- [ ] Refactor `examples/kanban/` to use `@live_component("card_editor")`
+      for card edit mode (Session 3)
+- [ ] New `examples/dashboard/` — grid of live component tiles (Session 3)
+- [ ] Codegen pass: turn `@live_component` + `@render_for` + `@on`
+      into an implicit registration and remove the explicit
+      `flv_register(...)` call (future — public API stays the same)
 
 ## Phase 5 — Docs site + CI/CD 🌟
 

@@ -22,19 +22,24 @@ get a distinct highlight so they stand out from plain HTML attributes.
 
 Type any of these prefixes and hit Tab:
 
-| Prefix       | What it expands to                                       |
-|--------------|----------------------------------------------------------|
-| `liveview`   | Full Phase 2 scaffold: `type`, `render`, `@get`, `@ws`, `@server` |
-| `render`     | A `fn render(state) -> Html` skeleton                     |
-| `get`        | `@get(...)` handler returning `Response`                  |
-| `ws`         | `@ws(...)` handler with the recv/patch/send cycle         |
-| `broadcast`  | `@ws(...)` for shared-state chat-style with `ws.broadcast`|
-| `flv`        | `{flv(user_data)}` for XSS-safe interpolation             |
-| `hwhen`      | `{h_when(cond, html(...))}`                               |
-| `heither`    | `{h_either(cond, if_true, if_false)}`                     |
-| `hjoin`      | `{h_join(items.map(fn(x) => render(x)))}`                 |
-| `btnclick`   | `<button data-flv-click="event">…</button>`              |
-| `flvform`    | `<form data-flv-submit>` with an input and submit button  |
+| Prefix         | What it expands to                                       |
+|----------------|----------------------------------------------------------|
+| `liveview`     | Full Phase 2 scaffold: `type`, `render`, `@get`, `@ws`, `@server` |
+| `render`       | A `fn render(state) -> Html` skeleton                     |
+| `get`          | `@get(...)` handler returning `Response`                  |
+| `ws`           | `@ws(...)` handler with the recv/patch/send cycle         |
+| `broadcast`    | `@ws(...)` for shared-state chat-style with `ws.broadcast`|
+| `flv`          | `{flv(user_data)}` for XSS-safe interpolation             |
+| `hwhen`        | `{h_when(cond, html(...))}`                               |
+| `heither`      | `{h_either(cond, if_true, if_false)}`                     |
+| `hjoin`        | `{h_join(items.map(fn(x) => render(x)))}`                 |
+| `btnclick`     | `<button data-flv-click="event">…</button>`              |
+| `flvform`      | `<form data-flv-submit>` with an input and submit button  |
+| `livecomp`     | Full Phase 4 LiveComponent: `@live_component` + `@render_for` + `@on` + `flv_register(...)` |
+| `renderfor`    | An `@render_for("name")` handler                          |
+| `onevent`      | An `@on("component", "event")` handler                    |
+| `flvcomp`      | `{component("name", "instance").raw}` — embed an instance in a parent template |
+| `dispatchcomp` | Route a `LiveFrame` to the matching component handler at the top of an `@ws` loop |
 
 ## Requirements
 

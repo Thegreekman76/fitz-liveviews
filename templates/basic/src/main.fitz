@@ -1,0 +1,74 @@
+// {{name}} — a Fitz LiveViews app.
+//
+// Ships a live counter as its "hello world" — click the buttons in a
+// browser tab, the number updates over WebSocket without a page reload
+// and without a JS build step.
+//
+// Open http://127.0.0.1:3000/ after `fitz run`.
+
+from fitz_liveviews import Html, html, live_layout, html_response, LiveFrame, diff_html
+
+
+// -----------------------------------------------------------------------------
+// State + render
+// -----------------------------------------------------------------------------
+
+type AppState {
+  count: Int = 0
+}
+
+fn render(state: AppState) -> Html {
+  return html("""<div id="app">
+  <h1>{{name}}</h1>
+  <p>Count: {state.count}</p>
+  <button data-flv-click="increment">+1</button>
+  <button data-flv-click="decrement">-1</button>
+  <button data-flv-click="reset">Reset</button>
+</div>""")
+}
+
+
+// -----------------------------------------------------------------------------
+// HTTP — initial render + client-side runtime
+// -----------------------------------------------------------------------------
+
+@get("/")
+fn page() -> Response {
+  let initial = render(AppState { count: 0 })
+  return html_response(live_layout("/live", "app", initial))
+}
+
+
+// -----------------------------------------------------------------------------
+// WebSocket — event/patch cycle
+// -----------------------------------------------------------------------------
+
+@ws("/live")
+async fn socket(ws: WsConn<LiveFrame>) {
+  let state = AppState { count: 0 }
+  let last_html = render(state).raw
+  loop {
+    let frame = ws.recv()?
+    if (frame.event == "increment") {
+      state = AppState { count: state.count + 1 }
+    }
+    if (frame.event == "decrement") {
+      state = AppState { count: state.count - 1 }
+    }
+    if (frame.event == "reset") {
+      state = AppState { count: 0 }
+    }
+    let new_html = render(state).raw
+    let patches = diff_html(last_html, new_html)
+    ws.send(LiveFrame { html: new_html, patches: patches })?
+    last_html = new_html
+  }
+}
+
+
+// -----------------------------------------------------------------------------
+// Server
+// -----------------------------------------------------------------------------
+
+@server(3000)
+fn main() => 0

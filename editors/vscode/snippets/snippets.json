@@ -153,5 +153,78 @@
       "</form>"
     ],
     "description": "Form that dispatches an event with named field values"
+  },
+
+  "Live component scaffold (@live_component + @render_for + @on)": {
+    "prefix": "livecomp",
+    "body": [
+      "@live_component(\"${1:card_editor}\")",
+      "type ${2:CardEditor} {",
+      "  ${3:text}: ${4:Str} = ${5:\"\"}",
+      "}",
+      "",
+      "@render_for(\"$1\")",
+      "fn ${6:card_editor_render}(state: $2) -> Html {",
+      "  return html(\"\"\"<div>",
+      "    $0",
+      "  </div>\"\"\")",
+      "}",
+      "",
+      "@on(\"$1\", \"${7:save}\")",
+      "fn ${8:card_editor_save}(state: $2, payload: Map<Str, Str>) -> $2 {",
+      "  return $2 { $3: payload[\"$3\"] }",
+      "}",
+      "",
+      "// Register at boot — inside main() or a fn called from it.",
+      "flv_register(",
+      "  \"$1\",",
+      "  $2 { $3: $5 },",
+      "  $6,",
+      "  { \"$7\": $8 }",
+      ")"
+    ],
+    "description": "Full LiveComponent scaffold: type + render + one event handler + boot-time registration"
+  },
+
+  "@render_for handler": {
+    "prefix": "renderfor",
+    "body": [
+      "@render_for(\"${1:component_name}\")",
+      "fn ${2:render_name}(state: ${3:State}) -> Html {",
+      "  return html(\"\"\"<div>",
+      "    $0",
+      "  </div>\"\"\")",
+      "}"
+    ],
+    "description": "@render_for handler — turns a component's state into Html"
+  },
+
+  "@on event handler": {
+    "prefix": "onevent",
+    "body": [
+      "@on(\"${1:component_name}\", \"${2:event_name}\")",
+      "fn ${3:handler_name}(state: ${4:State}, payload: Map<Str, Str>) -> $4 {",
+      "  return $4 { $0 }",
+      "}"
+    ],
+    "description": "@on handler — takes (state, payload) and returns the new state"
+  },
+
+  "Live component instance (parent render)": {
+    "prefix": "flvcomp",
+    "body": ["{component(\"${1:component_name}\", \"${2:instance_id}\").raw}"],
+    "description": "Embed a registered live component instance inside a parent template"
+  },
+
+  "Dispatch component events at the top of an @ws loop": {
+    "prefix": "dispatchcomp",
+    "body": [
+      "if (dispatch_component_events(frame)) {",
+      "  // Component handler already updated its own state.",
+      "} else {",
+      "  $0",
+      "}"
+    ],
+    "description": "Route a LiveFrame to the matching component handler before your own event branches"
   }
 }

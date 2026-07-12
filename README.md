@@ -14,7 +14,7 @@
 
 ---
 
-## Status: ✅ Phase 3b — server-side diff engine + kanban showcase
+## Status: ✅ Phase 3b + 🧩 Phase 4 framework layer
 
 Everything you need to ship a real-time UI works end-to-end today:
 
@@ -23,10 +23,11 @@ Everything you need to ship a real-time UI works end-to-end today:
 - **Phase 3a** — Forms via `data-flv-submit`, shared state, `ws.broadcast(...)`; multi-user chat example
 - **Phase 3b** — HTML parser + tree diff + client walker → compact patches over WS, DOM state preserved
 - **Phase 3b showcase** ⭐ — collaborative kanban board with `data-flv-value-*` payloads, responsive by default
+- **Phase 4 framework layer** 🧩 — `@live_component` / `@render_for` / `@on` decorators (Fitz core), `flv_register` / `component` / `dispatch_component_events` (framework), `fitz new --template liveviews` scaffold; kanban refactor + dashboard example land in Session 3
 - **Phase 5** — [Docs site](https://thegreekman76.github.io/fitz-liveviews/) (MkDocs Material) + CI/CD workflows
-- **Phase 6** — VSCode extension v0.2.0 bundled at [`editors/vscode/`](editors/vscode/) — HTML highlighting inside `html("""...""")` + 12 snippets
+- **Phase 6** — VSCode extension v0.3.0 bundled at [`editors/vscode/`](editors/vscode/) — HTML highlighting inside `html("""...""")` + 16 snippets
 
-See [ROADMAP.md](ROADMAP.md) for what is coming in Phase 3c, 4, and 7.
+See [ROADMAP.md](ROADMAP.md) for what is coming in Phase 3c, the rest of Phase 4, and beyond.
 
 ---
 
@@ -206,9 +207,10 @@ Or read the source:
 ## VSCode extension
 
 An extension bundled at [`editors/vscode/`](editors/vscode/) adds HTML
-syntax highlighting inside `html("""...""")` templates and 11 snippets
-for the common Phase 2 + 3 patterns (`liveview`, `render`, `get`, `ws`,
-`broadcast`, `flv`, `hwhen`, `heither`, `hjoin`, `btnclick`, `flvform`).
+syntax highlighting inside `html("""...""")` templates and 16 snippets
+for the common Phase 2 + 3 + 4 patterns (`liveview`, `render`, `get`,
+`ws`, `broadcast`, `flv`, `hwhen`, `heither`, `hjoin`, `btnclick`,
+`flvform`, `livecomp`, `renderfor`, `onevent`, `flvcomp`, `dispatchcomp`).
 
 **Prerequisites:** the base **Fitz Language** extension has to be
 installed first. It ships as a `.vsix` in [Fitz's own releases](https://github.com/Thegreekman76/fitz/releases)
