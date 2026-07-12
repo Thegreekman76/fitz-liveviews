@@ -138,6 +138,12 @@
     "description": "Button that dispatches a LiveView event on click"
   },
 
+  "Button with click + value payload": {
+    "prefix": "btnvalue",
+    "body": ["<button data-flv-click=\"${1:event_name}\" data-flv-value-${2:key}=\"${3:value}\">${4:Label}</button>"],
+    "description": "Button that dispatches an event carrying a value payload (e.g. card_id)"
+  },
+
   "Form with data-flv-submit": {
     "prefix": "flvform",
     "body": [

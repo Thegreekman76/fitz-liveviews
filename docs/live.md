@@ -266,6 +266,54 @@ For shared-state / broadcast handlers, keep `last_html` at the top
 level (shared) instead of local, so every broadcast diffs against the
 canonical server snapshot.
 
+### Passing values with `data-flv-value-*`
+
+When a click or submit event fires, sometimes you need to send an
+identifier along with it — a card ID, a row ID, a column name.
+
+Use the `data-flv-value-<key>="<value>"` convention on the same
+element that carries `data-flv-click` or `data-flv-submit`. Every
+matching attribute is serialized into the event payload map:
+
+```html
+<button data-flv-click="delete_card" data-flv-value-card_id="42">
+  Delete
+</button>
+
+<button data-flv-click="move_right"
+        data-flv-value-card_id="42"
+        data-flv-value-column="in_progress">→</button>
+```
+
+Server side:
+
+```fitz
+if (frame.event == "delete_card") {
+  let card_id = frame.payload["card_id"]
+  chat_room.messages.remove_where(fn(m) => m.id == card_id)
+}
+
+if (frame.event == "move_right") {
+  let card_id = frame.payload["card_id"]
+  let column = frame.payload["column"]
+  // ...
+}
+```
+
+Forms can carry `data-flv-value-*` too — attributes on the `<form>`
+element are extracted first, then merged with the named input values
+(form fields win on name collision):
+
+```html
+<form data-flv-submit="save_edit" data-flv-value-card_id="42">
+  <input name="title" />
+  <button type="submit">Save</button>
+</form>
+```
+
+The convention mirrors Phoenix LiveView's `phx-value-<key>` — familiar
+to anyone coming from that world.
+
 ### Clearing inputs after submit
 
 Since patches only touch what changed, the form inputs keep whatever

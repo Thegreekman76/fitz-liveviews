@@ -15,8 +15,8 @@ scopes. Fitz's native `{expr}` interpolation keeps working.
 
 Fitz LiveViews directives (`data-flv-click`, `data-flv-submit`,
 `data-flv-input`, `data-flv-change`, `data-flv-keydown`,
-`data-flv-clear`, `data-flv-ws`, `data-flv-root`) get a distinct
-highlight so they stand out from plain HTML attributes.
+`data-flv-clear`, `data-flv-value-*`, `data-flv-ws`, `data-flv-root`)
+get a distinct highlight so they stand out from plain HTML attributes.
 
 **Snippets for common Phase 2 + 3 patterns.**
 

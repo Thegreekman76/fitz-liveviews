@@ -281,7 +281,14 @@ let LIVE_CLIENT_JS: Str = """(function() \{
   document.body.addEventListener('click', function(e) \{
     const t = e.target.closest('[data-flv-click]');
     if (t && ws.readyState === WebSocket.OPEN) \{
-      ws.send(JSON.stringify(\{ event: t.dataset.flvClick, payload: \{\}, html: '', patches: [] \}));
+      const payload = \{\};
+      for (const attr of t.attributes) \{
+        if (attr.name.startsWith('data-flv-value-')) \{
+          const key = attr.name.slice('data-flv-value-'.length);
+          payload[key] = attr.value;
+        \}
+      \}
+      ws.send(JSON.stringify(\{ event: t.dataset.flvClick, payload: payload, html: '', patches: [] \}));
     \}
   \});
   document.body.addEventListener('submit', function(e) \{
@@ -289,6 +296,12 @@ let LIVE_CLIENT_JS: Str = """(function() \{
     if (form && ws.readyState === WebSocket.OPEN) \{
       e.preventDefault();
       const payload = \{\};
+      for (const attr of form.attributes) \{
+        if (attr.name.startsWith('data-flv-value-')) \{
+          const key = attr.name.slice('data-flv-value-'.length);
+          payload[key] = attr.value;
+        \}
+      \}
       for (const el of form.elements) \{
         if (el.name) payload[el.name] = el.value;
       \}
@@ -396,6 +409,17 @@ fn live_layout_includes_data_flv_clear_opt_in() {
   let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
   assert(full.raw.contains("data-flv-clear"))
   assert(full.raw.contains("hasAttribute"))
+}
+
+@test
+fn live_layout_includes_data_flv_value_extraction() {
+  // Phase 3b polish — `data-flv-value-<key>="<val>"` attributes on
+  // click/submit targets are auto-serialized into the event payload.
+  // Enables passing identifiers (card_id, column_id, row_id) from
+  // the DOM to server handlers, Phoenix-style `phx-value-*`.
+  let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
+  assert(full.raw.contains("data-flv-value-"))
+  assert(full.raw.contains("startsWith"))
 }
 
 @test
