@@ -148,7 +148,16 @@ installed first. It ships as a `.vsix` in [Fitz's own releases](https://github.c
 (not on the VSCode Marketplace yet). The [Fitz install guide](https://thegreekman76.github.io/fitz/curso/m1-setup/c1-instalacion/)
 walks through the setup.
 
-Once you have Fitz Language installed, install Fitz LiveViews:
+Once Fitz Language is installed, grab the latest Fitz LiveViews
+`.vsix` from the [**Releases page**](https://github.com/Thegreekman76/fitz-liveviews/releases/latest)
+and install it:
+
+```powershell
+# Download from the Releases page, then:
+code --install-extension fitz-liveviews-0.1.0.vsix
+```
+
+Or build one yourself from source:
 
 ```powershell
 cd editors/vscode
@@ -156,9 +165,8 @@ npx @vscode/vsce package --no-dependencies
 code --install-extension fitz-liveviews-*.vsix
 ```
 
-Once VSCode publishes both extensions to the Marketplace we will
-switch to `code --install-extension thegreekman76.fitz-liveviews`
-and drop the manual packaging step.
+Once both extensions publish to the VSCode Marketplace we will switch
+to a single `code --install-extension thegreekman76.fitz-liveviews`.
 
 ## Contributing
 
