@@ -368,19 +368,10 @@ fn render_board(board: Board) -> Html {
 
 
 // -----------------------------------------------------------------------------
-// Boot — register the card_editor component before any request comes in
+// Boot — the compiler auto-injects `flv_register("card_editor", ...)` from
+// the metadata that `@live_component` + `@render_for` + `@on` decorators
+// leave in the TypeEnv. No manual boot call needed.
 // -----------------------------------------------------------------------------
-
-flv_register(
-  "card_editor",
-  CardEditor { is_editing: false, text: "" },
-  card_editor_render,
-  {
-    "start": card_editor_start,
-    "cancel": card_editor_cancel,
-    "save": card_editor_save
-  }
-)
 
 
 // -----------------------------------------------------------------------------

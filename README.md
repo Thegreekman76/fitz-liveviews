@@ -24,10 +24,11 @@ Everything you need to ship a real-time UI works end-to-end today:
 - **Phase 3b** — HTML parser + tree diff + client walker → compact patches over WS, DOM state preserved
 - **Phase 3b showcase** ⭐ — collaborative kanban board with `data-flv-value-*` payloads, responsive by default
 - **Phase 4 (Sessions 1–3)** 🧩 — `@live_component` / `@render_for` / `@on` decorators (Fitz core), `flv_register` / `component` / `dispatch_component_events` (framework layer), `fitz new --template liveviews` scaffold, kanban refactored to use `@live_component("card_editor")` for per-card inline editing, new `examples/dashboard/` with six independent `metric_tile` instances, dedicated [`docs/components.md`](docs/components.md) walkthrough
+- **Phase 5.A.1 (Fitz core v0.20.1)** ✨ — Implicit `flv_register(...)` from the `@live_component` / `@render_for` / `@on` decorators. The compiler walks the metadata that lives in the `TypeEnv` and appends the boot registration automatically; the kanban and dashboard examples dropped their manual boot call
 - **Phase 5** — [Docs site](https://thegreekman76.github.io/fitz-liveviews/) (MkDocs Material) + CI/CD workflows
 - **Phase 6** — VSCode extension v0.3.2 bundled at [`editors/vscode/`](editors/vscode/) — HTML highlighting inside `html("""...""")` + LiveComponents snippets (`livecomp` / `renderfor` / `onevent` / `flvcomp` / `dispatchcomp`)
 
-See [ROADMAP.md](ROADMAP.md) for what is coming in Phase 3c, the rest of Phase 4 (release coordination + implicit registration + per-instance init), and beyond.
+See [ROADMAP.md](ROADMAP.md) for what is coming in Phase 3c, the rest of Phase 4 (release coordination + per-instance init + `dispatch_to_all`), and beyond.
 
 ---
 

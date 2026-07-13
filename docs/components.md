@@ -41,11 +41,11 @@ You do **not** need a component for:
 
 ## The three decorators
 
-Fitz core exposes three decorators that the checker validates. They
-carry no runtime side-effects yet — the framework layer reads them as
-markers and the explicit `flv_register(...)` call at boot is what
-actually wires everything together. This may become implicit in a
-future phase.
+Fitz core exposes three decorators that the checker validates. Since
+Fitz core v0.20.1 the compiler auto-generates one `flv_register(...)`
+call per component from the decorators — no manual boot call needed
+in your program. Manual calls still work and take precedence if you
+prefer explicit boot wiring.
 
 | Decorator                            | Attaches to  | Meaning                                            |
 |--------------------------------------|--------------|----------------------------------------------------|
@@ -132,23 +132,40 @@ Each handler takes `(state, payload)` and returns the **new** state.
 Immutable-style — no in-place mutation. The framework stores the
 returned value in the shared store, keyed by `(name, instance_id)`.
 
-### 4. Register the component at boot
+### 4. Registration is automatic
+
+Since Fitz core v0.20.1, the compiler walks the metadata that
+`@live_component` + `@render_for` + `@on` leave in the `TypeEnv` and
+auto-appends the equivalent `flv_register(...)` call to the top-level
+program, before the HTTP server starts. You don't need to write it
+by hand.
+
+If you prefer explicit registration, or need per-instance seed data
+that differs from the type defaults, you can still write a manual
+call. It runs before the implicit injection, and the injection skips
+components you already registered:
 
 ```fitz
 flv_register(
   "row_toggle",
-  RowToggle { is_open: false },
+  RowToggle { is_open: true },  // override the default `false`
   row_toggle_render,
   {
     "open": row_toggle_open,
-    "close": row_toggle_close
+    "close": row_toggle_close,
   }
 )
 ```
 
-This is a **top-level statement**. Fitz executes it before the HTTP
-server starts, so every incoming request already sees the component
-in the registry.
+Requirements for the implicit path:
+- Every field of the `@live_component` type must declare a default.
+  Without them, the synthesized `TypeName {}` empty struct literal
+  would fail. Add `= <default>` on every field.
+- `flv_register` must be in scope (import it from `fitz_liveviews`).
+  The compiler surfaces a clear error at build time if it isn't.
+- Every `@live_component("name")` needs a matching `@render_for("name")`
+  fn. Otherwise the injection aborts with a clear error citing the
+  missing renderer.
 
 ### 5. Embed instances in the parent template
 
@@ -336,9 +353,9 @@ takes some `T` where `T` is the type declared by the matching
 - **`dispatch_to_all(name, event, payload)`** for bulk actions across
   every registered instance. Today you loop by hand over instance
   ids you tracked yourself.
-- **Implicit registration from decorators.** `flv_register(...)` is
-  still explicit. A future codegen pass can turn `@live_component` +
-  `@render_for` + `@on` into an auto-generated boot call.
+- ~~**Implicit registration from decorators.**~~ *Done in Fitz core
+  v0.20.1.* `@live_component` + `@render_for` + `@on` auto-generate
+  the boot registration.
 - **Presence** (per-user state across connections). Coming after
   Phase 4.
 - **Component-scoped CSS.** Emit CSS from the parent's `<style>` for

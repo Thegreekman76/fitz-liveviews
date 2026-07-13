@@ -5,6 +5,57 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [Unreleased] — 2026-07-13 — Phase 5.A.1: implicit `flv_register(...)` from decorators
+
+**Requires Fitz core v0.20.1+.** No `fitz-liveviews` code changes; the
+library API is identical. What changed is the compiler: it now
+auto-generates the `flv_register(...)` boot call from the metadata
+that `@live_component` + `@render_for` + `@on` leave in the
+`TypeEnv`. Users writing components no longer need the manual boot
+call.
+
+### Changed
+
+- **Kanban example** (`examples/kanban/`) — dropped the manual
+  `flv_register("card_editor", ...)` boot call. Metadata alone drives
+  the registration.
+- **Dashboard example** (`examples/dashboard/`) — dropped the manual
+  `flv_register("metric_tile", ...)` boot call.
+- **`docs/components.md`** — "Register the component at boot" section
+  reframed as "Registration is automatic", with a note explaining
+  when to fall back to manual registration (custom initial state that
+  differs from the type defaults). The "Coming next" section marks
+  implicit registration as done.
+- **`docs/live.md`** — `@live_component` teaser example no longer
+  shows the manual boot call; "coming next" section updated.
+- **`README.md`** — Phase 5.A.1 bullet added to the overview list.
+- **`ROADMAP.md`** — Phase 4 "Codegen pass: turn `@live_component` +
+  `@render_for` + `@on` into implicit registration" item marked
+  done, with a note about the invariants the compiler enforces at
+  build time.
+
+### Requirements for the implicit path
+
+- Every field of the `@live_component` type must declare a default —
+  the compiler synthesises `TypeName {}` and needs defaults for all
+  fields to succeed.
+- `flv_register` must be in scope. Import it from `fitz_liveviews` at
+  the top of the file; the compiler surfaces a clear error at build
+  time if it isn't.
+- Every `@live_component("name")` needs a matching `@render_for("name")`
+  fn. The compiler aborts the injection with a clear error citing
+  the missing renderer.
+- Aliased imports (`from fitz_liveviews import flv_register as
+  register`) are treated as out of scope — the injection emits
+  `flv_register` verbatim. Just don't alias.
+
+### Backward-compatible fallback
+
+Manual `flv_register(...)` calls still work; the compiler skips the
+implicit injection for any component that already has a manual
+registration. This is the escape hatch for custom initial state that
+differs from the type defaults.
+
 ## [v0.4.0] — 2026-07-12 — Phase 4: LiveComponents (stateful, per-instance)
 
 **Milestone release.** Phase 4 of the roadmap closes end-to-end with

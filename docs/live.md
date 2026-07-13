@@ -405,8 +405,9 @@ fn row_toggle_open(s: RowToggle, p: Map<Str, Str>) -> RowToggle {
   return RowToggle { is_open: true }
 }
 
-// Boot:
-flv_register("row_toggle", RowToggle {}, row_toggle_render, { "open": row_toggle_open })
+// Boot: registration is automatic since Fitz core v0.20.1 — the
+// compiler emits `flv_register("row_toggle", RowToggle {}, ...)`
+// from the decorators. No manual boot call needed.
 
 // Parent template:
 // {component("row_toggle", "row-42").raw}
@@ -421,9 +422,10 @@ flv_register("row_toggle", RowToggle {}, row_toggle_render, { "open": row_toggle
   framework layer + VSCode extension v0.3.0 (already shipped
   with `livecomp` / `renderfor` / `onevent` / `flvcomp` /
   `dispatchcomp` snippets).
-- **Beyond Phase 4** — implicit registration from decorators (no
-  explicit `flv_register`), per-instance init payload, presence
-  primitives (per-user state across connections), `@every(N secs)`
-  for periodic server-driven pushes, fine-grained events
-  (`data-flv-input`, `data-flv-change`, `data-flv-keydown`,
-  debouncing).
+- **Beyond Phase 4** — per-instance init payload, presence
+  primitives (per-user state across connections),
+  `dispatch_to_all(name, event, payload)` for bulk actions,
+  `@every(N secs)` for periodic server-driven pushes, and
+  fine-grained events (`data-flv-input`, `data-flv-change`,
+  `data-flv-keydown`, debouncing). Implicit registration from
+  decorators shipped in Fitz core v0.20.1.

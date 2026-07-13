@@ -66,18 +66,28 @@ Redis, no pub-sub library.
 ### 2. `@live_component` for per-card state isolation
 
 The `CardEditor` state and its three handlers are a self-contained
-unit. One `flv_register(...)` call at boot wires them up:
+unit. Since Fitz core v0.20.1, the compiler auto-registers the
+component from the decorators — no manual boot call needed:
 
 ```fitz
 @live_component("card_editor")
 type CardEditor { is_editing: Bool = false, text: Str = "" }
 
-flv_register(
-  "card_editor",
-  CardEditor { is_editing: false, text: "" },
-  card_editor_render,
-  { "start": card_editor_start, "cancel": card_editor_cancel, "save": card_editor_save }
-)
+// The compiler auto-generates the equivalent of:
+//
+//   flv_register(
+//     "card_editor",
+//     CardEditor {},  // uses type defaults
+//     card_editor_render,
+//     { "start": card_editor_start,
+//       "cancel": card_editor_cancel,
+//       "save": card_editor_save,
+//     }
+//   )
+//
+// from the `@render_for("card_editor")` and `@on("card_editor", ...)`
+// decorators, appended to the top-level program before the HTTP
+// server starts.
 ```
 
 The parent embeds an instance per card:

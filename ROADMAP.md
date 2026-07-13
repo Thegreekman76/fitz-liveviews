@@ -184,9 +184,16 @@ Per-instance state without hoisting everything to the parent.
       Session 3 refined, v0.3.2 adds `data-flv-component-name` to the
       grammar so component wrappers get the LiveViews-directive
       highlight)
-- [ ] Codegen pass: turn `@live_component` + `@render_for` + `@on`
+- [x] Codegen pass: turn `@live_component` + `@render_for` + `@on`
       into an implicit registration and remove the explicit
-      `flv_register(...)` call (future — public API stays the same)
+      `flv_register(...)` call (Fitz core Phase 5, v0.20.1+). The
+      compiler walks the metadata that `resolve_program` persisted in
+      `TypeEnv` and appends one synthetic `flv_register(...)` call per
+      component to the top-level `program`, after checking and before
+      eval/codegen. `examples/kanban/` and `examples/dashboard/`
+      dropped the manual boot call. Public API stays the same:
+      manual calls still work and take precedence over the implicit
+      injection.
 - [ ] Per-instance init payload — today every instance starts with the
       same `initial_state`; a `component(name, id, init_payload)` shape
       would let each instance start with per-instance seed data

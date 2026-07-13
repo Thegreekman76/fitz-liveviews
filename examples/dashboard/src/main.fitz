@@ -202,18 +202,10 @@ fn render_dashboard() -> Html {
 
 
 // -----------------------------------------------------------------------------
-// Boot — register the metric_tile component once
+// Boot — the compiler auto-injects `flv_register("metric_tile", ...)` from
+// the metadata that `@live_component` + `@render_for` + `@on` decorators
+// leave in the TypeEnv. No manual boot call needed.
 // -----------------------------------------------------------------------------
-
-flv_register(
-  "metric_tile",
-  MetricTile { count: 0 },
-  metric_tile_render,
-  {
-    "bump": metric_tile_bump,
-    "reset": metric_tile_reset
-  }
-)
 
 
 // -----------------------------------------------------------------------------
