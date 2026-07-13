@@ -64,7 +64,7 @@
       "patterns": [
         {
           "comment": "Fitz LiveViews directives — highlighted like decorators to stand out.",
-          "match": "\\b(data-flv-click|data-flv-submit|data-flv-input|data-flv-change|data-flv-keydown|data-flv-clear|data-flv-ws|data-flv-root|data-flv-value-[a-zA-Z_][a-zA-Z0-9_-]*)(=)?",
+          "match": "\\b(data-flv-click|data-flv-submit|data-flv-input|data-flv-change|data-flv-keydown|data-flv-clear|data-flv-ws|data-flv-root|data-flv-component-name|data-flv-value-[a-zA-Z_][a-zA-Z0-9_-]*)(=)?",
           "captures": {
             "1": { "name": "entity.other.attribute-name.liveviews.fitz" },
             "2": { "name": "punctuation.separator.key-value.html" }

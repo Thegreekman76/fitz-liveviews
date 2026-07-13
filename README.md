@@ -9,12 +9,12 @@
 
   [![CI](https://github.com/Thegreekman76/fitz-liveviews/actions/workflows/ci.yml/badge.svg)](https://github.com/Thegreekman76/fitz-liveviews/actions/workflows/ci.yml)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-  [![Status: Phase 3b](https://img.shields.io/badge/Status-Phase%203b%20(diff%20engine)-blue.svg)](ROADMAP.md)
+  [![Status: Phase 4 landed](https://img.shields.io/badge/Status-Phase%204%20(LiveComponents)-brightgreen.svg)](ROADMAP.md)
 </div>
 
 ---
 
-## Status: ✅ Phase 3b + 🧩 Phase 4 (Session 3)
+## Status: ✅ Phase 4 (LiveComponents) — v0.4.0
 
 Everything you need to ship a real-time UI works end-to-end today:
 
@@ -25,7 +25,7 @@ Everything you need to ship a real-time UI works end-to-end today:
 - **Phase 3b showcase** ⭐ — collaborative kanban board with `data-flv-value-*` payloads, responsive by default
 - **Phase 4 (Sessions 1–3)** 🧩 — `@live_component` / `@render_for` / `@on` decorators (Fitz core), `flv_register` / `component` / `dispatch_component_events` (framework layer), `fitz new --template liveviews` scaffold, kanban refactored to use `@live_component("card_editor")` for per-card inline editing, new `examples/dashboard/` with six independent `metric_tile` instances, dedicated [`docs/components.md`](docs/components.md) walkthrough
 - **Phase 5** — [Docs site](https://thegreekman76.github.io/fitz-liveviews/) (MkDocs Material) + CI/CD workflows
-- **Phase 6** — VSCode extension v0.3.0 bundled at [`editors/vscode/`](editors/vscode/) — HTML highlighting inside `html("""...""")` + 16 snippets
+- **Phase 6** — VSCode extension v0.3.2 bundled at [`editors/vscode/`](editors/vscode/) — HTML highlighting inside `html("""...""")` + LiveComponents snippets (`livecomp` / `renderfor` / `onevent` / `flvcomp` / `dispatchcomp`)
 
 See [ROADMAP.md](ROADMAP.md) for what is coming in Phase 3c, the rest of Phase 4 (release coordination + implicit registration + per-instance init), and beyond.
 

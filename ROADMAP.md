@@ -179,8 +179,11 @@ Per-instance state without hoisting everything to the parent.
       three decorators, the three framework builtins, the canonical
       `@ws` loop, state isolation, component ↔ parent cooperation,
       and gradual-typing gotchas (Session 3)
-- [x] VSCode extension v0.3.0 with `livecomp` / `renderfor` / `onevent`
-      / `flvcomp` / `dispatchcomp` snippets (Session 2 shipped)
+- [x] VSCode extension v0.3.2 with `livecomp` / `renderfor` / `onevent`
+      / `flvcomp` / `dispatchcomp` snippets (Session 2 introduced,
+      Session 3 refined, v0.3.2 adds `data-flv-component-name` to the
+      grammar so component wrappers get the LiveViews-directive
+      highlight)
 - [ ] Codegen pass: turn `@live_component` + `@render_for` + `@on`
       into an implicit registration and remove the explicit
       `flv_register(...)` call (future — public API stays the same)

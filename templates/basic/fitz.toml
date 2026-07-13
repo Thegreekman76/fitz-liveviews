@@ -10,4 +10,4 @@ main = "src/main.fitz"
 [dependencies]
 # Track a released tag for reproducible builds. Bump when you want new
 # framework features.
-fitz_liveviews = { git = "https://github.com/Thegreekman76/fitz-liveviews", tag = "v0.3.0" }
+fitz_liveviews = { git = "https://github.com/Thegreekman76/fitz-liveviews", tag = "v0.4.0" }
