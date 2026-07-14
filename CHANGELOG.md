@@ -5,6 +5,13 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.4.2] — 2026-07-14 — Version alignment (docs-only)
+
+Bumps the VSCode extension version to match the lib version so
+`fitz.toml`, `editors/vscode/package.json` and the released `.vsix`
+asset all read `0.4.2`. No behaviour change, no API change. From
+this release onward, the lib and the extension bump in lockstep.
+
 ## [v0.4.1] — 2026-07-14 — Phase 5.A.1: implicit `flv_register(...)` from decorators
 
 **Requires Fitz core v0.20.1+.** No `fitz-liveviews` code changes; the
