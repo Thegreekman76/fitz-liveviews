@@ -2,7 +2,7 @@
   "name": "fitz-liveviews",
   "displayName": "Fitz LiveViews",
   "description": "HTML highlighting and snippets for Fitz LiveViews templates (html(\"\"\"...\"\"\")).",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "publisher": "thegreekman76",
   "license": "MIT",
   "icon": "icon.png",
