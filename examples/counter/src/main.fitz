@@ -18,21 +18,18 @@ from Counter import Counter, Counter_render, Counter_increment, Counter_decremen
 
 
 // -----------------------------------------------------------------------------
-// Manual boot registration
+// Boot registration is IMPLICIT (Fitz core v0.21.0+)
 // -----------------------------------------------------------------------------
 //
-// v0.20.1's implicit `flv_register(...)` auto-injection only scans the
-// TOP-LEVEL program for `@live_component` types. Since `Counter` is
-// declared in `Counter.fitzv` (imported here as a module), the
-// auto-inject skips it and we do the registration manually. Cross-
-// module auto-inject is documented as debt residual for a follow-up
-// mini-fase after 11.6.e (see `docs/fase-11-plan.md`).
-
-flv_register("Counter", Counter { }, Counter_render, {
-  "increment": Counter_increment,
-  "decrement": Counter_decrement,
-  "reset": Counter_reset,
-})
+// The compiler auto-generates the `flv_register("Counter", Counter { },
+// Counter_render, {"increment": Counter_increment, ...})` call from
+// the metadata that `@live_component` + `@render_for` + `@on` leave in
+// the imported `Counter.fitzv` module. Cross-module auto-inject shipped
+// in Fitz core v0.21.0 (Phase 11.6.e §9.bb) — for it to work, `main.fitz`
+// must import the state type + render fn + every event handler by their
+// canonical names (`from Counter import Counter, Counter_render,
+// Counter_<event>...`), which is what the `from Counter import ...`
+// line above already does.
 
 
 // -----------------------------------------------------------------------------

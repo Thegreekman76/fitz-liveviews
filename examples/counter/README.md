@@ -26,14 +26,15 @@ bottom).
   3. `<template>` — the HTML with `@click="handler"` attrs
 - **`src/main.fitz`** — the tiny shim wiring the component into HTTP:
   1. `from Counter import ...` — brings the `@live_component`-generated
-     symbols into scope
-  2. `flv_register(...)` — registers the component at boot (manual for
-     now; see "What's missing" below)
-  3. `@get("/")` — initial HTML render + client-side script bundle
-  4. `@ws("/live/counter")` — routes frames via
+     symbols into scope. The compiler auto-injects the equivalent
+     `flv_register(...)` boot call from the metadata that
+     `@live_component`/`@render_for`/`@on` leave in `Counter.fitzv`
+     (Fitz core v0.21.0+ Phase 11.6.e §9.bb cross-module auto-inject).
+  2. `@get("/")` — initial HTML render + client-side script bundle
+  3. `@ws("/live/counter")` — routes frames via
      `dispatch_component_events(frame)` (no manual `state = ...`
      mutation loop like the pre-11.6.e version)
-  5. `@server(3000)` — binds the port
+  4. `@server(3000)` — binds the port
 
 ## Poking under the hood
 
@@ -62,21 +63,19 @@ Phase 11.6.e. Key changes vs the pre-11.6.e version:
   The compiler transforms it into classic Fitz source with
   `@live_component("Counter")` + `@render_for` + `@on` decorators,
   which fitz-liveviews's runtime picks up.
-- **`main.fitz` shrinks** to the HTTP handlers + a manual
-  `flv_register(...)` call. Event routing is a single
-  `dispatch_component_events(frame)` call — no per-event `if` branches
-  like the original.
+- **`main.fitz` shrinks** to just the HTTP handlers. Boot registration
+  is IMPLICIT — Fitz core v0.21.0+ auto-injects `flv_register("Counter",
+  Counter { }, Counter_render, {"increment": Counter_increment, ...})`
+  from the metadata that `@live_component`/`@render_for`/`@on` leave in
+  the imported `Counter.fitzv` module (Phase 11.6.e §9.bb cross-module
+  auto-inject). Event routing is a single `dispatch_component_events
+  (frame)` call — no per-event `if` branches like the original.
 - **Behaviour change**: shared state across all tabs (via
   `component("Counter", "root")`) instead of per-connection state.
   Matches the Phase 4 dashboard/kanban model.
 
 ## What's missing (comes later)
 
-- **Cross-module auto-inject of `flv_register`.** v0.20.1's implicit
-  registration only scans the top-level program for `@live_component`
-  types, so when the type is imported from a `.fitzv` sibling the
-  registration is manual. Follow-up mini-fase after 11.6.e will thread
-  `env.live_components` cross-module.
 - **`@live` decorator.** The current `@get` + `@ws` pattern is a
   compact but two-step shape. `@live("/counter")` collapsing both into
   one decorator is a language enhancement pending Fitz core support.
