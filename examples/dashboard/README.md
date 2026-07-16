@@ -1,10 +1,16 @@
-# Dashboard — reusable metric tiles (Phase 4 showcase)
+# Dashboard — reusable metric tiles (Phase 4 showcase, Phase 8.3 SFC migration)
 
 Six identical metric tiles rendered from a `TileConfig` list. Each
-tile is an independent instance of the same
-`@live_component("metric_tile")` — pressing `+1` or `reset` on one
-tile updates *only* that tile's state, and every open browser sees the
-patch via `ws.broadcast(...)`.
+tile is an independent instance of the same `MetricTile` component
+declared in a `.fitzv` single-file component sibling
+([`MetricTile.fitzv`](src/MetricTile.fitzv)) — pressing `+1` or
+`reset` on one tile updates *only* that tile's state, and every
+open browser sees the patch via `ws.broadcast(...)`.
+
+Migrated to `.fitzv` SFC syntax in Phase 8.3 (2026-07-16) once Fitz
+core v0.21.0 shipped Phase 11 (native frontend). Pre-migration
+version kept the `@live_component`/`@render_for`/`@on` blocks inline
+in `main.fitz`.
 
 Source: [`examples/dashboard/`](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/dashboard)
 
@@ -38,18 +44,37 @@ another tile — that other tile clears independently.
 
 - **`fitz.toml`** — package manifest with `fitz_liveviews` path
   dependency
-- **`src/main.fitz`** — the whole dashboard, split cleanly:
-    1. `@live_component("metric_tile")` + `MetricTile { count }`
-       — one component definition, all tiles share it
-    2. `@render_for("metric_tile")` + two `@on(...)` handlers —
-       `bump` and `reset`
-    3. `type TileConfig { id, label, accent }` — the
-       parent-owned per-tile styling (label + accent color)
-    4. `let TILES: List<TileConfig>` — six tiles by config
-    5. `render_tile`, `render_dashboard` — the view
-    6. `DASHBOARD_CSS` — grid + accents + responsive breakpoint
-    7. `flv_register("metric_tile", ...)` — one call at boot
-    8. `@get("/")` and `@ws("/live/dashboard")` — the handlers
+- **`src/MetricTile.fitzv`** — the single-file component. Compact
+  ~11 LoC block: `state { count: Int = 0 }` + `event bump()` +
+  `event reset()` + `<template>` with the counter body and two
+  buttons using `@click="bump"`/`@click="reset"`. Fitz core's view
+  pipeline transforms it into classic Fitz source with
+  `@live_component("MetricTile")` on the type, `@render_for(
+  "MetricTile") fn MetricTile_render(state) -> Html`, and
+  `@on("MetricTile", "bump") fn MetricTile_bump(...) -> MetricTile`
+  + reset counterpart. The parent picks up those symbols by name.
+- **`src/main.fitz`** — the parent shell, now shorter than
+  pre-migration:
+    1. `from MetricTile import MetricTile, MetricTile_render,
+       MetricTile_bump, MetricTile_reset` — brings the SFC-generated
+       symbols into scope. The compiler auto-injects the equivalent
+       `flv_register("MetricTile", MetricTile { }, MetricTile_render,
+       {"bump": MetricTile_bump, "reset": MetricTile_reset})` boot
+       call (Fitz core v0.21.0+ Phase 11.6.e §9.bb cross-module
+       auto-inject).
+    2. `type TileConfig { id, label, accent }` — the parent-owned
+       per-tile styling (label + accent color).
+    3. `let TILES: List<TileConfig>` — six tiles by config.
+    4. `render_tile`, `render_dashboard` — the view. `render_tile`
+       calls `component("MetricTile", tile.id)` to embed the SFC
+       instance.
+    5. `DASHBOARD_CSS` — grid + accents + component body styles
+       (tile-body/tile-count/tile-buttons/btn-inc/btn-reset). The
+       MetricTile.fitzv template references those class names
+       directly (parent-owned global CSS convention for MVP; per-
+       component `<style scoped>` is available in `.fitzv` but not
+       used here to keep the migration diff minimal).
+    6. `@get("/")` and `@ws("/live/dashboard")` — the handlers.
 
 ## The composition pattern
 
@@ -59,7 +84,7 @@ via a wrapping card:
 
 ```fitz
 fn render_tile(tile: TileConfig) -> Html {
-  let inner = component("metric_tile", tile.id)
+  let inner = component("MetricTile", tile.id)
   return html("""<article class="tile tile-{tile.accent}">
     <header class="tile-header">
       <h3 class="tile-label">{flv(tile.label)}</h3>

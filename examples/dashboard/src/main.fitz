@@ -20,41 +20,7 @@
 //     stacked on mobile, using CSS Grid `auto-fill` with `minmax`.
 
 from fitz_liveviews import Html, html, flv, live_layout, html_response, LiveFrame, h_join, diff_html, component, dispatch_component_events, flv_register
-
-
-// -----------------------------------------------------------------------------
-// Metric tile — @live_component
-// -----------------------------------------------------------------------------
-
-@live_component("metric_tile")
-type MetricTile {
-  count: Int = 0
-}
-
-// See kanban's card_editor_render for why the return type is
-// omitted: Fitz core's `@render_for` checker accepts `Str`/`Any`
-// but not the fitz-liveviews `Html` nominal. The framework calls
-// `.raw` at runtime; the returned `Html` value works fine.
-@render_for("metric_tile")
-fn metric_tile_render(state: MetricTile) {
-  return html("""<div class="tile-body">
-    <div class="tile-count">{state.count}</div>
-    <div class="tile-buttons">
-      <button class="btn btn-inc" data-flv-click="bump">+1</button>
-      <button class="btn btn-reset" data-flv-click="reset">reset</button>
-    </div>
-  </div>""")
-}
-
-@on("metric_tile", "bump")
-fn metric_tile_bump(state: MetricTile, payload: Map<Str, Str>) -> MetricTile {
-  return MetricTile { count: state.count + 1 }
-}
-
-@on("metric_tile", "reset")
-fn metric_tile_reset(state: MetricTile, payload: Map<Str, Str>) -> MetricTile {
-  return MetricTile { count: 0 }
-}
+from MetricTile import MetricTile, MetricTile_render, MetricTile_bump, MetricTile_reset
 
 
 // -----------------------------------------------------------------------------
@@ -87,7 +53,7 @@ let TILES: List<TileConfig> = [
 // -----------------------------------------------------------------------------
 
 fn render_tile(tile: TileConfig) -> Html {
-  let inner = component("metric_tile", tile.id)
+  let inner = component("MetricTile", tile.id)
   return html("""<article class="tile tile-{tile.accent}">
     <header class="tile-header">
       <h3 class="tile-label">{flv(tile.label)}</h3>
@@ -202,9 +168,12 @@ fn render_dashboard() -> Html {
 
 
 // -----------------------------------------------------------------------------
-// Boot — the compiler auto-injects `flv_register("metric_tile", ...)` from
-// the metadata that `@live_component` + `@render_for` + `@on` decorators
-// leave in the TypeEnv. No manual boot call needed.
+// Boot — the compiler auto-injects `flv_register("MetricTile", ...)` from
+// the metadata in `MetricTile.fitzv` (Fitz core v0.21.0+ Phase 11.6.e §9.bb
+// cross-module `@live_component` auto-inject). The `from MetricTile import
+// MetricTile, MetricTile_render, MetricTile_bump, MetricTile_reset` line
+// above brings the required names into scope; the compiler validates them
+// in check-time and errors with an actionable hint if any is missing.
 // -----------------------------------------------------------------------------
 
 

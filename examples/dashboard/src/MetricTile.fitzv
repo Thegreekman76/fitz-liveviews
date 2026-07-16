@@ -1,0 +1,38 @@
+// Fitz LiveViews — MetricTile single-file component (Phase 8.3
+// migration to `.fitzv` SFC on top of Fitz core v0.21.0 Phase 11).
+//
+// The compiler transforms this `.fitzv` into classic Fitz source with
+// `@live_component("MetricTile")` on the state type, `@render_for(
+// "MetricTile") fn MetricTile_render(state) -> Html` for the render
+// callback, and `@on("MetricTile", "<event>") fn MetricTile_<event>
+// (state, payload) -> MetricTile` per event block. The parent
+// `main.fitz` imports the state type + render fn + every event
+// handler by their canonical names; the Fitz core v0.21.0+
+// cross-module `@live_component` auto-inject (Phase 11.6.e §9.bb)
+// synthesises the `flv_register("MetricTile", MetricTile { },
+// MetricTile_render, {"bump": MetricTile_bump, "reset":
+// MetricTile_reset})` boot call automatically.
+//
+// Styles live in main.fitz's `DASHBOARD_CSS` (both parent shell +
+// component body) so the migration is minimal — MetricTile.fitzv
+// carries only state + events + template. If we ever want per-
+// component style isolation, `<style scoped>` (Phase 11.3.b) is
+// available inside this `.fitzv`; the emitted class-suffix scope
+// would apply to every instance of MetricTile identically.
+
+component MetricTile {
+  state { count: Int = 0 }
+
+  event bump() { count = count + 1 }
+  event reset() { count = 0 }
+
+  <template>
+    <div class="tile-body">
+      <div class="tile-count">{count}</div>
+      <div class="tile-buttons">
+        <button class="btn btn-inc" @click="bump">+1</button>
+        <button class="btn btn-reset" @click="reset">reset</button>
+      </div>
+    </div>
+  </template>
+}
