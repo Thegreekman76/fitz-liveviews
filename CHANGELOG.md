@@ -5,6 +5,101 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.4.3] — 2026-07-16 — Phase 8: examples migrated to `.fitzv` SFC syntax
+
+**Requires Fitz core v0.21.0+.** Docs-only sync-point release.
+No `fitz-liveviews` code changes — the library API (`src/lib.fitz`,
+~1700 LoC) is IDENTICAL to v0.4.2. What shipped is the migration
+of all 4 canonical examples (counter / dashboard / chat / kanban
+partial) from classic Fitz `@live_component` inline syntax to the
+new `.fitzv` single-file component syntax that Fitz core Phase 11
+(v0.21.0) introduced.
+
+Bumped as a **sync-point marker**: the manifest reads v0.4.3
+identifies "this fitz-liveviews works with `.fitzv` examples under
+Fitz core v0.21.0+". Parallel to the precedent v0.4.2 (docs-only
+lockstep bump with the VSCode extension).
+
+### Migrated examples
+
+- **`examples/counter/`** — Phase 8.2. Extracted `Counter.fitzv`
+  SFC. `main.fitz` shrinks to imports + HTTP handlers; compiler
+  auto-injects the `flv_register("Counter", ...)` boot call
+  (Fitz core §9.bb cross-module auto-inject).
+- **`examples/dashboard/`** — Phase 8.3. Extracted
+  `MetricTile.fitzv` SFC (per-instance card state). Board render +
+  6 tile config remain in `main.fitz`.
+- **`examples/chat/`** — Phase 8.4. Full SFC migration. Extracted
+  `type Message` to `message.fitz` sibling + `ChatRoom.fitzv` SFC
+  owns state + event with nested payload guards + `messages.push
+  (Message { ... })` + template with `{#for m in messages}` +
+  submit form. `main.fitz` shrinks from ~115 LoC to ~50 LoC (WS
+  handler has ZERO event branches). This migration surface 6
+  view pipeline gaps in Fitz core (V-1 to V-6) that were CLOSED
+  in the SAME SESSION via §9.cc + §9.dd + §9.ee — feedback loop
+  of hours, not weeks.
+- **`examples/kanban/`** — Phase 8.5 PARTIAL. Extracted
+  `type Card` + `type Board` → `card.fitz` sibling + `card_editor`
+  `@live_component` → `CardEditor.fitzv` SFC. Board-level state
+  + WS handler + render fns REMAIN in classic Fitz — full
+  `Board.fitzv` migration deferred to Phase 11.7+ pending Fitz
+  core framework support for event bubbling between components
+  (K-1/K-2/K-3 debts documented in Fitz core
+  `docs/deudas-post-5b.md`). `main.fitz` shrinks from ~466 LoC
+  to ~320 LoC (146 LoC reduction).
+
+### Component patterns catalog (Phase 8.6)
+
+`docs/components-candidates.md` new file catalogs reusable
+component patterns observed across the 4 migrations. Ready for
+Phase 9.A consolidation into the MVP UI library shortlist:
+- **Button** — 9 occurrences, 4 variants (primary/success/danger/
+  ghost) + sm/md sizes + icon slot.
+- **Card** — dashboard tile wrapper + chat message bubble
+  candidate. Canonical header/body/footer slots + accent color.
+- **Input** — chat form + kanban create form + kanban card editor.
+  Canonical `name`/`placeholder`/validation attrs + label + hint
+  + error prop.
+- **Modal** — kanban card editor toggle CLOSE — MVP with
+  backdrop + close + focus-trap.
+- **Alert / Badge / Spinner / Icon** — scaffolding for the 8-
+  component MVP shortlist (Alert not observed; Badge kanban-
+  adjacent; Spinner scaffolding; Icon proven-need via kanban
+  arrow chars).
+
+Theme system tokens enumerated from observed CSS:
+`--flv-color-primary` (Fitz orange `#CE412B`), `--flv-color-success`
+(`#3c763d`), `--flv-color-danger` (`#a94442`), `--flv-color-info`
+(`#31708f`), `--flv-color-muted` (`#666`), `--flv-radius-md`
+(6-8px), `--flv-shadow-card` (`0 1px 3px rgba(0,0,0,0.08)`).
+
+### VSCode extension
+
+Bumped to v0.4.3 in lockstep with the manifest. No grammar or
+snippet changes (snippets `livecomp` / `renderfor` / `onevent`
+were already SFC-ready since v0.4.2 — the `.fitzv` transform
+consumes the same decorators). `.vsix` regenerated for lockstep
+consistency.
+
+### Debt residual (NO bloquea uso real)
+
+K-1/K-2/K-3 framework gaps documentados en Fitz core
+`docs/deudas-post-5b.md` para Phase 11.7+ prioritization:
+- **K-1: Event bubbling entre componentes** — CardEditor's
+  `save` no propaga a Board. Workaround: parent WS handler
+  post-processes manually.
+- **K-2: Cross-component state read/write API** —
+  `component_state()` + `set_component_state()` pair needed
+  para parent handlers a fetch/mutate component's state.
+- **K-3: Component props para compound/nominal types** —
+  `<Board initial-cards="{seedCards}" />` no soportado; MVP
+  props sólo primitivos.
+
+Combined estimate ~400-500 LoC framework + ~150 LoC lib. Los 3
+son prerequisites para Phase 11.7 (client-side dynamic
+capabilities + kanban SPA port acceptance criterion). No urgency
+— kanban's current workaround (board state top-level) functions.
+
 ## [v0.4.2] — 2026-07-14 — Version alignment (docs-only)
 
 Bumps the VSCode extension version to match the lib version so

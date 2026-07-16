@@ -255,7 +255,7 @@ Per-instance state without hoisting everything to the parent.
 - [ ] Publish to VSCode Marketplace (manual step — requires publisher
       account and PAT)
 
-## Phase 8 — SFC Migration to `.fitzv` (Fitz v0.21.0+) 🎨
+## Phase 8 — SFC Migration to `.fitzv` (Fitz v0.21.0+) 🎨 CERRADA ENTERA 2026-07-16 (v0.4.3)
 
 **Trigger**: Fitz core shipped Phase 11 (native frontend `.fitzv`
 compilado a WASM + SSR emitter for fitz-liveviews) en v0.21.0
@@ -265,6 +265,16 @@ valida Phase 11 end-to-end y surface bugs reales (el patrón §9.aa
 event-body widening apareció al preparar chat/kanban migrations —
 la migración empírica descubre corners del walker que el
 self-audit no ve).
+
+**Cierre resumen (2026-07-16)**: 8.1 → 8.6 CERRADAS en el día,
+todas en la misma sesión post Fitz core v0.21.0 shipping. Los 6
+gaps del view pipeline (V-1 a V-6) que la chat migration probe
+surface fueron cerrados EN EL MISMO DÍA en Fitz core (§9.cc + §9.dd
++ §9.ee) — feedback loop de horas en vez de semanas. Chat + kanban
+partial migrations shipped. K-1/K-2/K-3 framework gaps
+documentados en Fitz core para Phase 11.7+. Formal 8.7 closure
+con bump v0.4.3 sync-point (marca "post-Fitz-v0.21.0" en el
+manifest paralelo al precedente v0.4.2 docs-only lockstep).
 
 **Phases 7, 8, 9 numbering**: Phase 7 sigue como "Beyond MVP
 deferred backlog". Phase 8 + Phase 9 son concrete-next-work
@@ -339,20 +349,18 @@ post-Fitz-v0.21.0 shipping, temporalmente adelante de Phase 7.
       en `docs/components-candidates.md` los patterns comunes que
       emergen (Button, Card, Modal, Input, MetricStat,
       MessageBubble, KanbanColumn). Input directo para Phase 9.A.
-- [ ] **8.7** **Cierre formal Phase 8** — CHANGELOG entry
-      documentando que la migration es 100% **examples + docs**;
-      la API pública de `src/lib.fitz` (1700 LoC) queda **intacta**
-      — nada del lib code cambia con la SFC migration, sólo la
-      forma en que los 4 examples ejercitan la misma API. Refresh
-      README con "examples migrated to `.fitzv` single-file
-      components (requires Fitz core v0.21.0+)". VSCode extension
-      sin cambios (snippets `livecomp` YA son SFC-ready desde
-      v0.4.2). **Decisión de bump**: por default **NO bump** — la
-      versión sigue v0.4.2. Opcional bump patch a **v0.4.3** SÓLO
-      si preferimos marcar el hito "post-Fitz-core-v0.21.0" en el
-      manifest como sync point (paralelo al precedente v0.4.2 que
-      bumpeó docs-only por lockstep con VSCode extension). Decidir
-      al cerrar 8.7.
+- [x] **8.7** **Cierre formal Phase 8 CERRADA (2026-07-16)** —
+      CHANGELOG entry `[v0.4.3]` aggregating all Phase 8 sub-
+      tasks. Migration es 100% **examples + docs**; la API pública
+      de `src/lib.fitz` (1700 LoC) queda **intacta** — nada del
+      lib code cambia con la SFC migration, sólo la forma en que
+      los 4 examples ejercitan la misma API. README refreshed con
+      `.fitzv` migration note + Fitz core v0.21.0+ requirement.
+      VSCode extension sin cambios de grammar/snippets (snippets
+      `livecomp` YA son SFC-ready desde v0.4.2) pero bumped a
+      v0.4.3 en lockstep con el manifest. **Bump decidido: v0.4.2
+      → v0.4.3** patch sync-point (paralelo al precedente v0.4.2
+      docs-only). `.vsix` regenerado.
 
 **Deudas residuales esperadas** (surface durante las 4 migrations;
 se convertirán en §9.cc / §9.dd de Phase 11.6.e en Fitz core si son

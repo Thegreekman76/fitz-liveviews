@@ -14,7 +14,9 @@
 
 ---
 
-## Status: ✅ Phase 4 (LiveComponents) — v0.4.0
+## Status: ✅ Phase 8 (SFC migration) — v0.4.3
+
+**Requires Fitz core v0.21.0+.** All 4 canonical examples migrated to `.fitzv` single-file component syntax; library API is identical to v0.4.2 (docs-only sync-point release).
 
 Everything you need to ship a real-time UI works end-to-end today:
 
@@ -26,9 +28,10 @@ Everything you need to ship a real-time UI works end-to-end today:
 - **Phase 4 (Sessions 1–3)** 🧩 — `@live_component` / `@render_for` / `@on` decorators (Fitz core), `flv_register` / `component` / `dispatch_component_events` (framework layer), `fitz new --template liveviews` scaffold, kanban refactored to use `@live_component("card_editor")` for per-card inline editing, new `examples/dashboard/` with six independent `metric_tile` instances, dedicated [`docs/components.md`](docs/components.md) walkthrough
 - **Phase 5.A.1 (Fitz core v0.20.1)** ✨ — Implicit `flv_register(...)` from the `@live_component` / `@render_for` / `@on` decorators. The compiler walks the metadata that lives in the `TypeEnv` and appends the boot registration automatically; the kanban and dashboard examples dropped their manual boot call
 - **Phase 5** — [Docs site](https://thegreekman76.github.io/fitz-liveviews/) (MkDocs Material) + CI/CD workflows
-- **Phase 6** — VSCode extension v0.3.2 bundled at [`editors/vscode/`](editors/vscode/) — HTML highlighting inside `html("""...""")` + LiveComponents snippets (`livecomp` / `renderfor` / `onevent` / `flvcomp` / `dispatchcomp`)
+- **Phase 6** — VSCode extension v0.4.3 bundled at [`editors/vscode/`](editors/vscode/) — HTML highlighting inside `html("""...""")` + LiveComponents snippets (`livecomp` / `renderfor` / `onevent` / `flvcomp` / `dispatchcomp`) — all snippets are SFC-ready
+- **Phase 8 (Fitz core v0.21.0)** 🎨 — All 4 examples migrated to `.fitzv` single-file component syntax. `Counter.fitzv`, `MetricTile.fitzv`, `ChatRoom.fitzv`, `CardEditor.fitzv` shipped with state + events + `<template>` blocks compact in single files. Chat migration surface 6 view pipeline gaps in Fitz core (V-1 to V-6, closed same-session via §9.cc + §9.dd + §9.ee — feedback loop of hours). Full `Board.fitzv` for kanban deferred to Phase 11.7+ pending event bubbling framework support (K-1/K-2/K-3 documented). Component patterns catalog ready for Phase 9 (Companion UI library)
 
-See [ROADMAP.md](ROADMAP.md) for what is coming in Phase 3c, the rest of Phase 4 (release coordination + per-instance init + `dispatch_to_all`), and beyond.
+See [ROADMAP.md](ROADMAP.md) for what is coming next — Phase 9 (Companion UI library), Phase 11.7 (client-side dynamic capabilities), and beyond.
 
 ---
 
