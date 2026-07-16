@@ -1,0 +1,29 @@
+// Fitz LiveViews — real-time counter migrated to a single-file
+// component (Phase 11.6.e).
+//
+// Original main.fitz kept the render fn + state type + per-connection
+// event handling in one file and mutated `let state` manually inside
+// the WebSocket loop. This `.fitzv` uses the @live_component contract:
+// state fields + event handlers live in the SFC; the WebSocket handler
+// in `main.fitz` routes frames via `dispatch_component_events(frame)`.
+//
+// The compiler auto-injects `flv_register("Counter", ...)` from the
+// @live_component + @render_for + @on metadata (v0.20.1+).
+
+component Counter {
+  state { count: Int = 0 }
+
+  event increment() { count = count + 1 }
+  event decrement() { count = count - 1 }
+  event reset() { count = 0 }
+
+  <template>
+    <div id="counter-app">
+      <h1>Fitz LiveViews Counter</h1>
+      <p>Count: {count}</p>
+      <button @click="increment">+1</button>
+      <button @click="decrement">-1</button>
+      <button @click="reset">Reset</button>
+    </div>
+  </template>
+}

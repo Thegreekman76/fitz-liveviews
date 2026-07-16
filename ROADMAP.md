@@ -255,6 +255,169 @@ Per-instance state without hoisting everything to the parent.
 - [ ] Publish to VSCode Marketplace (manual step — requires publisher
       account and PAT)
 
+## Phase 8 — SFC Migration to `.fitzv` (Fitz v0.21.0+) 🎨
+
+**Trigger**: Fitz core shipped Phase 11 (native frontend `.fitzv`
+compilado a WASM + SSR emitter for fitz-liveviews) en v0.21.0
+(2026-07-16). fitz-liveviews es el primer consumidor real de
+`.fitzv` SFC syntax. Migrar los 4 examples es el dogfooding que
+valida Phase 11 end-to-end y surface bugs reales (el patrón §9.aa
+event-body widening apareció al preparar chat/kanban migrations —
+la migración empírica descubre corners del walker que el
+self-audit no ve).
+
+**Phases 7, 8, 9 numbering**: Phase 7 sigue como "Beyond MVP
+deferred backlog". Phase 8 + Phase 9 son concrete-next-work
+post-Fitz-v0.21.0 shipping, temporalmente adelante de Phase 7.
+
+- [ ] **8.1** Bump Fitz core dep `0.20.1 → 0.21.0` en `fitz.toml`
+      + smoke `fitz check` sobre lib. Verificar que `.fitzv` loader
+      (Phase 11.6.d) resuelve transparente y auto-inject (Phase
+      11.6.e §9.bb) elimina `flv_register(...)` manual.
+- [ ] **8.2** Land **counter migration** — draft ya aplicada
+      uncommitted desde §9.z. Files:
+      `examples/counter/src/Counter.fitzv` (nuevo) + rewritten
+      `examples/counter/src/main.fitz` (drop manual
+      `flv_register(...)` — auto-inject Phase 11.6.e §9.bb) +
+      updated `examples/counter/README.md`. Trivial commit + push,
+      ~5 min.
+- [ ] **8.3** **Migrate dashboard** — extract
+      `examples/dashboard/src/MetricTile.fitzv` (single-file
+      component per metric tile) + rewrite `main.fitz` con
+      `from MetricTile import MetricTile, MetricTile_render,
+      MetricTile_<events>` (canonical shape §9.bb). Auto-inject
+      removes manual `flv_register(...)`. Probable clean migration
+      (dashboard sigue el mismo shape que counter).
+- [ ] **8.4** **Migrate chat** — extract
+      `examples/chat/src/ChatRoom.fitzv` (o `MessageList.fitzv` +
+      `MessageInput.fitzv` si split conviene). Event bodies con
+      `if(payload.has("author")){if(payload.has("text")){...}}` —
+      validar §9.aa event-body widening no rompe cross-payload
+      guards. Alto potencial de surface bugs en corners del walker.
+- [ ] **8.5** **Migrate kanban** — el más complejo. Extract
+      `examples/kanban/src/BoardColumn.fitzv` + `Card.fitzv` +
+      `CardEditor.fitzv` (Modal-style). Event body de
+      `card_editor_save` con `let new_text =
+      if(payload.has("text")){payload["text"]} else {text}` —
+      validado en §9.aa. Probable surface de nested state mutation
+      edge cases + necesidad emergente de client-side interactivity
+      (drag-drop) que confirma Phase 11.7 scope.
+- [ ] **8.6** **Pattern extraction** — durante 8.3-8.5, cataloguar
+      en `docs/components-candidates.md` los patterns comunes que
+      emergen (Button, Card, Modal, Input, MetricStat,
+      MessageBubble, KanbanColumn). Input directo para Phase 9.A.
+- [ ] **8.7** **Cierre formal Phase 8** — CHANGELOG entry, bump lib
+      version a **v0.5.0** (minor bump — nueva API contract con
+      SFCs; los 4 examples migrados es breaking-para-nuevos-users
+      que empiezan hoy con templates SFC como canonical), refresh
+      README con "Fitz LiveViews v0.5.0 uses `.fitzv` single-file
+      components", VSCode extension refresh si applicable (snippets
+      `livecomp` YA son SFC-ready desde v0.4.2, probablemente sin
+      cambios).
+
+**Deudas residuales esperadas** (surface durante las 4 migrations;
+se convertirán en §9.cc / §9.dd de Phase 11.6.e en Fitz core si son
+bloqueantes):
+
+- Cross-file `<Child />` composition (§9.y debt — probable trigger
+  real cuando dashboard tenga MetricTile importado desde archivo
+  hermano usado en template).
+- Event bubbling entre componentes (dashboard: click en MetricTile
+  propaga a Board? kanban: click en Card propaga a Column?).
+- Client-side dynamic capabilities (kanban drag-drop confirma
+  Phase 11.7 scope).
+- Persistent child state (chat: `MessageInput` retains draft
+  mientras se navega — hoy pierde en re-renders).
+
+## Phase 9 — Companion UI library 🧩
+
+**Trigger**: post-migrations completas de Phase 8. Emergent de los
+patterns extraídos en 8.6, no diseñado en vacuum. Building una UI
+kit **AS** los examples se refactorizan produce APIs validadas
+contra código real, no bloat especulativo.
+
+**Racional**: todo framework serio de UI real-time tiene una
+companion (Vuetify/Vue, MUI/React, chakra/solid). Ninguno debería
+roll-your-own CSS para el 90% del caso (Button/Card/Modal). Alinea
+con la filosofía "un lenguaje con HTTP + DB + auth + WS + jobs +
+**UI kit** ciudadanos primera" del stack Fitz.
+
+**Anti-goal**: NO ser Vuetify-completo con 40+ componentes. MVP
+recortado, foco y disciplina. Full kit crece por PR con demand
+real, no por completeness.
+
+- [ ] **9.A** **Extract & design decisions** (~1 sesión, docs-only):
+    - Consolidar `docs/components-candidates.md` (poblado en 8.6)
+      en el shortlist final de **8 componentes MVP**: `Button` /
+      `Card` / `Input` / `Modal` / `Alert` / `Badge` / `Spinner` /
+      `Icon`. Rationale por cada uno + APIs previstos.
+    - **Design system decision** — pick 1 dirección visual y
+      committear:
+        - Opción A: **Custom minimalist** (Radix-style neutral
+          primitives, sin opinion aesthetic, easy de tematizar por
+          user).
+        - Opción B: **Vuetify-inspired Material** (familiar para
+          Vue users, opinionated pero probado).
+        - Opción C: **DaisyUI-inspired utility** (Tailwind-
+          adjacent, pequeño footprint, tokens semánticos).
+    - **Theme system**: light + dark via CSS custom properties
+      (`--flv-color-primary`, `--flv-color-bg`, `--flv-radius`,
+      etc.). Toggle via `data-theme="dark"` en root. Runtime
+      switching sin recompilar CSS.
+    - **Responsive commitment** (feedback rule): mobile-first, sin
+      fixed widths, testeado a 320px viewport meta obligatorio.
+    - **Client-side interactivity limits**: MVP con SSR + limited
+      interactivity (Modal focus trap, Input debounce). Full
+      keyboard nav + advanced patterns bumpean contra Phase 11.7
+      (Fitz core client-side dynamic capabilities). Documentar
+      honesto qué anda y qué no.
+    - **Placement**: `fitz-liveviews-ui/` como **sub-package**
+      (`fitz.toml` `[lib] entry = "src/lib.fitz"` con re-exports)
+      o **path dep hermano** — decisión de packaging en 9.A.
+    - Snippet `flv-uibtn`/`flv-uicard`/etc para VSCode extension.
+
+- [ ] **9.B** **Build MVP — 8 componentes + tema** (~2-3 sesiones):
+    - `Button` — variants primary/secondary/danger/ghost, size
+      sm/md/lg, disabled + loading states, icon slot.
+    - `Card` — header/body/footer slots, elevation levels,
+      clickable variant.
+    - `Input` — text/email/password/number, label + hint + error
+      prop, prefix/suffix icon slots, disabled state.
+    - `Modal` — backdrop, close button, title slot, focus trap
+      (client-side JS mínimo), ESC key close.
+    - `Alert` — info/success/warn/danger variants, dismissible,
+      icon + title + body.
+    - `Badge` — count (number) or status (pill), color variants,
+      size sm/md.
+    - `Spinner` — 3 sizes, indeterminate (default) + progress
+      (0-100), inline vs block.
+    - `Icon` — SVG-based system, bake in 20-30 icons core (arrow,
+      check, close, edit, trash, plus, minus, warning, info,
+      success, download, upload, search, home, user, cog,
+      dashboard, menu, chevrons).
+    - Theme system files: `themes/default.css` (light) +
+      `themes/dark.css` + tokens CSS.
+    - Unit tests via `@test` para renderizado + state changes
+      (~2-3 tests por componente).
+    - `docs/components.md` reference API + ejemplos runnable.
+
+- [ ] **9.C** **Refactor 4 examples usando la lib** (~1 sesión):
+    - Counter → usa `<Button variant="primary" @click="increment">
+      +1</Button>` en vez de raw `<button>`.
+    - Dashboard → MetricTile usa `<Card>` con `<Icon name="chart"/>`
+      + `<Badge>` status.
+    - Chat → MessageBubble usa `<Card variant="ghost">`,
+      MessageInput usa `<Input>` + `<Button>`.
+    - Kanban → BoardColumn usa `<Card>`, CardEditor usa `<Modal>`
+      + `<Input>` + `<Button>`.
+    - Medir LoC reduction pre/post refactor + documentar en
+      `docs/companion-ui-benefits.md`.
+    - Bump lib version a **v0.6.0** (minor — nueva companion API).
+
+**Decisión pendiente que NO se cierra hasta 9.A**: aesthetic
+direction (Opción A/B/C arriba). Documentado como debt residual
+hasta que 9.A arranque.
+
 ## Phase 7 — Beyond MVP (deferred, opportunistic) 🔮
 
 Ideas that would land only if there is real demand:

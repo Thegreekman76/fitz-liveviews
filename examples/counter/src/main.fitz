@@ -1,30 +1,38 @@
-// Fitz LiveViews — real-time counter (Phase 2 hello world).
+// Fitz LiveViews — real-time counter (Phase 11.6.e migration).
 //
 // Run:   fitz run
 // Then open http://127.0.0.1:3000/ in two browser tabs — both stay in
-// sync as you click the buttons. Each connection has its own state
-// (multi-user shared state lands in Phase 4).
+// sync as you click the buttons. **Behaviour change from the original
+// per-connection counter**: `component("Counter", "root")` shares one
+// server-side state instance across every tab, matching the Phase 4
+// dashboard/kanban model. If you want per-tab isolation, use a unique
+// `instance_id` per connection (e.g. a UUID passed via query string).
 
-from fitz_liveviews import Html, html, live_layout, html_response, LiveFrame, diff_html
+from fitz_liveviews import Html, html, live_layout, html_response, LiveFrame, diff_html, component, dispatch_component_events, flv_register
+
+// Bring the component's type + render/event fns into scope. The
+// `.fitzv` loader (Phase 11.6.d) transforms `Counter.fitzv` into
+// classic Fitz source that emits `@live_component("Counter")` on the
+// type + `@render_for` + `@on` fns.
+from Counter import Counter, Counter_render, Counter_increment, Counter_decrement, Counter_reset
 
 
 // -----------------------------------------------------------------------------
-// State + render
+// Manual boot registration
 // -----------------------------------------------------------------------------
+//
+// v0.20.1's implicit `flv_register(...)` auto-injection only scans the
+// TOP-LEVEL program for `@live_component` types. Since `Counter` is
+// declared in `Counter.fitzv` (imported here as a module), the
+// auto-inject skips it and we do the registration manually. Cross-
+// module auto-inject is documented as debt residual for a follow-up
+// mini-fase after 11.6.e (see `docs/fase-11-plan.md`).
 
-type CounterState {
-  count: Int = 0
-}
-
-fn render(state: CounterState) -> Html {
-  return html("""<div id="counter-app">
-  <h1>Fitz LiveViews Counter</h1>
-  <p>Count: {state.count}</p>
-  <button data-flv-click="increment">+1</button>
-  <button data-flv-click="decrement">-1</button>
-  <button data-flv-click="reset">Reset</button>
-</div>""")
-}
+flv_register("Counter", Counter { }, Counter_render, {
+  "increment": Counter_increment,
+  "decrement": Counter_decrement,
+  "reset": Counter_reset,
+})
 
 
 // -----------------------------------------------------------------------------
@@ -33,7 +41,7 @@ fn render(state: CounterState) -> Html {
 
 @get("/")
 fn counter_page() -> Response {
-  let initial = render(CounterState { count: 0 })
+  let initial = component("Counter", "root")
   return html_response(live_layout("/live/counter", "counter-app", initial))
 }
 
@@ -44,24 +52,14 @@ fn counter_page() -> Response {
 
 @ws("/live/counter")
 async fn counter_socket(ws: WsConn<LiveFrame>) {
-  let state = CounterState { count: 0 }
-  let last_html = render(state).raw
+  let last_html = component("Counter", "root").raw
   loop {
     let frame = ws.recv()?
-    if (frame.event == "increment") {
-      state = CounterState { count: state.count + 1 }
-    }
-    if (frame.event == "decrement") {
-      state = CounterState { count: state.count - 1 }
-    }
-    if (frame.event == "reset") {
-      state = CounterState { count: 0 }
-    }
-    // Phase 3b — compute the incremental patch from last_html to the
-    // new render. Client applies these directly to the DOM (preserves
-    // focus, input state, and ships fewer bytes over the wire). Client
-    // falls back to `html` if patch application fails.
-    let new_html = render(state).raw
+    let _handled = dispatch_component_events(frame)
+    // Re-render the component (its state was mutated by the dispatch)
+    // and ship the incremental patch. Client falls back to `html` if
+    // the patches don't apply cleanly.
+    let new_html = component("Counter", "root").raw
     let patches = diff_html(last_html, new_html)
     ws.send(LiveFrame { html: new_html, patches: patches })?
     last_html = new_html
