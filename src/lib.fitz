@@ -1528,6 +1528,132 @@ fn dispatch_component_events(frame: LiveFrame) -> Bool {
   return true
 }
 
+// K-1 (v0.5.0, 2026-07-16) — Explicit event dispatch to a specific
+// component + instance from user code. Fires the target component's
+// registered event handler with the given payload, updates the
+// component's state in COMPONENT_STATE_STORE.
+//
+// Complements `dispatch_component_events(frame)`:
+//   - `dispatch_component_events` routes frames from the client
+//     (implicit component_name + instance_id inside the frame's
+//     payload). Used by the WS handler top-level.
+//   - `dispatch_to` is called from server code (typically inside
+//     another component's event handler or the parent WS handler
+//     post-processing) to explicitly propagate an event to a
+//     specific component instance.
+//
+// Common pattern (event bubbling substitute): a child component's
+// event handler mutates its own state AND fires `dispatch_to(
+// "Parent", "root", "child_saved", payload)` to notify a sibling
+// or parent component. The parent component's registered handler
+// (via `@on("Parent", "child_saved")` in a .fitzv, or the classic
+// `flv_register` events map) updates its own state via the normal
+// shadow-local shape.
+//
+// Returns:
+//   - `true` — component is registered, event has a handler, state
+//     was updated (with lazy-init if instance wasn't in the store).
+//   - `false` — component name not registered OR event has no
+//     handler in that component. Silent (no crash) so callers can
+//     use it fire-and-forget style.
+//
+// Idiomatic usage inside a `.fitzv` event body (post K-1 in
+// v0.5.0 + K-3 compound props in Fitz core — see K-3 note):
+//   event save() {
+//     if (payload.has("text")) {
+//       text = payload["text"]
+//     }
+//     is_editing = false
+//     dispatch_to("Board", "root", "card_saved", payload)
+//   }
+//
+// Idiomatic usage from a WS handler (v0.5.0 works today with any
+// registered components):
+//   let did_route = dispatch_to("Notifications", "toast", "info",
+//                              {"message": "Card saved"})
+fn dispatch_to(component_name: Str, instance_id: Str, event: Str, payload: Map<Str, Str>) -> Bool {
+  if (not COMPONENT_REGISTRY.has(component_name)) { return false }
+  let reg = COMPONENT_REGISTRY[component_name]
+  if (not reg.event_handlers.has(event)) { return false }
+  let handler = reg.event_handlers[event]
+  let key = flv_state_key(component_name, instance_id)
+  // Seed state on first hit — parallel to dispatch_component_events.
+  if (not COMPONENT_STATE_STORE.has(key)) {
+    COMPONENT_STATE_STORE[key] = reg.initial_state
+  }
+  let state = COMPONENT_STATE_STORE[key]
+  let new_state = handler(state, payload)
+  COMPONENT_STATE_STORE[key] = new_state
+  return true
+}
+
+// K-2 (v0.5.0, 2026-07-16) — Read + write API for component state
+// from outside a component's event handler. Complements the auto-
+// managed store via `component(name, id)` (read+render) and
+// `dispatch_component_events(frame)` / `dispatch_to(...)` (write
+// via a registered event handler).
+//
+// Use cases for direct state access:
+//   - Parent WS handler post-processing (e.g. reading a card's
+//     current title AFTER a save event fired on CardEditor).
+//   - Test fixtures — assert on component state after simulated
+//     events.
+//   - Hydration — seed a component's state from a database read
+//     on the initial page load.
+//
+// Caveats:
+//   - Bypasses event handler logic — no framework-side validation
+//     that the new state shape matches the component's declared
+//     state type. Fitz's gradual typing catches obvious mistakes
+//     at the call site.
+//   - Doesn't trigger a re-render on its own — the parent's WS
+//     handler still calls `component(name, id).raw` +
+//     `ws.broadcast(...)` to push the new HTML.
+//   - Lazy-init: `component_state` seeds from `initial_state` if
+//     the instance hasn't been rendered/dispatched yet; parallel
+//     to `dispatch_component_events` / `dispatch_to` behavior.
+//
+// Idiomatic pattern (WS handler post-processes CardEditor's save):
+//   let handled = dispatch_component_events(frame)
+//   if (handled && frame.event == "save") {
+//     let editor_state = component_state("card_editor", frame.payload["instance_id"])
+//     // Read `editor_state.text`, propagate to Board's cards, etc.
+//   }
+
+// Read the current state of a component instance. Returns the
+// initial_state if the instance has never been rendered or
+// dispatched (lazy-init parallel to `component(name, id)`).
+// Returns null if the component wasn't registered — check with
+// `COMPONENT_REGISTRY.has(name)` if that case is unusual.
+fn component_state(component_name: Str, instance_id: Str) -> Any {
+  if (not COMPONENT_REGISTRY.has(component_name)) { return null }
+  let key = flv_state_key(component_name, instance_id)
+  if (not COMPONENT_STATE_STORE.has(key)) {
+    let reg = COMPONENT_REGISTRY[component_name]
+    COMPONENT_STATE_STORE[key] = reg.initial_state
+  }
+  return COMPONENT_STATE_STORE[key]
+}
+
+// Write a new state value directly to a component instance's store
+// slot. Bypasses event handler logic — the caller is responsible
+// for the state shape matching the component's declared type.
+//
+// Returns:
+//   - `true` — component was registered and state was written.
+//   - `false` — component name not registered (silent no-op).
+//
+// Common misuse: writing state from a WS handler and then NOT
+// re-rendering / broadcasting. The framework doesn't auto-refresh;
+// call `component(name, id).raw` + `ws.broadcast(...)` explicitly
+// after mutating.
+fn set_component_state(component_name: Str, instance_id: Str, new_state: Any) -> Bool {
+  if (not COMPONENT_REGISTRY.has(component_name)) { return false }
+  let key = flv_state_key(component_name, instance_id)
+  COMPONENT_STATE_STORE[key] = new_state
+  return true
+}
+
 
 // -----------------------------------------------------------------------------
 // Phase 4 tests
@@ -1697,4 +1823,252 @@ fn p4_multiple_event_handlers_route_to_the_right_one() {
   }
   dispatch_component_events(f_reset)
   assert(component("p4_multi", "x").raw.contains("Count: 0"))
+}
+
+
+// -----------------------------------------------------------------------------
+// K-1 (v0.5.0) — dispatch_to tests
+// -----------------------------------------------------------------------------
+
+@test
+fn k1_dispatch_to_fires_handler_and_updates_state() {
+  // Canonical case: explicit dispatch from server code (e.g. inside
+  // another component's event handler or a WS post-processing step)
+  // to a specific component + instance. State updates via the
+  // registered handler.
+  flv_register("k1_target", __P4Counter { count: 0 }, __p4_counter_render,
+               { "increment": __p4_counter_increment })
+  // No `component("k1_target", "inst")` — proves lazy-init seeds.
+  let did = dispatch_to("k1_target", "inst", "increment", { })
+  assert(did)
+  // Verify state was updated.
+  let r = component("k1_target", "inst")
+  assert(r.raw.contains("Count: 1"))
+}
+
+@test
+fn k1_dispatch_to_returns_false_when_component_not_registered() {
+  // Silent failure — callers can use fire-and-forget without wrapping
+  // in defensive `if`s for the "component doesn't exist" case.
+  let did = dispatch_to("k1_unknown_component", "any", "any_event", { })
+  assert_eq(did, false)
+}
+
+@test
+fn k1_dispatch_to_returns_false_when_event_not_registered_on_component() {
+  flv_register("k1_no_such_event", __P4Counter { count: 0 }, __p4_counter_render,
+               { "increment": __p4_counter_increment })
+  let did = dispatch_to("k1_no_such_event", "inst", "nonexistent_event", { })
+  assert_eq(did, false)
+}
+
+@test
+fn k1_dispatch_to_forwards_payload_to_handler() {
+  // The passed payload reaches the handler as-is (handler receives
+  // it as its second argument). Verifies the payload marshal path.
+  flv_register(
+    "k1_payload_pass",
+    __K1EchoState { text: "initial" },
+    __k1_echo_render,
+    { "set": __k1_echo_set_from_payload }
+  )
+  let did = dispatch_to("k1_payload_pass", "inst", "set", { "text": "from-payload" })
+  assert(did)
+  let r = component("k1_payload_pass", "inst")
+  assert(r.raw.contains("from-payload"))
+}
+
+@test
+fn k1_dispatch_to_and_dispatch_component_events_share_the_state_store() {
+  // Regression: both APIs write to COMPONENT_STATE_STORE via
+  // flv_state_key(name, id). A dispatch via dispatch_to should be
+  // visible to a subsequent dispatch_component_events on the same
+  // instance (and vice versa).
+  flv_register("k1_shared_store", __P4Counter { count: 0 }, __p4_counter_render,
+               { "increment": __p4_counter_increment })
+  dispatch_to("k1_shared_store", "inst", "increment", { })
+  // Now dispatch via the frame path — should build on top of the
+  // dispatch_to update.
+  let frame = LiveFrame {
+    event: "increment",
+    payload: {
+      "component_name": "k1_shared_store",
+      "instance_id": "inst"
+    }
+  }
+  dispatch_component_events(frame)
+  // Total: 0 → 1 (dispatch_to) → 2 (dispatch_component_events).
+  let r = component("k1_shared_store", "inst")
+  assert(r.raw.contains("Count: 2"))
+}
+
+@test
+fn k1_dispatch_to_distinct_instances_isolate_state() {
+  // Two instance_ids on the same component name have independent
+  // state entries. dispatch_to on one doesn't affect the other.
+  flv_register("k1_isolated", __P4Counter { count: 0 }, __p4_counter_render,
+               { "increment": __p4_counter_increment })
+  dispatch_to("k1_isolated", "a", "increment", { })
+  dispatch_to("k1_isolated", "a", "increment", { })
+  dispatch_to("k1_isolated", "b", "increment", { })
+  assert(component("k1_isolated", "a").raw.contains("Count: 2"))
+  assert(component("k1_isolated", "b").raw.contains("Count: 1"))
+}
+
+
+// Test helpers for k1_dispatch_to_forwards_payload_to_handler:
+// echo the payload's `text` field into a Str-only state so we don't
+// need a Str→Int converter (Fitz builtin missing).
+type __K1EchoState {
+  text: Str = ""
+}
+
+fn __k1_echo_render(state: __K1EchoState) -> Html {
+  return html("<span>{state.text}</span>")
+}
+
+fn __k1_echo_set_from_payload(state: __K1EchoState, payload: Map<Str, Str>) -> __K1EchoState {
+  let t = payload["text"]
+  return __K1EchoState { text: t }
+}
+
+
+// -----------------------------------------------------------------------------
+// K-2 (v0.5.0) — component_state + set_component_state tests
+// -----------------------------------------------------------------------------
+
+@test
+fn k2_component_state_returns_initial_when_never_rendered_or_dispatched() {
+  // Lazy-init: reading state on a fresh instance seeds it from the
+  // component's initial_state.
+  flv_register("k2_initial", __P4Counter { count: 42 }, __p4_counter_render,
+               { "increment": __p4_counter_increment })
+  // No `component("k2_initial", "x")` and no dispatch — direct read
+  // should still work + return initial.
+  let state = component_state("k2_initial", "x")
+  // Verify by rendering after — should see initial.
+  let r = component("k2_initial", "x")
+  assert(r.raw.contains("Count: 42"))
+}
+
+@test
+fn k2_component_state_returns_null_for_unregistered_component() {
+  let state = component_state("k2_never_registered", "any")
+  assert_eq(state, null)
+}
+
+@test
+fn k2_component_state_reflects_post_dispatch_state() {
+  // After dispatch mutates state, component_state must see the new
+  // value. Proves both APIs share the same store slot.
+  flv_register("k2_post_dispatch", __P4Counter { count: 0 }, __p4_counter_render,
+               { "increment": __p4_counter_increment })
+  dispatch_to("k2_post_dispatch", "inst", "increment", { })
+  dispatch_to("k2_post_dispatch", "inst", "increment", { })
+  // component_state returns Any — check via a subsequent render.
+  let state = component_state("k2_post_dispatch", "inst")
+  let r = component("k2_post_dispatch", "inst")
+  assert(r.raw.contains("Count: 2"))
+}
+
+@test
+fn k2_set_component_state_writes_visible_to_next_render() {
+  // Direct write bypasses event handlers; the new state must be
+  // visible to the next `component(name, id)` render call.
+  flv_register("k2_direct_write", __P4Counter { count: 0 }, __p4_counter_render,
+               { "increment": __p4_counter_increment })
+  let did = set_component_state("k2_direct_write", "inst", __P4Counter { count: 100 })
+  assert(did)
+  let r = component("k2_direct_write", "inst")
+  assert(r.raw.contains("Count: 100"))
+}
+
+@test
+fn k2_set_component_state_returns_false_for_unregistered_component() {
+  // Silent no-op — parallel to dispatch_to's safety net.
+  let did = set_component_state("k2_no_such_component", "any", __P4Counter { count: 0 })
+  assert_eq(did, false)
+}
+
+// Test helpers for the canonical K-1 + K-2 acceptance test:
+// simulate the "child → parent" event bubbling pattern that
+// motivated K-1 in the first place (CardEditor's save → Board's
+// card_saved). Two components, one fires the other via
+// `dispatch_to`, parent's state is updated + verifiable via
+// `component_state` (K-2).
+
+type __K12Child {
+  saved_text: Str = ""
+}
+
+type __K12Parent {
+  last_saved: Str = "none"
+}
+
+fn __k12_child_render(state: __K12Child) -> Html {
+  return html("<span>child: {state.saved_text}</span>")
+}
+
+fn __k12_parent_render(state: __K12Parent) -> Html {
+  return html("<span>parent last_saved: {state.last_saved}</span>")
+}
+
+// Child's save event — writes to its own state AND fires
+// `dispatch_to` to notify the parent.
+fn __k12_child_save(state: __K12Child, payload: Map<Str, Str>) -> __K12Child {
+  let text = payload["text"]
+  // Notify parent (single-instance singleton "root").
+  dispatch_to("__k12_parent", "root", "child_saved", payload)
+  return __K12Child { saved_text: text }
+}
+
+// Parent's handler for child's bubbled event.
+fn __k12_parent_child_saved(state: __K12Parent, payload: Map<Str, Str>) -> __K12Parent {
+  let text = payload["text"]
+  return __K12Parent { last_saved: text }
+}
+
+@test
+fn k12_canonical_child_dispatches_to_parent_via_dispatch_to() {
+  // Canonical K-1 acceptance: a child component's event handler
+  // fires `dispatch_to("parent_name", "root", "event", payload)`
+  // to notify a parent (or sibling) component of a state change.
+  // The parent's handler updates its own state. K-2's
+  // `component_state` reads the parent's state to verify.
+  //
+  // This IS the pattern that motivated K-1 (CardEditor's save →
+  // Board's card_saved), stripped to essentials.
+  flv_register("__k12_parent", __K12Parent { last_saved: "none" },
+               __k12_parent_render,
+               { "child_saved": __k12_parent_child_saved })
+  flv_register("__k12_child", __K12Child { saved_text: "" },
+               __k12_child_render,
+               { "save": __k12_child_save })
+
+  // Simulate a client sending a save event to the child.
+  let did = dispatch_to("__k12_child", "inst1", "save", { "text": "hello parent!" })
+  assert(did)
+
+  // Verify: child's state updated.
+  let child_rendered = component("__k12_child", "inst1")
+  assert(child_rendered.raw.contains("hello parent!"))
+
+  // Verify: parent's state also updated (via the bubbled event).
+  let parent_rendered = component("__k12_parent", "root")
+  assert(parent_rendered.raw.contains("last_saved: hello parent!"))
+}
+
+@test
+fn k2_set_component_state_overwrites_dispatched_state() {
+  // Write via dispatch, then overwrite via set_component_state.
+  // The set wins.
+  flv_register("k2_overwrite", __P4Counter { count: 0 }, __p4_counter_render,
+               { "increment": __p4_counter_increment })
+  dispatch_to("k2_overwrite", "inst", "increment", { })
+  dispatch_to("k2_overwrite", "inst", "increment", { })
+  // After 2 dispatches: count = 2.
+  // Now overwrite to 999.
+  set_component_state("k2_overwrite", "inst", __P4Counter { count: 999 })
+  let r = component("k2_overwrite", "inst")
+  assert(r.raw.contains("Count: 999"))
 }

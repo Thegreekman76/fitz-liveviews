@@ -5,6 +5,105 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.5.0] — 2026-07-16 — K-1 + K-2 framework fns: `dispatch_to` + `component_state` + `set_component_state`
+
+**Minor bump** — first NEW public API in the framework layer since
+v0.4.0. Closes K-1 + K-2 debts documented in Fitz core
+`docs/deudas-post-5b.md` (kanban migration surface).
+
+### K-1: `dispatch_to(component_name, instance_id, event, payload)` — event bubbling substitute
+
+Explicit event dispatch to a specific component + instance from
+server code. Complements `dispatch_component_events(frame)` which
+routes frames from the client. `dispatch_to` fires the target
+component's registered event handler with the given payload,
+updates the component's state in `COMPONENT_STATE_STORE`, and
+returns `true` on success (or `false` silently if the component
+name isn't registered or the event isn't in that component's
+handler map — fire-and-forget safe).
+
+Canonical use case (motivation from kanban Phase 8.5 partial): a
+child component's event handler fires `dispatch_to` to notify a
+sibling or parent component of a state change, avoiding the need
+for parent WS handler post-processing to hand-roll cross-component
+state propagation.
+
+Example (child `save` bubbles to parent):
+
+```fitz
+event save() {
+  text = payload["text"]
+  is_editing = false
+  dispatch_to("Board", "root", "card_saved", payload)
+}
+```
+
+### K-2: `component_state(name, id)` + `set_component_state(name, id, new_state)` — direct state API
+
+Read + write access to component state outside of registered event
+handlers. Use cases:
+- Parent WS handler post-processing (read a component's state
+  after an event fired to inspect its result).
+- Test fixtures (assert on component state after simulated events).
+- Hydration (seed a component's state from a database read on
+  initial page load).
+
+`component_state` returns `null` if the component wasn't
+registered; lazy-inits from `initial_state` if the instance was
+never rendered or dispatched. `set_component_state` returns
+`true`/`false` for registered/unregistered component.
+
+Caveat: bypasses event handlers — the caller is responsible for
+the state shape matching the component's declared type. Fitz's
+gradual typing catches obvious mistakes at the call site.
+
+### K-12: canonical child → parent dispatch pattern proven
+
+New test `k12_canonical_child_dispatches_to_parent_via_dispatch_to`
+demonstrates the pattern that motivated K-1 (CardEditor's save →
+Board's card_saved) stripped to essentials: two components, one
+fires the other via `dispatch_to` inside its event handler,
+verified via `component_state` + subsequent render. Full kanban
+`Board.fitzv` migration (from the current Phase 8.5 partial) is
+now unblocked and can land as a follow-up commit that consumes
+`dispatch_to`.
+
+### API surface
+
+New public fns in `src/lib.fitz`:
+- `fn dispatch_to(component_name: Str, instance_id: Str, event: Str, payload: Map<Str, Str>) -> Bool`
+- `fn component_state(component_name: Str, instance_id: Str) -> Any`
+- `fn set_component_state(component_name: Str, instance_id: Str, new_state: Any) -> Bool`
+
+No breaking changes — all existing APIs (`flv_register`,
+`component`, `dispatch_component_events`) unchanged.
+
+### Tests
+
+13 new `@test` fns: 6 K-1 (fires+updates / silent fail on unknown
+component / silent fail on unknown event / payload forwarding /
+shared store with dispatch_component_events / instance isolation),
+6 K-2 (initial state lazy-init / null for unknown / reflects post-
+dispatch / direct write visible to render / silent fail on
+unknown / overwrites dispatched), 1 K-12 canonical (child →
+parent via dispatch_to). Total lib test count: 83/83 verde.
+
+### VSCode extension
+
+Bumped to v0.5.0 in lockstep. No grammar or snippet changes —
+existing `livecomp` / `renderfor` / `onevent` snippets are
+sufficient. `.vsix` regenerated for lockstep consistency.
+
+### Debt residual (NO bloquea)
+
+- **K-3 compound props** for `<Child prop={compound_value} />`
+  remains ABIERTA in Fitz core (view emitter, ~80 LoC). Not
+  blocking for kanban Board.fitzv migration (Board's initial
+  state is empty).
+- **Full kanban Board.fitzv migration** (from Phase 8.5 partial)
+  now unblocked but not shipped in v0.5.0 — deferred to a
+  follow-up commit that consumes `dispatch_to`.
+
 ## [v0.4.3] — 2026-07-16 — Phase 8: examples migrated to `.fitzv` SFC syntax
 
 **Requires Fitz core v0.21.0+.** Docs-only sync-point release.

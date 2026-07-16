@@ -14,9 +14,9 @@
 
 ---
 
-## Status: ✅ Phase 8 (SFC migration) — v0.4.3
+## Status: ✅ K-1 + K-2 framework fns — v0.5.0
 
-**Requires Fitz core v0.21.0+.** All 4 canonical examples migrated to `.fitzv` single-file component syntax; library API is identical to v0.4.2 (docs-only sync-point release).
+**Requires Fitz core v0.21.0+.** Adds `dispatch_to(...)`, `component_state(...)`, and `set_component_state(...)` framework fns — first NEW public API since v0.4.0. Unblocks child → parent event bubbling patterns (foundational for full `Board.fitzv` kanban migration).
 
 Everything you need to ship a real-time UI works end-to-end today:
 
@@ -29,7 +29,8 @@ Everything you need to ship a real-time UI works end-to-end today:
 - **Phase 5.A.1 (Fitz core v0.20.1)** ✨ — Implicit `flv_register(...)` from the `@live_component` / `@render_for` / `@on` decorators. The compiler walks the metadata that lives in the `TypeEnv` and appends the boot registration automatically; the kanban and dashboard examples dropped their manual boot call
 - **Phase 5** — [Docs site](https://thegreekman76.github.io/fitz-liveviews/) (MkDocs Material) + CI/CD workflows
 - **Phase 6** — VSCode extension v0.4.3 bundled at [`editors/vscode/`](editors/vscode/) — HTML highlighting inside `html("""...""")` + LiveComponents snippets (`livecomp` / `renderfor` / `onevent` / `flvcomp` / `dispatchcomp`) — all snippets are SFC-ready
-- **Phase 8 (Fitz core v0.21.0)** 🎨 — All 4 examples migrated to `.fitzv` single-file component syntax. `Counter.fitzv`, `MetricTile.fitzv`, `ChatRoom.fitzv`, `CardEditor.fitzv` shipped with state + events + `<template>` blocks compact in single files. Chat migration surface 6 view pipeline gaps in Fitz core (V-1 to V-6, closed same-session via §9.cc + §9.dd + §9.ee — feedback loop of hours). Full `Board.fitzv` for kanban deferred to Phase 11.7+ pending event bubbling framework support (K-1/K-2/K-3 documented). Component patterns catalog ready for Phase 9 (Companion UI library)
+- **Phase 8 (Fitz core v0.21.0)** 🎨 — All 4 examples migrated to `.fitzv` single-file component syntax. `Counter.fitzv`, `MetricTile.fitzv`, `ChatRoom.fitzv`, `CardEditor.fitzv` shipped with state + events + `<template>` blocks compact in single files. Chat migration surface 6 view pipeline gaps in Fitz core (V-1 to V-6, closed same-session via §9.cc + §9.dd + §9.ee — feedback loop of hours). Component patterns catalog ready for Phase 9 (Companion UI library)
+- **K-1 + K-2 (v0.5.0)** 🔗 — Event bubbling substitute via `dispatch_to(component_name, instance_id, event, payload)` + direct state read/write via `component_state(name, id)` + `set_component_state(name, id, new_state)`. Enables child → parent dispatch patterns (proven via `k12_canonical_child_dispatches_to_parent_via_dispatch_to` test). Unblocks full `Board.fitzv` kanban migration. First new public API since v0.4.0.
 
 See [ROADMAP.md](ROADMAP.md) for what is coming next — Phase 9 (Companion UI library), Phase 11.7 (client-side dynamic capabilities), and beyond.
 

@@ -276,6 +276,17 @@ documentados en Fitz core para Phase 11.7+. Formal 8.7 closure
 con bump v0.4.3 sync-point (marca "post-Fitz-v0.21.0" en el
 manifest paralelo al precedente v0.4.2 docs-only lockstep).
 
+**Post-Phase-8 closure (2026-07-16, v0.5.0)**: K-1 + K-2 framework
+gaps CERRADAS en fitz-liveviews (`dispatch_to` + `component_state`
++ `set_component_state` — first NEW public API desde v0.4.0). El
+canonical child → parent dispatch pattern está PROVEN via
+`k12_canonical_child_dispatches_to_parent_via_dispatch_to` test.
+Unblocks full `Board.fitzv` kanban migration (from Phase 8.5
+partial) — deferido a follow-up commit que consume `dispatch_to`.
+K-3 compound props sigue ABIERTA en Fitz core view emitter (~80
+LoC, low priority — no bloquea kanban's Board.fitzv). Lib API
+count: 3 nuevas fns públicas; 83 lib tests (+13 vs v0.4.3).
+
 **Phases 7, 8, 9 numbering**: Phase 7 sigue como "Beyond MVP
 deferred backlog". Phase 8 + Phase 9 son concrete-next-work
 post-Fitz-v0.21.0 shipping, temporalmente adelante de Phase 7.
