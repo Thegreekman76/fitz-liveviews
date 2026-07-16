@@ -306,14 +306,20 @@ post-Fitz-v0.21.0 shipping, temporalmente adelante de Phase 7.
       en `docs/components-candidates.md` los patterns comunes que
       emergen (Button, Card, Modal, Input, MetricStat,
       MessageBubble, KanbanColumn). Input directo para Phase 9.A.
-- [ ] **8.7** **Cierre formal Phase 8** — CHANGELOG entry, bump lib
-      version a **v0.5.0** (minor bump — nueva API contract con
-      SFCs; los 4 examples migrados es breaking-para-nuevos-users
-      que empiezan hoy con templates SFC como canonical), refresh
-      README con "Fitz LiveViews v0.5.0 uses `.fitzv` single-file
-      components", VSCode extension refresh si applicable (snippets
-      `livecomp` YA son SFC-ready desde v0.4.2, probablemente sin
-      cambios).
+- [ ] **8.7** **Cierre formal Phase 8** — CHANGELOG entry
+      documentando que la migration es 100% **examples + docs**;
+      la API pública de `src/lib.fitz` (1700 LoC) queda **intacta**
+      — nada del lib code cambia con la SFC migration, sólo la
+      forma en que los 4 examples ejercitan la misma API. Refresh
+      README con "examples migrated to `.fitzv` single-file
+      components (requires Fitz core v0.21.0+)". VSCode extension
+      sin cambios (snippets `livecomp` YA son SFC-ready desde
+      v0.4.2). **Decisión de bump**: por default **NO bump** — la
+      versión sigue v0.4.2. Opcional bump patch a **v0.4.3** SÓLO
+      si preferimos marcar el hito "post-Fitz-core-v0.21.0" en el
+      manifest como sync point (paralelo al precedente v0.4.2 que
+      bumpeó docs-only por lockstep con VSCode extension). Decidir
+      al cerrar 8.7.
 
 **Deudas residuales esperadas** (surface durante las 4 migrations;
 se convertirán en §9.cc / §9.dd de Phase 11.6.e en Fitz core si son
@@ -412,7 +418,15 @@ real, no por completeness.
       + `<Input>` + `<Button>`.
     - Medir LoC reduction pre/post refactor + documentar en
       `docs/companion-ui-benefits.md`.
-    - Bump lib version a **v0.6.0** (minor — nueva companion API).
+    - **Version bump depende de la decisión de placement en 9.A**:
+        - Si **sub-package** (nuevos módulos suman a `src/lib.fitz`
+          current): bump minor del core lib a **v0.5.0** (nueva
+          API superficie con los 8 componentes exportados).
+        - Si **path dep hermano** (`fitz-liveviews-ui/` con su
+          propio `fitz.toml` + `[lib]` sección independiente):
+          fresh package version **v0.1.0** para el companion +
+          core lib sin bump (queda en v0.4.2 o v0.4.3 según lo
+          decidido en 8.7).
 
 **Decisión pendiente que NO se cierra hasta 9.A**: aesthetic
 direction (Opción A/B/C arriba). Documentado como debt residual
