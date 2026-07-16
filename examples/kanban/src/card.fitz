@@ -1,0 +1,24 @@
+// Fitz LiveViews — Kanban: shared Card + Board types in their own
+// sibling module (Phase 8.5 SFC migration, 2026-07-16).
+//
+// Extracted from `main.fitz` so both `main.fitz` (for the board-
+// level state + WS handler) and `CardEditor.fitzv` (potentially
+// for future refactors — the CardEditor doesn't currently import
+// Card, but might in a fuller migration where the editor renders
+// card metadata itself) can share the type declarations without
+// creating a circular dependency.
+//
+// This is the canonical pattern for cross-file shared types in
+// `.fitzv` component projects: put types in their own file.
+
+type Card {
+  id: Str
+  title: Str
+  author: Str
+  column: Str
+}
+
+type Board {
+  cards: List<Card> = []
+  next_id: Int = 1
+}

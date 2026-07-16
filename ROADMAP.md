@@ -316,21 +316,25 @@ post-Fitz-v0.21.0 shipping, temporalmente adelante de Phase 7.
       `docs/components-candidates.md` (Input canonical shape,
       MessageList/MessageBubble chat-specific, Form as bare
       `<form>`).
-- [ ] **8.5** **Migrate kanban — LIKELY-PARTIAL (2026-07-16
-      forecast).** Kanban tiene el mismo pattern shared-state que
-      chat (`board.cards.push(...)`, `board.cards.map(...)`,
-      `board.cards.filter(...)`) más handling de per-card editor
-      state. Post chat migration probe (Phase 8.4), sabemos que
-      board-level shared state HITTEA los mismos 5 blockers V-1
-      a V-5 del Fitz core view pipeline. La única parte SFC-fit
-      hoy es el sub-componente `card_editor` (que §9.aa validó
-      con re-assign puro `text = new_text` — sin `.push()`).
-      Plan revisado: extract SOLO `CardEditor.fitzv` (per-card
-      inline editor), dejar el board-level state en classic
-      Fitz shared-state pattern. Board component (Column, Card)
-      migration DIFERIDA hasta cerrar §9.cc + §9.dd + §9.ee del
-      Fitz core. Client-side interactivity (drag-drop) sigue
-      confirmando Phase 11.7 scope.
+- [x] **8.5** **Migrate kanban — CERRADA PARCIAL 2026-07-16.**
+      Chat migration (Phase 8.4) probó que el shared-state pattern
+      SÍ puede migrarse full-SFC post §9.cc/§9.dd/§9.ee. Kanban
+      tiene una complicación adicional: CardEditor's `save` event
+      propaga a Board's cards state — full `Board.fitzv` migration
+      necesita event bubbling entre componentes (Phase 11.7+
+      scope). **Migración shipped**: `card.fitz` sibling (shared
+      types Card + Board), `CardEditor.fitzv` SFC (extraído
+      del inline `@live_component` en `main.fitz`, ~50 LoC con
+      state + 3 events + template con `{#if}{#else}{/if}`
+      toggle), rewritten `main.fitz` (~320 LoC vs 466 pre-migration
+      = 146 LoC reduction; board state + render fns + WS handler
+      quedan en classic Fitz). Smoke real end-to-end verde:
+      `fitz check` cero errors + `fitz run` boot + `curl / →
+      200` (8104 bytes) con 3 columns + create form + `<h1>Fitz
+      LiveViews Kanban</h1>`. Full `Board.fitzv` migration
+      DIFERIDA hasta Phase 11.7+ (event bubbling framework
+      support). Patterns emergentes catalogados en
+      `docs/components-candidates.md`.
 - [ ] **8.6** **Pattern extraction** — durante 8.3-8.5, cataloguar
       en `docs/components-candidates.md` los patterns comunes que
       emergen (Button, Card, Modal, Input, MetricStat,

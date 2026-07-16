@@ -1,99 +1,39 @@
-// Fitz LiveViews — collaborative kanban board (Phase 4 showcase).
+// Fitz LiveViews — collaborative kanban board (Phase 4 showcase +
+// Phase 8.5 partial SFC migration).
+//
+// Post Fitz core v0.21.0 §9.cc/§9.dd/§9.ee, this migration extracts:
+//   - `type Card` + `type Board` → sibling `card.fitz` module
+//   - `@live_component("card_editor")` → `CardEditor.fitzv` SFC
+//
+// The Board-level state (`let board`) + create/move/delete event
+// dispatch + render fns REMAIN in classic Fitz. Full Board.fitzv
+// migration is deferred to Phase 11.7+ pending framework support
+// for event bubbling between components (CardEditor's save event
+// would need to trigger a Board update — currently the parent
+// WS handler post-processes manually).
 //
 // Run:   fitz run
-// Open http://127.0.0.1:3000/ in two browser windows. Add cards, move
-// them between columns, edit titles inline, delete them. Every action
-// broadcasts to every other window with a compact patch — no full HTML
-// replace, no lost focus in forms.
-//
-// Showcases the whole stack:
-//   - Shared state via top-level `let` (F17 = Arc<Mutex>)
-//   - Forms with `data-flv-submit` + `data-flv-clear`
-//   - Click events with `data-flv-value-<key>` payload (card_id)
-//   - Broadcast via `ws.broadcast(...)`
-//   - Server-side diff engine → append/remove/set_attr patches
-//   - **`@live_component("card_editor")`** — per-card edit UI with
-//     independent state (is_editing + text buffer), one instance per
-//     card_id, dispatched via `dispatch_component_events(frame)`
-//   - Responsive by default (3 columns desktop → stacked on mobile)
+// Open http://127.0.0.1:3000/ in two browser windows. Add cards,
+// move them between columns, edit titles inline, delete them.
+// Every action broadcasts to every other window with a compact
+// patch — no full HTML replace, no lost focus in forms.
 
 from fitz_liveviews import Html, html, flv, live_layout, html_response, LiveFrame, h_join, h_when, diff_html, component, dispatch_component_events, flv_register
+from card import Card, Board
+from CardEditor import card_editor, card_editor_render, card_editor_start, card_editor_cancel, card_editor_save
 
 
 // -----------------------------------------------------------------------------
-// State
-// -----------------------------------------------------------------------------
-
-type Card {
-  id: Str
-  title: Str
-  author: Str
-  column: Str          // "todo" | "in_progress" | "done"
-}
-
-type Board {
-  cards: List<Card> = []
-  next_id: Int = 1
-}
-
-// Shared across every connection. F17 wraps this in Arc<Mutex>.
-let board: Board = Board { cards: [], next_id: 1 }
-let last_board_html: Str = ""
-
-
-// -----------------------------------------------------------------------------
-// Card editor — @live_component
+// Shared board state
 // -----------------------------------------------------------------------------
 //
-// One instance per card_id (id = "editor-<card_id>"). The component owns
-// the UI toggle (is_editing) and an edit buffer (text). The Board's card
-// title is still the source of truth for data — the component doesn't
-// touch it. On save, the parent WS handler picks up `payload["text"]`
-// and applies the change to Board.cards.
+// F17 wraps top-level `let`s in `Arc<Mutex>`, so mutations from any
+// WebSocket handler are visible to all connections. This is the
+// board-level shared state pattern — orthogonal to per-instance
+// component state (CardEditor's is_editing + text buffer).
 
-@live_component("card_editor")
-type CardEditor {
-  is_editing: Bool = false
-  text: Str = ""
-}
-
-// Return type intentionally omitted — Fitz core's `@render_for`
-// validation accepts `Str` or `Any`, not the fitz-liveviews `Html`
-// nominal. Body still returns `html(...)`; the framework calls
-// `.raw` on the result at runtime, which is a plain Str.
-@render_for("card_editor")
-fn card_editor_render(state: CardEditor) {
-  if (state.is_editing) {
-    return html("""<form class="card-edit-form" data-flv-submit="save">
-      <input name="text" value="{flv(state.text)}" required autocomplete="off" />
-      <button type="submit" class="btn btn-save">Save</button>
-      <button type="button" class="btn" data-flv-click="cancel">Cancel</button>
-    </form>""")
-  }
-  return html("<button class=\"btn btn-edit\" data-flv-click=\"start\">edit</button>")
-}
-
-@on("card_editor", "start")
-fn card_editor_start(state: CardEditor, payload: Map<Str, Str>) -> CardEditor {
-  // Seed the edit buffer with the current card title so the input is not
-  // empty on open. The parent renders `data-flv-value-current_title` on
-  // the "edit" button of every card — see render_card_editor_slot below.
-  let seed = if (payload.has("current_title")) { payload["current_title"] } else { state.text }
-  return CardEditor { is_editing: true, text: seed }
-}
-
-@on("card_editor", "cancel")
-fn card_editor_cancel(state: CardEditor, payload: Map<Str, Str>) -> CardEditor {
-  return CardEditor { is_editing: false, text: "" }
-}
-
-@on("card_editor", "save")
-fn card_editor_save(state: CardEditor, payload: Map<Str, Str>) -> CardEditor {
-  // Close the form. The parent handler picks up payload["text"] and
-  // updates Board.cards.title — see kanban_socket below.
-  let new_text = if (payload.has("text")) { payload["text"] } else { state.text }
-  return CardEditor { is_editing: false, text: new_text }
-}
+let board: Board = Board { cards: [], next_id: 1 }
+let last_board_html: Str = ""
 
 
 // -----------------------------------------------------------------------------
@@ -123,8 +63,8 @@ fn apply_title_edit(target_id: Str, new_title: Str, c: Card) -> Card {
   return Card { id: c.id, title: new_title, author: c.author, column: c.column }
 }
 
-// The component's instance_id is "editor-<card_id>". This helper strips
-// the prefix so we can look up the card in Board.cards.
+// The component's instance_id is "editor-<card_id>". This helper
+// strips the prefix so we can look up the card in Board.cards.
 fn card_id_from_instance(instance_id: Str) -> Str {
   return instance_id.replace("editor-", "")
 }
@@ -145,28 +85,10 @@ fn render_card(c: Card) -> Html {
     can_right,
     html("<button class=\"btn\" data-flv-click=\"move_right\" data-flv-value-card_id=\"{flv(c.id)}\" aria-label=\"Move right\">→</button>")
   )
-  // The card_editor slot is a bit tricky: the component needs the
-  // current title to seed its buffer on "start", so the "edit" button
-  // (rendered by the component) receives `data-flv-value-current_title`
-  // via a wrapper on the parent side. We put it on the component's
-  // outer div by nesting a plain span carrying the value INSIDE the
-  // component instance — the client picks it up when walking up from
-  // the button. Actually simpler: since the component is one wrapper
-  // and every click inside inherits its data-flv-value-*, we can put
-  // the current title on the parent LI itself.
-  //
-  // But there's an even simpler path: the "start" click bubbles up to
-  // the component wrapper AND to the LI. The client walks to the
-  // component wrapper only (closest [data-flv-component-name]). So we
-  // put current_title on the wrapper by wrapping the component call in
-  // a fragment that also carries the attribute — the current lib API
-  // sets only instance_id on the wrapper. Simplest: set the
-  // current_title on the button INSIDE the component template. But the
-  // component template doesn't know the card title...
-  //
-  // Cleanest: render the component instance and then, from outside,
-  // add the current_title via a second attribute on the same wrapper.
-  // We do that by embedding a hidden data node. See card_edit_slot.
+  // The card_editor slot needs the current title to seed its buffer
+  // on "start". We pass it via `data-flv-value-current_title` on a
+  // wrapper — the client picks it up when walking up from the button.
+  // The SFC's start event reads `payload["current_title"]`.
   let editor_instance = component("card_editor", "editor-{c.id}")
   let editor_with_title = html(
     "<div class=\"card-edit-slot\" data-flv-value-current_title=\"{flv(c.title)}\">{editor_instance.raw}</div>"
@@ -198,10 +120,9 @@ fn render_column(board: Board, col_id: Str, title: Str) -> Html {
   </section>""")
 }
 
-// CSS lives in its own constant so we escape braces once. Every `{` and
-// `}` used by CSS syntax is written as `\{` and `\}` — Fitz would
-// otherwise treat them as interpolation delimiters. Interpolations
-// (`{something}`) inside render_board stay unescaped.
+// CSS lives in its own constant so we escape braces once. Every `{`
+// and `}` used by CSS syntax is written as `\{` and `\}` — Fitz
+// would otherwise treat them as interpolation delimiters.
 let KANBAN_CSS: Str = """  * \{ box-sizing: border-box; \}
   #kanban-app \{
     max-width: 1200px;
@@ -319,6 +240,7 @@ let KANBAN_CSS: Str = """  * \{ box-sizing: border-box; \}
   .btn-save \{ background: #dff0d8; color: #3c763d; \}
   .btn-save:hover \{ background: #c5e5b8; \}
   .card-edit-slot \{ display: contents; \}
+  .card-editor-wrapper \{ display: contents; \}
   .card-edit-form \{
     display: flex;
     gap: 0.25rem;
@@ -368,9 +290,9 @@ fn render_board(board: Board) -> Html {
 
 
 // -----------------------------------------------------------------------------
-// Boot — the compiler auto-injects `flv_register("card_editor", ...)` from
-// the metadata that `@live_component` + `@render_for` + `@on` decorators
-// leave in the TypeEnv. No manual boot call needed.
+// Boot — the compiler auto-injects `flv_register("card_editor", ...)`
+// from the metadata in `CardEditor.fitzv` (Fitz core v0.21.0+ Phase
+// 11.6.e §9.bb cross-module auto-inject).
 // -----------------------------------------------------------------------------
 
 
@@ -385,8 +307,15 @@ fn kanban_page() -> Response {
 
 
 // -----------------------------------------------------------------------------
-// WebSocket handler
+// WebSocket handler — board-level shared state + card_editor propagation
 // -----------------------------------------------------------------------------
+//
+// Unlike the chat migration (Phase 8.4) which pushed all events into
+// the SFC, kanban keeps board-level events (create_card, move,
+// delete) in the parent because Board is NOT an SFC yet — full
+// Board.fitzv migration awaits Phase 11.7+ framework support for
+// event bubbling between components (CardEditor's save event
+// currently doesn't automatically propagate to a Board SFC).
 
 @ws("/live/kanban")
 async fn kanban_socket(ws: WsConn<LiveFrame>) {

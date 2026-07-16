@@ -1,0 +1,62 @@
+// Fitz LiveViews — CardEditor SFC (Phase 8.5 SFC migration).
+//
+// Per-card inline title editor. ONE instance per kanban card,
+// keyed by `component("card_editor", "editor-<card_id>")`. The
+// component owns:
+//   - `is_editing: Bool` — is the input form visible?
+//   - `text: Str` — the buffer content while editing.
+//
+// The Board's `Card.title` is still the source of truth for
+// persisted data. On save, the parent WS handler picks up
+// `payload["text"]` (bubbled via the framework's dispatch) and
+// applies the change to `board.cards`. This design (per-card
+// UI state in the SFC + persistent title in the parent's shared
+// state) is a known KNOWN LIMITATION of the Fitz LiveViews MVP:
+// full component ownership of the card title would require
+// event bubbling between components (Phase 11.7+ scope).
+//
+// The `start` event seeds the edit buffer with the current card
+// title, provided by the parent via `data-flv-value-current_title`
+// on the wrapper — see `main.fitz::render_card` for the wiring.
+
+component card_editor {
+  state {
+    is_editing: Bool = false
+    text: Str = ""
+  }
+
+  event start() {
+    if (payload.has("current_title")) {
+      let seed = payload["current_title"]
+      text = seed
+    }
+    is_editing = true
+  }
+
+  event cancel() {
+    is_editing = false
+    text = ""
+  }
+
+  event save() {
+    if (payload.has("text")) {
+      let new_text = payload["text"]
+      text = new_text
+    }
+    is_editing = false
+  }
+
+  <template>
+    <div class="card-editor-wrapper">
+      {#if is_editing}
+        <form class="card-edit-form" data-flv-submit="save">
+          <input name="text" value="{text}" required autocomplete="off" />
+          <button type="submit" class="btn btn-save">Save</button>
+          <button type="button" class="btn" data-flv-click="cancel">Cancel</button>
+        </form>
+      {#else}
+        <button class="btn btn-edit" data-flv-click="start">edit</button>
+      {/if}
+    </div>
+  </template>
+}

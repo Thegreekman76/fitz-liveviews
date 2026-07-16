@@ -203,15 +203,152 @@ is enough — advanced form patterns land in Phase 9.B+.
 
 ## To populate during Phase 8.5 (kanban)
 
-## To populate during Phase 8.5 (kanban)
+## Populated during Phase 8.5 (kanban, 2026-07-16)
 
-Expected patterns from kanban migration:
+Kanban migration (`examples/kanban/`) surfaced these patterns:
 
-- `Modal` — card editor overlay (probable Phase 9.B core component).
-- `Input` — card title editing.
-- `BoardColumn` — kanban-specific composition (probable `<Card>` +
-  list of nested Cards).
-- `MenuButton` — 3-dot context menu on cards (edit, delete, move).
+### `Button` (variants observed in kanban)
+
+**Additional variant classes seen** (extends Phase 8.3 `Button`):
+
+- `.btn` (base) — neutral grey background, small padding
+- `.btn-del` — destructive (red-ish). Used for card delete `×`.
+- `.btn-edit` — subtle secondary (blue-ish). Used for card
+  "edit" trigger.
+- `.btn-save` — success (green-ish). Used for card editor save.
+
+**API refinement (candidate)**:
+
+```
+<Button variant="primary">Add Card</Button>
+<Button variant="danger" size="sm" aria-label="Delete card">×</Button>
+<Button variant="ghost" size="sm">edit</Button>
+<Button variant="success" size="sm">Save</Button>
+```
+
+Rationale: 4 variants ARE emerging as canonical (primary /
+success / danger / ghost). MVP could ship with those 4; more
+variants (warning / info) added later if demand emerges.
+
+### `Toggle` / conditional UI pattern (edit-in-place)
+
+**Sources**:
+
+- `examples/kanban/src/CardEditor.fitzv` — `{#if is_editing}
+  <form>...</form> {#else} <button data-flv-click="start">edit
+  </button> {/if}` — toggle between static display and edit form.
+
+**Pattern**: state field controls which subtree renders. Not a
+"component" per se; a common template pattern that MVP `<Modal>`,
+`<Alert dismissable>`, `<Tabs>`, etc. all use internally.
+
+**Not a shortlist component** — this is a template-level idiom,
+not something to abstract as a reusable primitive. Document as
+"canonical pattern" instead in Phase 9 docs.
+
+### `Icon` — arrow characters as icons (interim; SVG in Phase 9)
+
+**Sources**:
+
+- `examples/kanban/src/main.fitz::render_card` — `←`/`→`/`×`
+  arrow chars used as button labels for move-left/move-right/
+  delete. Text-based, no SVG library.
+
+**Rationale**: kanban proves the NEED for icons in real UIs
+(actions with visual affordance beyond text). MVP `<Icon>` should
+support at least these directional + destructive icons: arrow-
+left/arrow-right/close/edit/plus/trash/check.
+
+**API sketch (unchanged from Phase 8.3)**:
+
+```
+<Icon name="arrow-left" size="sm" />
+<Icon name="close" />
+<Icon name="edit" />
+```
+
+### `Column` / `BoardColumn` (kanban-specific)
+
+**Sources**:
+
+- `examples/kanban/src/main.fitz::render_column` — `<section
+  class="column"><h2>{title}</h2><ul class="card-list">
+  {items}</ul></section>` per column.
+
+**Pattern**: NOT a core primitive — kanban-specific. Same
+argument as chat's `MessageList` / `MessageBubble`: composition
+of `<Card>` + text.
+
+**API sketch (kanban-specific composition)**:
+
+```
+<BoardColumn title="To Do" count={cards.len()}>
+  {#for c in cards}
+    <CardComponent card={c} />
+  {/for}
+</BoardColumn>
+```
+
+**Rationale**: too specific for MVP shortlist. Save for kanban-
+adjacent examples in Phase 9 docs / cookbook.
+
+---
+
+## Phase 9.A — consolidation checklist (fillable when 9.A arranca)
+
+After all 4 migrations complete (counter/dashboard/chat/kanban),
+populate this section with the final shortlist for the MVP UI
+library:
+
+- [x] **Counter migration complete** (Phase 8.2 CERRADO)
+- [x] **Dashboard migration complete** (Phase 8.3 CERRADO)
+- [x] **Chat migration complete** (Phase 8.4 CERRADO)
+- [x] **Kanban migration complete** (Phase 8.5 CERRADA PARCIAL —
+      board-level state stays classic until Phase 11.7+)
+
+Ready for Phase 9.A:
+
+- [ ] **8 core components shortlist** — pick from patterns
+      observed above:
+  - **Button** (9 occurrences across 4 examples — canonical shape
+    with 4 variants primary/success/danger/ghost + sm/md sizes +
+    icon slot)
+  - **Card** (2+ occurrences: dashboard tile wrapper, chat message
+    bubble candidate — canonical shape with header/body/footer
+    slots + accent color prop + optional clickable variant)
+  - **Input** (2+ occurrences: chat form, kanban create form,
+    kanban card editor — canonical shape with name/placeholder/
+    validation attrs + label + hint + error prop)
+  - **Modal** (kanban card editor is CLOSE — the `{#if is_editing}`
+    toggle is Modal-adjacent — MVP as backdrop + close +
+    focus-trap)
+  - **Alert** (not observed yet — include as scaffolding for
+    Phase 9.B: info/success/warn/danger variants + dismissible)
+  - **Badge** (dashboard tile count is Badge-adjacent — MVP as
+    count/status pill + color variants)
+  - **Spinner** (not observed yet — include for async state
+    scaffolding)
+  - **Icon** (kanban arrow chars prove the NEED — MVP with 20-30
+    core SVG icons)
+- [ ] **Aesthetic direction** — pick A (Custom minimalist Radix-
+      style) vs B (Vuetify Material) vs C (DaisyUI utility)
+      based on patterns actually observed. Kanban's classes
+      (`.btn-del`/`.btn-edit`/`.btn-save`) suggest B/C would fit
+      naturally; A stays neutral.
+- [ ] **Theme system tokens** — enumerate CSS custom props from
+      observed usage:
+      - `--flv-color-primary` (Fitz orange `#CE412B`)
+      - `--flv-color-success` (green `#3c763d`)
+      - `--flv-color-danger` (red `#a94442`)
+      - `--flv-color-info` (blue `#31708f`)
+      - `--flv-color-muted` (grey `#666`)
+      - `--flv-radius-md` (6-8px)
+      - `--flv-shadow-card` (`0 1px 3px rgba(0,0,0,0.08)`)
+      - Font: `system-ui, -apple-system, "Segoe UI", sans-serif`
+- [ ] **Placement decision** — sub-package inside `src/lib.fitz`
+      vs path dep hermano `fitz-liveviews-ui/`.
+- [ ] **Component-by-component API finalisation** — from
+      sketches above to committed signatures.
 
 ---
 
