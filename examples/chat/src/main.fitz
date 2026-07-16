@@ -1,114 +1,94 @@
-// Fitz LiveViews — multi-user chat (Phase 3a hello world for real-time).
+// Fitz LiveViews — multi-user chat (Phase 8.4 SFC migration).
+//
+// Migrated from classic shared-state pattern (top-level `let
+// chat_room` + manual event dispatch + `chat_room.messages.push`)
+// to `.fitzv` SFC pattern (`ChatRoom.fitzv` owns state + event +
+// template; `main.fitz` shrinks to just the HTTP + WS handlers).
+//
+// Type `Message` lives in a dedicated sibling module
+// (`message.fitz`) so both `main.fitz` (for WS `LiveFrame` shape)
+// AND `ChatRoom.fitzv` (for state + event body struct literal)
+// can import it without creating a circular dependency.
+//
+// Requires Fitz core v0.21.0+ with §9.cc + §9.dd + §9.ee closures:
+//   - §9.cc V-4: `payload` in view checker event-body scope
+//   - §9.cc V-6: bare `messages.push()` in shadow-local event body
+//   - §9.dd V-3/V-5: `from message import Message` in `.fitzv`
+//   - §9.ee V-2: bare boolean HTML attrs (`required`) in template
 //
 // Run:   fitz run
-// Then open http://127.0.0.1:3000/ in two browser windows. Type a
-// name and a message in one window; the other window receives it
-// instantly via WebSocket broadcast.
+// Then open http://127.0.0.1:3000/ in two browser windows. Type
+// a name and a message in one window; the other window receives
+// it instantly via WebSocket broadcast.
+
+from fitz_liveviews import Html, html, live_layout, html_response, LiveFrame, diff_html, component, dispatch_component_events, flv_register
+from ChatRoom import ChatRoom, ChatRoom_render, ChatRoom_send_message
+from message import Message
+
+
+// -----------------------------------------------------------------------------
+// Boot registration is IMPLICIT (Fitz core v0.21.0+)
+// -----------------------------------------------------------------------------
 //
-// Shared state pattern: `chat_room` is a top-level `let` — F17 wraps
-// it in Arc<Mutex> automatically, so mutations from any WebSocket
-// handler are visible to all connections.
-
-from fitz_liveviews import Html, html, flv, live_layout, html_response, LiveFrame, h_join, diff_html
+// The compiler auto-generates `flv_register("ChatRoom", ChatRoom { },
+// ChatRoom_render, {"send_message": ChatRoom_send_message})` from
+// the metadata that `@live_component`/`@render_for`/`@on` leave in
+// the imported `ChatRoom.fitzv` module (Phase 11.6.e §9.bb cross-
+// module auto-inject). The `from ChatRoom import ...` line above
+// brings the required names into scope.
 
 
 // -----------------------------------------------------------------------------
-// State
+// Server-side snapshot of the last broadcast HTML
 // -----------------------------------------------------------------------------
+//
+// Diffing against this yields the compact patch list every WS
+// broadcast ships to clients. Shared (like the component state)
+// because every broadcast is derived from the canonical server
+// state, not from any individual connection.
 
-type Message {
-  author: Str
-  text: Str
-}
-
-type ChatRoom {
-  messages: List<Message> = []
-}
-
-// Shared across all WebSocket connections.
-let chat_room: ChatRoom = ChatRoom { messages: [] }
-
-// Server-side snapshot of the last HTML we broadcast. Diffing against
-// this yields the compact patch list every WS event ships to clients.
-// Shared (like `chat_room`) because every broadcast is derived from the
-// canonical server state, not any individual connection.
 let last_chat_html: Str = ""
 
 
 // -----------------------------------------------------------------------------
-// Render
-// -----------------------------------------------------------------------------
-
-fn render_message(m: Message) -> Html {
-  return html("""<li><strong>{flv(m.author)}:</strong> {flv(m.text)}</li>""")
-}
-
-fn render_chat(room: ChatRoom) -> Html {
-  let items = room.messages.map(fn(m) => render_message(m))
-  return html("""<div id="chat-app">
-  <h1>Fitz LiveViews Chat</h1>
-  <ul>
-    {h_join(items)}
-  </ul>
-  <form data-flv-submit="send_message">
-    <input name="author" placeholder="Your name" required autocomplete="off" />
-    <input name="text" placeholder="Your message" required autocomplete="off" data-flv-clear />
-    <button type="submit">Send</button>
-  </form>
-</div>""")
-}
-
-
-// -----------------------------------------------------------------------------
-// HTTP GET — initial render
+// HTTP GET — initial render + client runtime
 // -----------------------------------------------------------------------------
 
 @get("/")
 fn chat_page() -> Response {
-  return html_response(live_layout("/live/chat", "chat-app", render_chat(chat_room)))
+  let initial = component("ChatRoom", "room")
+  return html_response(live_layout("/live/chat", "chat-app", initial))
 }
 
 
 // -----------------------------------------------------------------------------
-// WebSocket — event + broadcast cycle
+// WebSocket — event/patch cycle
 // -----------------------------------------------------------------------------
+//
+// The parent handler has ZERO event branches — every event is a
+// component event routed via `dispatch_component_events(frame)`.
+// Compare to the pre-migration WS handler that hand-rolled
+// `if (frame.event == "send_message") { if (frame.payload.has(...))
+// { ... chat_room.messages.push(Message { ... }) ... } }`.
 
 @ws("/live/chat")
 async fn chat_socket(ws: WsConn<LiveFrame>) {
   loop {
     let frame = ws.recv()?
-    if (frame.event == "send_message") {
-      if (frame.payload.has("author")) {
-        if (frame.payload.has("text")) {
-          let author = frame.payload["author"]
-          let text = frame.payload["text"]
-          // Lazy-init the pre-mutation snapshot on the first message
-          // ever. If we didn't do this, the first diff would be
-          // `"" → full div`, which the guard in diff_html rejects, and
-          // the client would fall back to full html replace — wiping
-          // the form values the user just typed. Snapshotting the
-          // BEFORE-mutation render lets the first diff produce clean
-          // append patches for the new <li> without touching the form.
-          if (last_chat_html == "") {
-            last_chat_html = render_chat(chat_room).raw
-          }
-          chat_room.messages.push(Message { author: author, text: text })
-          // Broadcast both `patches` and `html`. Clients up-to-date
-          // with the last snapshot apply patches (fewer bytes, no form
-          // reset). Fresh clients fall back to `html`.
-          let new_html = render_chat(chat_room).raw
-          let patches = diff_html(last_chat_html, new_html)
-          ws.broadcast(LiveFrame { html: new_html, patches: patches })?
-          last_chat_html = new_html
-        }
-      }
+    if (last_chat_html == "") {
+      last_chat_html = component("ChatRoom", "room").raw
     }
+    let _handled = dispatch_component_events(frame)
+    let new_html = component("ChatRoom", "room").raw
+    let patches = diff_html(last_chat_html, new_html)
+    ws.broadcast(LiveFrame { html: new_html, patches: patches })?
+    last_chat_html = new_html
   }
 }
 
 
 // -----------------------------------------------------------------------------
-// Server
+// Server config
 // -----------------------------------------------------------------------------
 
 @server(3000)

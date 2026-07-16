@@ -1,0 +1,18 @@
+// Fitz LiveViews — Chat: shared Message type in its own sibling
+// module (Phase 8.4 SFC migration, 2026-07-16).
+//
+// Extracted from `main.fitz` so BOTH `main.fitz` AND `ChatRoom.fitzv`
+// can import `Message` without creating a circular dependency
+// (which would happen if `.fitzv` did `from main import Message`
+// and `main.fitz` did `from ChatRoom import ChatRoom`).
+//
+// This is the canonical pattern for cross-file shared types in
+// `.fitzv` component projects: put the type in its own file, both
+// the parent and every component that uses it import from there.
+// Post Fitz core v0.21.0 + §9.dd, `.fitzv` files gain `from X
+// import Y` syntax specifically to unblock this pattern.
+
+type Message {
+  author: Str
+  text: Str
+}

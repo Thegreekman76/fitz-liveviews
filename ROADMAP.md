@@ -288,20 +288,49 @@ post-Fitz-v0.21.0 shipping, temporalmente adelante de Phase 7.
       MetricTile_<events>` (canonical shape §9.bb). Auto-inject
       removes manual `flv_register(...)`. Probable clean migration
       (dashboard sigue el mismo shape que counter).
-- [ ] **8.4** **Migrate chat** — extract
-      `examples/chat/src/ChatRoom.fitzv` (o `MessageList.fitzv` +
-      `MessageInput.fitzv` si split conviene). Event bodies con
-      `if(payload.has("author")){if(payload.has("text")){...}}` —
-      validar §9.aa event-body widening no rompe cross-payload
-      guards. Alto potencial de surface bugs en corners del walker.
-- [ ] **8.5** **Migrate kanban** — el más complejo. Extract
-      `examples/kanban/src/BoardColumn.fitzv` + `Card.fitzv` +
-      `CardEditor.fitzv` (Modal-style). Event body de
-      `card_editor_save` con `let new_text =
-      if(payload.has("text")){payload["text"]} else {text}` —
-      validado en §9.aa. Probable surface de nested state mutation
-      edge cases + necesidad emergente de client-side interactivity
-      (drag-drop) que confirma Phase 11.7 scope.
+- [x] **8.4** **Migrate chat — CERRADA 2026-07-16 (post Fitz core
+      §9.cc + §9.dd + §9.ee).** El chat migration probe original
+      surface 5 blockers concretos del view pipeline (V-1 HTML
+      comments, V-2 bare boolean attrs, V-3 cross-file nominals en
+      state, V-4 `payload` en checker scope, V-5 cross-file
+      nominals en struct literals) + V-6 probable (`.push()` bare
+      expr stmt en shadow-local event body). Los 6 blockers fueron
+      cerrados en la misma sesión (Fitz core `docs/deudas-post-
+      5b.md` sección "View pipeline gaps — CERRADAS ENTERAS
+      2026-07-16"): §9.cc (V-4 + V-6, ~70 LoC), §9.ee (V-1 + V-2,
+      ~80 LoC + tests), §9.dd (V-3 + V-5 via `from X import Y`
+      syntax en `.fitzv`, ~500 LoC + 19 tests). **Chat migration
+      shipped**: `examples/chat/src/message.fitz` (5 LoC, `type
+      Message`), `examples/chat/src/ChatRoom.fitzv` (40 LoC SFC
+      con state + event con nested payload guards + template con
+      `{#for m in messages}` + submit form), rewritten `main.fitz`
+      (50 LoC — imports + HTTP GET + WS handler con zero event
+      branches vía `dispatch_component_events`). Total LoC per
+      concern DIVIDIDO (domain logic en `.fitzv`, wiring en
+      `main.fitz`, shared type en `message.fitz`) vs pre-
+      migration monolithic 115 LoC en `main.fitz`. Smoke real
+      end-to-end verde: `fitz check` + `fitz run` + `curl / →
+      200` con `data-flv-component-name="ChatRoom"` +
+      `data-flv-submit="send_message"` + `<h1>Fitz LiveViews
+      Chat</h1>` en HTML. Patterns emergentes catalogados en
+      `docs/components-candidates.md` (Input canonical shape,
+      MessageList/MessageBubble chat-specific, Form as bare
+      `<form>`).
+- [ ] **8.5** **Migrate kanban — LIKELY-PARTIAL (2026-07-16
+      forecast).** Kanban tiene el mismo pattern shared-state que
+      chat (`board.cards.push(...)`, `board.cards.map(...)`,
+      `board.cards.filter(...)`) más handling de per-card editor
+      state. Post chat migration probe (Phase 8.4), sabemos que
+      board-level shared state HITTEA los mismos 5 blockers V-1
+      a V-5 del Fitz core view pipeline. La única parte SFC-fit
+      hoy es el sub-componente `card_editor` (que §9.aa validó
+      con re-assign puro `text = new_text` — sin `.push()`).
+      Plan revisado: extract SOLO `CardEditor.fitzv` (per-card
+      inline editor), dejar el board-level state en classic
+      Fitz shared-state pattern. Board component (Column, Card)
+      migration DIFERIDA hasta cerrar §9.cc + §9.dd + §9.ee del
+      Fitz core. Client-side interactivity (drag-drop) sigue
+      confirmando Phase 11.7 scope.
 - [ ] **8.6** **Pattern extraction** — durante 8.3-8.5, cataloguar
       en `docs/components-candidates.md` los patterns comunes que
       emergen (Button, Card, Modal, Input, MetricStat,

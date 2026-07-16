@@ -1,0 +1,55 @@
+// Fitz LiveViews — ChatRoom SFC (Phase 8.4 SFC migration).
+//
+// State + template + event handling live here as a single-file
+// component. The parent `main.fitz` shrinks to just the HTTP GET
+// + WS routes that wire the component into the framework.
+//
+// State: `messages: List<Message>` — the shared chat history.
+// Since `.fitzv` components have singleton state per (component
+// name, instance_id) pair, `component("ChatRoom", "room")` gives
+// EVERY connected client the same history — natural broadcast
+// semantics without a hand-rolled top-level shared `let`.
+//
+// Event: `send_message` — receives the form submission's payload
+// map (`author` + `text`), constructs a Message struct literal,
+// pushes to `messages`. Post Fitz core §9.cc, `messages.push(...)`
+// on the shadow local is accepted as a bare method call (mutation
+// via the underlying `Arc<Mutex<Vec<T>>>` propagates to state).
+// Post §9.dd, `Message { ... }` struct literal with `Message`
+// imported from `message.fitz` sibling works.
+//
+// Template: chat log + submit form with `@click=` / `data-flv-*`
+// conventions. Bare boolean attrs (`required` from HTML5 spec)
+// accepted post §9.ee V-2.
+
+from message import Message
+
+component ChatRoom {
+  state { messages: List<Message> = [] }
+
+  event send_message() {
+    if (payload.has("author")) {
+      if (payload.has("text")) {
+        let author = payload["author"]
+        let text = payload["text"]
+        messages.push(Message { author: author, text: text })
+      }
+    }
+  }
+
+  <template>
+    <div id="chat-app">
+      <h1>Fitz LiveViews Chat</h1>
+      <ul>
+        {#for m in messages}
+          <li><strong>{m.author}:</strong> {m.text}</li>
+        {/for}
+      </ul>
+      <form data-flv-submit="send_message">
+        <input name="author" placeholder="Your name" required autocomplete="off" />
+        <input name="text" placeholder="Your message" required autocomplete="off" data-flv-clear />
+        <button type="submit">Send</button>
+      </form>
+    </div>
+  </template>
+}

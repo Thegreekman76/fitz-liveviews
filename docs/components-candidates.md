@@ -102,16 +102,106 @@ uses one. Deferred until chat or kanban surfaces the need.
 
 ---
 
-## To populate during Phase 8.4 (chat)
+## Populated during Phase 8.4 (chat, 2026-07-16)
 
-Expected patterns from chat migration:
+Chat migration (`examples/chat/`) surfaced these patterns:
 
-- `Avatar` — user icon in message list.
-- `Input` — message composer text field.
-- `List` / `ListItem` — chat message container (scrollable, virtual
-  scroll not in MVP scope).
-- `MessageBubble` — chat-specific composition (likely `<Card>` +
-  `<Avatar>` + text).
+### `Input` — text field with label + placeholder + validation attrs
+
+**Sources**:
+
+- `examples/chat/src/ChatRoom.fitzv` template — 2 `<input>` fields:
+  - `<input name="author" placeholder="Your name" required
+    autocomplete="off" />`
+  - `<input name="text" placeholder="Your message" required
+    autocomplete="off" data-flv-clear />`
+
+**Common shape observed**:
+
+- `name=` for form field key (used by `data-flv-submit` payload
+  packing).
+- `placeholder=` for hint text.
+- `required` bare HTML5 boolean attr for client-side validation
+  (accepted post Fitz core §9.ee V-2).
+- `autocomplete="off"` for chat-style inputs.
+- Optional `data-flv-clear` bare attr — LiveViews convention to
+  clear input after form submit (accepted post §9.ee V-2).
+
+**API sketch (candidate)**:
+
+```
+<Input
+  name="author"
+  placeholder="Your name"
+  required
+  autocomplete="off"
+/>
+<Input
+  name="text"
+  placeholder="Your message"
+  required
+  clear-on-submit
+/>
+```
+
+**Rationale**: chat + kanban (card_editor `<input>`) + eventual
+future CRUD example all need Input. Canonical shape widely
+established (Vuetify VTextField, MUI TextField, chakra Input).
+
+### `MessageList` / `MessageBubble` (chat-specific composition)
+
+**Sources**:
+
+- `examples/chat/src/ChatRoom.fitzv` template `<ul>` with `{#for
+  m in messages}` rendering `<li><strong>{m.author}:</strong>
+  {m.text}</li>` per message.
+
+**Common shape observed**:
+
+- Simple `<ul><li>` list with per-item template.
+- Author + text as text content (no avatar in MVP; timestamps
+  deferred).
+
+**API sketch (candidate — chat-specific)**:
+
+```
+<MessageList items={messages}>
+  {#for m in messages}
+    <MessageBubble author={m.author} text={m.text} />
+  {/for}
+</MessageList>
+```
+
+**Rationale**: chat is the ONLY canonical use case. Kanban/dash
+don't need it. Might NOT be a core `Card`-adjacent primitive —
+could live as a chat-specific composition or as a `List` +
+`ListItem` general primitive with a chat-specific example.
+
+### Form (submit-first, no separate `<Form>` wrapper)
+
+**Sources**:
+
+- `examples/chat/src/ChatRoom.fitzv` template `<form data-flv-
+  submit="send_message">` wrapping 2 inputs + submit button.
+
+**Common shape observed**:
+
+- LiveViews convention: `<form data-flv-submit="event_name">`.
+  Framework client JS intercepts submit, packages named inputs,
+  ships as event.
+- Bare `<form>` element (no fancy `<Form>` component).
+
+**API sketch**: probably NO `<Form>` component in MVP — the bare
+`<form>` element with LiveViews conventions is already ergonomic
+and matches HTML spec. Users compose forms with `<Input>` +
+`<Button>` inside a bare `<form>`.
+
+**Rationale**: `<Form>` wrappers in other frameworks (Vuetify
+VForm, MUI FormControl) add value with client-side validation
+state, submission handling, field arrays. For MVP, bare `<form>`
+is enough — advanced form patterns land in Phase 9.B+.
+
+## To populate during Phase 8.5 (kanban)
 
 ## To populate during Phase 8.5 (kanban)
 
