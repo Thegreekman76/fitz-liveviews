@@ -1,0 +1,58 @@
+// Pure helpers for `Board.fitzv` — the SFC parser doesn't accept
+// top-level fn declarations inside a `.fitzv` file (only
+// `component { ... }` blocks and `from ... import ...` statements
+// at the top level). Column-progression + filter predicates + row
+// factories live here in a sibling classic-Fitz module so the
+// SFC's template + event bodies can call them naturally via
+// `from board_helpers import cards_in, move_one, ...`.
+//
+// Post Fitz core K-4 (2026-07-17): the SSR emitter accepts imported
+// top-level fn refs in `.fitzv` templates AND event bodies, so
+// `{cards_in(cards, "todo")}` in a template and `cards.map(fn(c) =>
+// move_one(target, "right", c))` in an event body BOTH emit
+// verbatim; the classic checker validates the calls against this
+// module's exports.
+
+from card import Card
+
+// Filter helpers used by both the template (per-column rendering)
+// and the event bodies (delete_card via `keep_if_not`).
+
+fn cards_in(all: List<Card>, col: Str) -> List<Card> {
+  return all.filter(fn(c) => c.column == col)
+}
+
+fn keep_if_not(target_id: Str, c: Card) -> Bool {
+  return c.id != target_id
+}
+
+// Column progression state machine. `move_one` is the canonical
+// per-card mutator invoked from `cards.map(fn(c) => move_one(...))`
+// inside the SFC's `move_left` / `move_right` event bodies.
+
+fn move_one(target_id: Str, direction: Str, c: Card) -> Card {
+  if (c.id != target_id) { return c }
+  let new_col = if (direction == "right") { next_column(c.column) } else { prev_column(c.column) }
+  return Card { id: c.id, title: c.title, author: c.author, column: new_col }
+}
+
+fn next_column(current: Str) -> Str {
+  if (current == "todo") { return "in_progress" }
+  if (current == "in_progress") { return "done" }
+  return current
+}
+
+fn prev_column(current: Str) -> Str {
+  if (current == "done") { return "in_progress" }
+  if (current == "in_progress") { return "todo" }
+  return current
+}
+
+// Row factory used by `create_card` to build a fresh Card from the
+// form submission. Living here keeps the SFC's event body focused
+// on the state mutation ("push a new row") and delegates the shape
+// details to a single call.
+
+fn make_card(id: Str, title: Str, author: Str) -> Card {
+  return Card { id: id, title: title, author: author, column: "todo" }
+}

@@ -1,0 +1,134 @@
+// Fitz LiveViews - Board SFC (Phase 8.6 full-page SFC migration).
+//
+// The Board owns the collaborative kanban's state (cards + id
+// counter), handles create/move/delete events, and renders the
+// 3-column layout. This is the ChatRoom pattern (Phase 8.4) at
+// full-page scale.
+//
+// Requires Fitz core:
+//   - v0.21.0+ base (K-1/K-2/K-3 shipped, §9.cc/§9.dd/§9.ee).
+//   - K-4 (post-v0.21.0, 2026-07-17): the SSR emitter accepts
+//     imported top-level fn refs in templates + event bodies, so
+//     the helper module below plugs in naturally.
+//
+// Architecture:
+//   - `card.fitz`           - shared types (`Card`, `Board`).
+//   - `board_helpers.fitz`  - pure helpers (filter, column state
+//                             machine, row factory).
+//   - `Board.fitzv`         - state + events + template.
+//   - `main.fitz`           - HTTP GET + WS routes; ZERO business
+//                             logic. Composes the SFC via
+//                             `component("Board", "main")`.
+//
+// KNOWN LIMITATION - the pre-migration kanban composed a per-card
+// `CardEditor` slot via `component("card_editor", "editor-<id>")`
+// in classic-Fitz render code. Nesting a `<CardEditor />` inside
+// `{#for c in cards}` (dynamic-child composition inside a template
+// loop) is not yet supported by the SSR emitter - `<Child />`
+// composition inside `{#for}` bodies is Phase 11.7+ scope. This
+// Board MVP therefore drops the inline edit feature; cards stay
+// title-immutable post-creation until that piece lands. Everything
+// else (add / move-left / move-right / delete) works identically.
+
+from card import Card
+from board_helpers import cards_in, keep_if_not, move_one, make_card
+
+component Board {
+  state {
+    cards: List<Card> = []
+    next_id: Int = 1
+  }
+
+  event create_card() {
+    if (payload.has("title")) {
+      if (payload.has("author")) {
+        let id_str = "{next_id}"
+        let title = payload["title"]
+        let author = payload["author"]
+        cards.push(make_card(id_str, title, author))
+        next_id = next_id + 1
+      }
+    }
+  }
+
+  event move_right() {
+    if (payload.has("card_id")) {
+      let target_id = payload["card_id"]
+      cards = cards.map(fn(c) => move_one(target_id, "right", c))
+    }
+  }
+
+  event move_left() {
+    if (payload.has("card_id")) {
+      let target_id = payload["card_id"]
+      cards = cards.map(fn(c) => move_one(target_id, "left", c))
+    }
+  }
+
+  event delete_card() {
+    if (payload.has("card_id")) {
+      let target_id = payload["card_id"]
+      cards = cards.filter(fn(c) => keep_if_not(target_id, c))
+    }
+  }
+
+  <template>
+    <div id="kanban-app">
+      <h1>Fitz LiveViews Kanban</h1>
+      <p class="sub">Open in two browser windows - actions sync in real time via broadcast patches.</p>
+      <form data-flv-submit="create_card">
+        <input name="title" placeholder="Card title" required autocomplete="off" data-flv-clear />
+        <input name="author" placeholder="Your name" required autocomplete="off" />
+        <button type="submit">Add Card</button>
+      </form>
+      <div class="board">
+        <section class="column">
+          <h2>To Do <span class="count">({cards_in(cards, "todo").len()})</span></h2>
+          <ul class="card-list">
+            {#for c in cards_in(cards, "todo")}
+              <li class="card">
+                <div class="card-title">{c.title}</div>
+                <div class="card-author">- {c.author}</div>
+                <div class="card-actions">
+                  <button class="btn" data-flv-click="move_right" data-flv-value-card_id="{c.id}" aria-label="Move right">→</button>
+                  <button class="btn btn-del" data-flv-click="delete_card" data-flv-value-card_id="{c.id}" aria-label="Delete card">×</button>
+                </div>
+              </li>
+            {/for}
+          </ul>
+        </section>
+        <section class="column">
+          <h2>In Progress <span class="count">({cards_in(cards, "in_progress").len()})</span></h2>
+          <ul class="card-list">
+            {#for c in cards_in(cards, "in_progress")}
+              <li class="card">
+                <div class="card-title">{c.title}</div>
+                <div class="card-author">- {c.author}</div>
+                <div class="card-actions">
+                  <button class="btn" data-flv-click="move_left" data-flv-value-card_id="{c.id}" aria-label="Move left">←</button>
+                  <button class="btn" data-flv-click="move_right" data-flv-value-card_id="{c.id}" aria-label="Move right">→</button>
+                  <button class="btn btn-del" data-flv-click="delete_card" data-flv-value-card_id="{c.id}" aria-label="Delete card">×</button>
+                </div>
+              </li>
+            {/for}
+          </ul>
+        </section>
+        <section class="column">
+          <h2>Done <span class="count">({cards_in(cards, "done").len()})</span></h2>
+          <ul class="card-list">
+            {#for c in cards_in(cards, "done")}
+              <li class="card">
+                <div class="card-title">{c.title}</div>
+                <div class="card-author">- {c.author}</div>
+                <div class="card-actions">
+                  <button class="btn" data-flv-click="move_left" data-flv-value-card_id="{c.id}" aria-label="Move left">←</button>
+                  <button class="btn btn-del" data-flv-click="delete_card" data-flv-value-card_id="{c.id}" aria-label="Delete card">×</button>
+                </div>
+              </li>
+            {/for}
+          </ul>
+        </section>
+      </div>
+    </div>
+  </template>
+}
