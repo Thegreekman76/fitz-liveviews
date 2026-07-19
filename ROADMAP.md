@@ -387,12 +387,51 @@ bloqueantes):
 - Persistent child state (chat: `MessageInput` retains draft
   mientras se navega — hoy pierde en re-renders).
 
+## Phase 8.9 — Flagship showcase: Admin ABM ⭐ (planned, 2026-07-19)
+
+The flagship demo for the public launch (goal: visibility / GitHub
+stars). A complete backend **admin panel** — login, dashboard,
+collapsible menu, theme switch, and a rich **ABM/CRUD** (data grid +
+forms) over a **RRHH + Accesos** (People & Access) domain — built on
+PostgreSQL, dockerized, server-rendered with LiveViews.
+
+Not just a fitz-liveviews demo: it exercises the **entire Fitz stack**
+in one recognizable app (ORM + Postgres + Docker + HTTP + WS +
+`Response { body_bytes }` export + auth + `.fitzv`), and it is the
+engine that lifts Phase 9's component shortlist from 8 basics to
+~22-25 real components (DataGrid, TreeView, CascadeSelect, Modal, …).
+
+- **Scope**: SSR-first. Heavy interactions (drag-to-group, fluid tree,
+  chip multiselect) work via server round-trips today; buttery
+  client-side versions land as Fitz core Phase 11.7 (WASM) matures.
+- **Responsive**: hard requirement — every component tested at 320px.
+- **Domain**: Empleados (star grid) + Departamentos / Roles-Permisos /
+  Ubicaciones / Organigrama / Skills as support entities that feed the
+  cascade / tree / group-checkbox / multiselect components.
+- **Grid**: pagination · sort/multisort · filters · search · row
+  actions · delete-with-confirm · selection · multi-delete · export ·
+  column grouping.
+- **Forms**: select · cascade select · checkbox · group select · group
+  checkbox · multiselect · tree view.
+- **Slices** (each deployable): S1 login + shell + theme + dashboard ·
+  S2 read-only grid · S3 filters/sort/search/pagination · S4 rich
+  forms · S5 selection/multi-delete/export · S6 grouping + tree.
+- **Dogfooding**: expected to surface Fitz core gaps (same mechanism as
+  the chat/kanban migrations that pushed §9.cc/dd/ee in a day) → each
+  becomes a core fix or documented debt.
+
+Full detail in [`docs/showcase-admin-abm-plan.md`](docs/showcase-admin-abm-plan.md).
+
 ## Phase 9 — Companion UI library 🧩
 
-**Trigger**: post-migrations completas de Phase 8. Emergent de los
-patterns extraídos en 8.6, no diseñado en vacuum. Building una UI
-kit **AS** los examples se refactorizan produce APIs validadas
-contra código real, no bloat especulativo.
+**Trigger**: post-migrations completas de Phase 8 **+ the Admin ABM
+flagship showcase (Phase 8.9)**. Emergent de los patterns extraídos en
+8.6 y del showcase, no diseñado en vacuum. Building una UI kit **AS**
+los examples se refactorizan produce APIs validadas contra código real,
+no bloat especulativo. The Admin ABM redefines this shortlist upward:
+from the original 8 basics to ~22-25 (adds DataGrid, TreeView,
+CascadeSelect, MultiSelect, Modal, ConfirmDialog, Toast, AppShell,
+Sidebar, etc).
 
 **Racional**: todo framework serio de UI real-time tiene una
 companion (Vuetify/Vue, MUI/React, chakra/solid). Ninguno debería
