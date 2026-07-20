@@ -1,0 +1,20 @@
+// config.fitz — env-var configuration for the Admin ABM showcase.
+//
+// Centralizes env reads in small helpers so every module reads the same
+// values on-demand. We deliberately DON'T use top-level `let X =
+// env_or(...)` — Fitz codegen (deuda 5b.5) restricts non-literal RHS at
+// module top level, so `fitz build` (the docker path) needs these as fns.
+//
+// Defaults are chosen so `fitz run` works against a local Postgres with a
+// `fitz`/`fitz` role and a `fitz_admin` database. In docker-compose the
+// env vars point at the `db` service instead.
+
+// Postgres connection string.
+fn db_url() -> Str => env_or("DATABASE_URL", "postgres://fitz:fitz@localhost:5432/fitz_admin?sslmode=disable")
+
+// HMAC secret for the session JWT. CHANGE via JWT_SECRET in production.
+fn jwt_secret() -> Str => env_or("JWT_SECRET", "demo-admin-secret-cambiame-en-produccion-por-favor")
+
+// Name of the session cookie the browser carries. HttpOnly, so JS never
+// sees it; the `@auth_provider`-free session check reads it server-side.
+fn session_cookie_name() -> Str => "flv_admin_session"

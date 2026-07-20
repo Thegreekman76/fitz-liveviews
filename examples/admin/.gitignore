@@ -1,0 +1,10 @@
+# Local env with real secrets — never commit.
+.env
+
+# Fitz build artifacts.
+target/
+*.exe
+*.pdb
+
+# Postgres local data volume (docker-compose).
+pgdata/

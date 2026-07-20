@@ -1,0 +1,11 @@
+[package]
+name = "admin-abm"
+version = "0.1.0"
+edition = "2026"
+description = "Fitz LiveViews — flagship Admin ABM showcase (People & Access). Slice 1: login + responsive shell + theme switch + dashboard, on PostgreSQL, dockerized."
+
+[bin]
+main = "src/main.fitz"
+
+[dependencies]
+fitz_liveviews = { path = "../.." }

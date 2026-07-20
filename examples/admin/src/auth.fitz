@@ -1,0 +1,130 @@
+// auth.fitz — login page, login POST (sets the session cookie), logout.
+//
+// Login can't be a native `<form method=POST>` because Fitz `@post`
+// handlers deserialize a JSON body into a `type`, not form-urlencoded
+// data. So the login page posts via `fetch(..., JSON)`; the browser
+// stores the `Set-Cookie` from that response automatically (same-origin),
+// then the page redirects to `/`. (A future core enhancement — accepting
+// form-urlencoded bodies — would let this be a plain form.)
+//
+// Handlers here register onto the main router automatically (W16); the
+// main module only needs `import auth`.
+
+from config import db_url, jwt_secret, session_cookie_name
+from models import User, Departamento, Empleado
+from shell import login_layout, redirect_to
+from fitz_liveviews import Html, html, flv, html_response
+
+// --- Input type -----------------------------------------------------------
+
+type Credentials {
+    email: Str
+    password: Str
+}
+
+// --- Helpers --------------------------------------------------------------
+
+async fn find_by_email(email: Str) -> Result<User> {
+    let conn = db.connect(db_url()).await?
+    return User.where(fn(u) => u.email == email).first(conn).await
+}
+
+fn login_failed() -> Response {
+    return Response {
+        status: 401,
+        content_type: "application/json",
+        headers: {},
+        body: """\{"error": "Credenciales inválidas"\}""",
+    }
+}
+
+// --- GET /login — public -------------------------------------------------
+
+@get("/login")
+fn login_page() -> Response {
+    let js = login_js()
+    let body = html("""<div class="login-wrap">
+  <div class="login-card">
+    <div class="login-brand"><span class="mark">▲</span> Fitz Admin</div>
+    <p class="login-sub">Panel de administración · People &amp; Access</p>
+    <div id="login-error" class="login-error"></div>
+    <form id="login-form">
+      <div class="field">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" required autocomplete="username" />
+      </div>
+      <div class="field">
+        <label for="password">Contraseña</label>
+        <input id="password" name="password" type="password" required autocomplete="current-password" />
+      </div>
+      <button class="btn-primary" type="submit">Ingresar</button>
+    </form>
+    <p class="login-hint">Demo: <strong>admin@fitz.dev</strong> / <strong>admin1234</strong></p>
+  </div>
+</div>
+<script>{js}</script>""")
+    return html_response(login_layout(body))
+}
+
+// --- POST /login — validate, sign JWT, set cookie ------------------------
+
+@post("/login")
+async fn login_submit(creds: Credentials) -> Response {
+    let user: User = match find_by_email(creds.email).await {
+        Ok(u) => u,
+        Err(_) => return login_failed(),
+    }
+    if (not hash.verify(creds.password, user.password_hash)) {
+        return login_failed()
+    }
+    let claims = { "email": user.email, "role": user.role }
+    let token = jwt.encode(claims, jwt_secret())
+    let cookie = session_cookie_name() + "=" + token + "; HttpOnly; Path=/; SameSite=Lax; Max-Age=86400"
+    return Response {
+        status: 200,
+        content_type: "application/json",
+        headers: { "Set-Cookie": cookie },
+        body: """\{"ok": true\}""",
+    }
+}
+
+// --- GET /logout — clear cookie + redirect -------------------------------
+
+@get("/logout")
+fn logout() -> Response {
+    let cookie = session_cookie_name() + "=; HttpOnly; Path=/; Max-Age=0"
+    return Response {
+        status: 303,
+        content_type: "text/html; charset=utf-8",
+        headers: { "Set-Cookie": cookie, "Location": "/login" },
+        body: "",
+    }
+}
+
+// --- Login page client script (fetch + JSON) -----------------------------
+
+fn login_js() -> Str {
+    return """
+  (function () \{
+    var f = document.getElementById('login-form');
+    var err = document.getElementById('login-error');
+    function fail(msg) \{ err.textContent = msg; err.style.display = 'block'; \}
+    f.addEventListener('submit', function (ev) \{
+      ev.preventDefault();
+      err.style.display = 'none';
+      var email = document.getElementById('email').value;
+      var password = document.getElementById('password').value;
+      fetch('/login', \{
+        method: 'POST',
+        headers: \{ 'Content-Type': 'application/json' \},
+        body: JSON.stringify(\{ email: email, password: password \})
+      \}).then(function (r) \{
+        if (r.ok) \{ window.location = '/'; return; \}
+        return r.json().then(function (j) \{
+          fail((j && j.error) ? j.error : 'Error al ingresar');
+        \});
+      \}).catch(function () \{ fail('Error de red'); \});
+    \});
+  \})();
+  """
+}

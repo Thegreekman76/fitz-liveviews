@@ -1,0 +1,27 @@
+// main.fitz — orchestrator for the Admin ABM showcase (Slice 1).
+//
+// Wires the feature modules into one server:
+//   - auth.fitz       → GET/POST /login, GET /logout (session cookie).
+//   - dashboard.fitz  → GET / , /empleados, /departamentos (protected).
+//
+// `import <module>` is enough for the runtime/codegen to plug each module's
+// HTTP handlers into the router (W16 cross-module). The server binds on
+// 0.0.0.0 so it works both under `fitz run` and inside Docker.
+//
+// The database schema + demo seed live in `db/init.sql` (run by Postgres on
+// first boot, or with `psql -f db/init.sql` locally). The app never touches
+// the schema at boot and only connects during requests — see db/init.sql
+// for why. So there's nothing to run here at startup: just serve.
+//
+// Slice 1 is SSR-only (no WebSocket layer yet). The live WS layer + `.fitzv`
+// components arrive in Slice 2 with the employees grid.
+
+import auth
+import dashboard
+
+@server(3000, "0.0.0.0")
+fn main() => 0
+
+print("[ready] Admin ABM — http://127.0.0.1:3000/")
+print("[ready] login demo: admin@fitz.dev / admin1234")
+print("[ready] routes: /login  /  /empleados  /departamentos  /logout")

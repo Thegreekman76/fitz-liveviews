@@ -1,0 +1,48 @@
+# Admin ABM showcase — Postgres + the Fitz app, one command.
+#
+#   docker compose up --build
+#   → open http://localhost:3000/  (login: admin@fitz.dev / admin1234)
+#
+# On the first run, Postgres creates the database and runs db/init.sql from
+# /docker-entrypoint-initdb.d/ (schema + demo seed). The app waits for the
+# database to be healthy, then serves. The app connects per-request; it does
+# not touch the schema at boot.
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: admin-abm-db
+    environment:
+      POSTGRES_USER: fitz
+      POSTGRES_PASSWORD: fitz
+      POSTGRES_DB: fitz_admin
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Schema + seed, run once when the volume is first created.
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fitz -d fitz_admin"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      # Build context is the repo root so the `../..` path dependency
+      # (the fitz-liveviews library) is available to `fitz build`.
+      context: ../..
+      dockerfile: examples/admin/Dockerfile
+      args:
+        FITZ_TAG: ${FITZ_TAG:-latest}
+    container_name: admin-abm-app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgres://fitz:fitz@db:5432/fitz_admin?sslmode=disable"
+      JWT_SECRET: "${JWT_SECRET:-demo-admin-secret-cambiame-en-produccion-por-favor}"
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:

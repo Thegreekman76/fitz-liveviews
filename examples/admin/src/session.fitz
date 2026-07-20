@@ -1,0 +1,55 @@
+// session.fitz — cookie-based session, browser style.
+//
+// Why not `@auth_provider` / `@authenticated`? Those are built for
+// `Authorization: Bearer <token>` APIs and reply with a JSON 401 on
+// failure. A browser admin panel wants two different things:
+//   1. The browser can't send an `Authorization` header on plain page
+//      navigation (or on a WebSocket handshake) — but it DOES send
+//      cookies automatically. So the session token rides in an HttpOnly
+//      cookie.
+//   2. An unauthenticated page request should REDIRECT to /login, not
+//      dump a JSON error. So each protected page reads the cookie with
+//      `@header(name="cookie")`, calls `user_from_cookie(...)`, and on
+//      failure returns a 303 redirect (see `shell.redirect_to`).
+//
+// This mirrors how Django / Rails gate browser sessions. The token is a
+// normal Fitz JWT (`jwt.encode`/`jwt.decode`), signed with `jwt_secret()`.
+
+from config import db_url, jwt_secret, session_cookie_name
+from models import User, Departamento, Empleado
+
+// Pull our session token out of a raw `Cookie` request header. The header
+// looks like `flv_admin_session=<jwt>; other=value`. A JWT is base64url
+// with no `=`, so splitting each pair on `=` is safe.
+fn token_from_cookie(cookie: Str?) -> Result<Str> {
+    let raw: Str = match cookie {
+        null => return Err("sin cookie de sesión"),
+        c => c,
+    }
+    let name = session_cookie_name()
+    let parts = raw.split(";")
+    for part in parts {
+        let kv = part.trim().split("=")
+        if (kv.len() >= 2) {
+            if (kv[0] == name) {
+                return Ok(kv[1])
+            }
+        }
+    }
+    return Err("cookie de sesión no encontrada")
+}
+
+// Resolve the logged-in admin from the cookie: decode the JWT, read the
+// `email` claim, and look the user up in Postgres. Any failure (missing
+// cookie, bad signature, expired token, unknown user) surfaces as `Err`,
+// which protected pages turn into a redirect to /login.
+async fn user_from_cookie(cookie: Str?) -> Result<User> {
+    let token = token_from_cookie(cookie)?
+    let claims = jwt.decode(token, jwt_secret())?
+    let email: Str = match claims.get("email") {
+        Ok(v) => v,
+        Err(_) => return Err("token sin claim email"),
+    }
+    let conn = db.connect(db_url()).await?
+    return User.where(fn(u) => u.email == email).first(conn).await
+}

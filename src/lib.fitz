@@ -1474,7 +1474,11 @@ fn component(name: Str, id: Str) -> Html {
   // `reg.render_fn(state)` would be parsed as a method call, so we
   // bind the field to a local first to force the fn-value dispatch.
   let render_fn = reg.render_fn
-  let inner = render_fn(state)
+  // The `: Html` annotation lets `fitz build` recover the concrete type
+  // from the `Any` that `render_fn` returns (render_fn is stored erased),
+  // so `inner.raw` below is a static field access. `fitz run` is
+  // unaffected (the value already is an Html).
+  let inner: Html = render_fn(state)
   return html("<div data-flv-component-name=\"{name}\" data-flv-value-instance_id=\"{id}\">{inner.raw}</div>")
 }
 

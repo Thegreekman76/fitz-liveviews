@@ -1,0 +1,50 @@
+// models.fitz — `@table` types for the Admin ABM domain (People & Access).
+//
+// Slice 1 keeps three tables, no relations yet:
+//   - User        → admin login accounts (NOT the HR employees).
+//   - Departamento → grouping dimension (feeds selects/filters in S2+).
+//   - Empleado    → the HR employee record; the flagship grid entity (S2+).
+//
+// `departamento_id` is a plain FK column for now. In Slice 2 (the grid) it
+// becomes a declared `@belongs_to("Departamento")` relation with a companion
+// field so we can show the department name and eager-load it.
+//
+// Conventions (Fitz ORM, cap 31 of the language guide):
+//   - `@primary id: Int = 0` — sentinel; Postgres assigns via bigserial,
+//     the ORM skips the field on INSERT (W4).
+//   - `@db_default created_at: Str = ""` — the ORM skips it on INSERT and
+//     Postgres fills it with `NOW()` (returned via RETURNING *).
+//   - `@hidden password_hash` — never serialized to a JSON response nor
+//     accepted from a client body; still persisted as a normal column.
+//   - every field needs a default so we can build `User { ... }` etc.
+//     without naming every field.
+
+// Admin login accounts. Separate from `empleados` — these are the people
+// who log INTO the panel, not the HR records the panel manages.
+@table("admin_users") type User {
+    @primary id: Int = 0
+    email: Str = ""
+    name: Str = ""
+    @hidden password_hash: Str = ""
+    role: Str = "admin"
+    @db_default created_at: Str = ""
+}
+
+// Departments — the grouping dimension for employees.
+@table("departamentos") type Departamento {
+    @primary id: Int = 0
+    nombre: Str = ""
+    codigo: Str = ""
+}
+
+// Employees — the flagship ABM entity. The grid, filters, sort, and rich
+// edit form (Slices 2-6) all revolve around this table.
+@table("empleados") type Empleado {
+    @primary id: Int = 0
+    nombre: Str = ""
+    email: Str = ""
+    cargo: Str = ""
+    departamento_id: Int = 0
+    activo: Bool = true
+    @db_default created_at: Str = ""
+}

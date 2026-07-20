@@ -1,0 +1,107 @@
+// dashboard.fitz — the protected screens of Slice 1.
+//
+// Each page reads the session cookie with `@header(name="cookie")`, resolves
+// the admin via `user_from_cookie(...)`, and on failure returns a 303
+// redirect to /login (browser-correct auth — no JSON 401). The dashboard
+// itself pulls REAL counts from Postgres via the ORM. Empleados and
+// Departamentos are placeholder screens for now — they prove the shell +
+// nav + theme + session work across routes; their grids land in Slice 2.
+
+from config import db_url
+from models import User, Departamento, Empleado
+from session import user_from_cookie
+from shell import page_layout, redirect_to
+from fitz_liveviews import Html, html, flv, html_response
+
+// --- StatCard -------------------------------------------------------------
+
+fn stat_card(label: Str, value: Int, hint: Str, accent: Str) -> Str {
+    return """<div class="stat-card {accent}">
+      <div class="stat-label">{flv(label)}</div>
+      <div class="stat-value">{value}</div>
+      <div class="stat-hint">{flv(hint)}</div>
+    </div>"""
+}
+
+// --- Dashboard body (real DB counts) -------------------------------------
+
+async fn render_dashboard() -> Result<Html> {
+    let conn = db.connect(db_url()).await?
+    // `count` is a QueryBuilder terminal in the interpreter — so we count
+    // via `.where(...).count(conn)`. `id > 0` matches every row (bigserial
+    // starts at 1), so it's an all-rows count in SQL.
+    let total_emp = Empleado.where(fn(e) => e.id > 0).count(conn).await?
+    let activos = Empleado.where(fn(e) => e.activo == true).count(conn).await?
+    let inactivos = total_emp - activos
+    let deptos = Departamento.where(fn(d) => d.id > 0).count(conn).await?
+
+    let c1 = stat_card("Empleados", total_emp, "Total en el sistema", "blue")
+    let c2 = stat_card("Activos", activos, "Con acceso habilitado", "green")
+    let c3 = stat_card("Inactivos", inactivos, "Baja o suspendidos", "amber")
+    let c4 = stat_card("Departamentos", deptos, "Áreas de la organización", "violet")
+
+    return Ok(html("""<div class="page-head">
+      <h2>Dashboard</h2>
+      <p>Resumen de personal y accesos.</p>
+    </div>
+    <div class="stat-grid">
+      {c1}{c2}{c3}{c4}
+    </div>
+    <div class="panel">
+      <h3>ABM de Empleados <span class="badge-soon">Slice 2</span></h3>
+      <p>La grilla de empleados — columnas, orden, filtros, búsqueda, paginación,
+      selección, export y formularios ricos — llega en los próximos slices. Este
+      slice deja el esqueleto: login, shell responsive, cambio de tema y este
+      dashboard, todo sobre PostgreSQL y dockerizado.</p>
+    </div>"""))
+}
+
+// Placeholder body for screens not built yet.
+fn placeholder_body(titulo: Str) -> Html {
+    return html("""<div class="page-head">
+      <h2>{flv(titulo)} <span class="badge-soon">Slice 2</span></h2>
+      <p>Pantalla en construcción.</p>
+    </div>
+    <div class="panel">
+      <h3>Próximamente</h3>
+      <p>Esta sección se implementa en el próximo slice del showcase. El shell,
+      la navegación, el tema y la sesión ya funcionan — es la misma estructura
+      que va a envolver la grilla y los formularios.</p>
+    </div>""")
+}
+
+// --- Routes ---------------------------------------------------------------
+
+@header(name="cookie")
+@get("/")
+async fn dashboard_page(cookie: Str?) -> Response {
+    let user: User = match user_from_cookie(cookie).await {
+        Ok(u) => u,
+        Err(_) => return redirect_to("/login"),
+    }
+    let body: Html = match render_dashboard().await {
+        Ok(h) => h,
+        Err(e) => html("""<div class="panel"><h3>Error de base de datos</h3><p>{flv(e)}</p></div>"""),
+    }
+    return html_response(page_layout("Dashboard", "dashboard", user.name, body))
+}
+
+@header(name="cookie")
+@get("/empleados")
+async fn empleados_page(cookie: Str?) -> Response {
+    let user: User = match user_from_cookie(cookie).await {
+        Ok(u) => u,
+        Err(_) => return redirect_to("/login"),
+    }
+    return html_response(page_layout("Empleados", "empleados", user.name, placeholder_body("Empleados")))
+}
+
+@header(name="cookie")
+@get("/departamentos")
+async fn departamentos_page(cookie: Str?) -> Response {
+    let user: User = match user_from_cookie(cookie).await {
+        Ok(u) => u,
+        Err(_) => return redirect_to("/login"),
+    }
+    return html_response(page_layout("Departamentos", "departamentos", user.name, placeholder_body("Departamentos")))
+}
