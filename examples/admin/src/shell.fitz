@@ -423,6 +423,22 @@ fn shell_css() -> Str {
   .skill-check:hover \{ border-color: var(--primary); \}
   .skill-check input \{ width: auto; margin: 0; accent-color: var(--primary); \}
   .skill-on \{ background: var(--primary); color: #fff; border-color: var(--primary); \}
+  /* Tree view (Slice 4e) — país → provincia → ciudad */
+  .btn-tree \{ margin-left: auto; \}
+  .btn-tree + .btn-nuevo \{ margin-left: .5rem; \}
+  .tree-card \{ padding: 1rem 1.1rem; \}
+  ul.tree \{ list-style: none; margin: 0; padding: 0; \}
+  ul.tree ul.tree \{ margin-left: 1.1rem; border-left: 1px dashed var(--border); padding-left: .4rem; \}
+  .tree-root > li \{ margin: .15rem 0; \}
+  .tree-node \{
+    display: inline-flex; align-items: center; gap: .45rem; cursor: pointer;
+    border: none; background: none; color: var(--text); font-size: .9rem;
+    padding: .25rem .4rem; border-radius: 6px; width: 100%; text-align: left;
+  \}
+  .tree-node:hover \{ background: var(--surface-2, rgba(127,127,127,.1)); \}
+  .tree-arrow \{ color: var(--muted); font-size: .75rem; width: 1rem; display: inline-block; \}
+  .tree-leaf \{ padding: .25rem .4rem .25rem 1.4rem; font-size: .85rem; color: var(--muted); \}
+  .tree-foot \{ margin-top: 1rem; \}
   .form-actions \{ display: flex; gap: .5rem; margin-top: .35rem; \}
   .form-error \{
     background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;

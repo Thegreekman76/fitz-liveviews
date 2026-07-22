@@ -171,7 +171,16 @@ Companion UI library from **8 basic components** to **~22-25**:
      type, and the runtime hangs instead of erroring) — noted for a core fix.
    - **S4c — DONE** ✅ (2026-07-22, lib v0.8.0) Group-checkbox de permisos: un `<fieldset>` por módulo (nuevas tablas `permisos` + `empleado_permisos`), save sincroniza la selección, edit pre-marca. **Dogfood → lib**: serialización de checkbox-groups (comma-joined) en el runtime (v0.8.0). Verificado run + binario.
    - **S4d — DONE** ✅ (2026-07-22) Multiselect de skills (checkbox-list; nuevas tablas `skills` + `empleado_skills`). Reusa la serialización de checkbox-groups (v0.8.0) — sin cambio de lib. Save sincroniza, edit pre-marca. Verificado run + binario.
-   - **S4e** — tree view (organigrama/ubicaciones).
+   - **S4e — DONE** ✅ (2026-07-22) Tree view de ubicaciones (país →
+     provincia → ciudad, 3 niveles fijos, sin recursión — reusa las tablas
+     de ubicaciones, sin schema nuevo). Expand/collapse de cada nodo como
+     evento del server (`toggle_pais` / `toggle_prov`); los ids expandidos se
+     llevan como sets comma-joined en el estado del socket (`tree_exp_pais` /
+     `tree_exp_prov`), toggle vía el helper `toggle_id`. Botón "🌳 Ubicaciones"
+     en el toolbar del grid → `show_tree`; "← Volver al grid" → `show_grid`.
+     Showcase-only (sin cambio de lib). Verificado run + binario contra
+     Postgres local. **Cierra S4 entero** (form + cascade + group-checkbox +
+     multiselect + tree).
 5. **S5** — Selection + multi-delete + confirm + export.
 6. **S6** — Column grouping + tree view polish.
 

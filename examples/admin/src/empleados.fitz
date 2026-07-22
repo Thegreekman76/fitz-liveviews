@@ -219,6 +219,64 @@ fn permisos_html(permisos: List<Permiso>, checked_csv: Str) -> Str {
     return out
 }
 
+// Toggle an id in a comma-joined set: remove it if present, add it otherwise.
+// Used by the tree view to track which nodes are expanded (Slice 4e).
+fn toggle_id(csv: Str, id: Int) -> Str {
+    if (id_checked(csv, id)) {
+        let out = ""
+        for p in csv.split(",") {
+            if (p != "{id}" and p != "") {
+                out = match out == "" {
+                    true => p,
+                    false => out + "," + p,
+                }
+            }
+        }
+        return out
+    }
+    return match csv == "" {
+        true => "{id}",
+        false => csv + ",{id}",
+    }
+}
+
+// Tree view (Slice 4e) — the país → provincia → ciudad hierarchy as an
+// expandable tree. Expanded país / provincia nodes are tracked as comma-joined
+// id sets; each toggle is a server event that re-renders the whole tree.
+fn tree_html(paises: List<Pais>, provincias: List<Provincia>, ciudades: List<Ciudad>, exp_pais: Str, exp_prov: Str) -> Str {
+    let out = ""
+    for p in paises {
+        let pexp = id_checked(exp_pais, p.id)
+        let arrow = match pexp {
+            true => "▾",
+            false => "▸",
+        }
+        out = out + """<li><button class="tree-node" data-flv-click="toggle_pais" data-flv-value-id="{p.id}"><span class="tree-arrow">{arrow}</span> {flv(p.nombre)}</button>"""
+        if (pexp) {
+            out = out + """<ul class="tree">"""
+            for pr in provincias.filter(fn(x) => x.pais_id == p.id) {
+                let prexp = id_checked(exp_prov, pr.id)
+                let arr2 = match prexp {
+                    true => "▾",
+                    false => "▸",
+                }
+                out = out + """<li><button class="tree-node" data-flv-click="toggle_prov" data-flv-value-id="{pr.id}"><span class="tree-arrow">{arr2}</span> {flv(pr.nombre)}</button>"""
+                if (prexp) {
+                    out = out + """<ul class="tree">"""
+                    for c in ciudades.filter(fn(x) => x.provincia_id == pr.id) {
+                        out = out + """<li class="tree-leaf">📍 {flv(c.nombre)}</li>"""
+                    }
+                    out = out + "</ul>"
+                }
+                out = out + "</li>"
+            }
+            out = out + "</ul>"
+        }
+        out = out + "</li>"
+    }
+    return out
+}
+
 // Multiselect (Slice 4d) — a flat checkbox list; all share `name="skills"` so
 // the client joins the checked ones comma-separated (same mechanism as the
 // group-checkbox). Pre-checked from `checked_csv`.
@@ -359,6 +417,7 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
           {pill_active}
           {pill_inactive}
         </div>
+        <button class="btn-clear btn-tree" data-flv-click="show_tree">🌳 Ubicaciones</button>
         <button class="btn-primary btn-nuevo" data-flv-click="new_empleado">+ Nuevo</button>
       </div>
       <div class="grid-filters grid-deptos">
@@ -508,6 +567,40 @@ async fn form_screen(edit_id: Int, f_nombre: Str, f_email: Str, f_cargo: Str, f_
         Err(e) => return grid_error(e),
     }
     return form_html(edit_id, deptos, paises, provincias, ciudades, permisos, skills, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_permisos, f_skills, f_activo, error)
+}
+
+// The tree screen (Slice 4e) — the ubicaciones hierarchy as an expandable
+// tree. `exp_pais` / `exp_prov` are the comma-joined ids of the expanded nodes.
+async fn tree_screen(exp_pais: Str, exp_prov: Str) -> Html {
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(e) => return grid_error(e),
+    }
+    let paises: List<Pais> = match Pais.where(fn(p) => p.id > 0).order_by(fn(p) => p.nombre).all(conn).await {
+        Ok(x) => x,
+        Err(e) => return grid_error(e),
+    }
+    let provincias: List<Provincia> = match Provincia.where(fn(p) => p.id > 0).order_by(fn(p) => p.nombre).all(conn).await {
+        Ok(x) => x,
+        Err(e) => return grid_error(e),
+    }
+    let ciudades: List<Ciudad> = match Ciudad.where(fn(c) => c.id > 0).order_by(fn(c) => c.nombre).all(conn).await {
+        Ok(x) => x,
+        Err(e) => return grid_error(e),
+    }
+    let tree = tree_html(paises, provincias, ciudades, exp_pais, exp_prov)
+    return html("""<div id="empleados-live" class="grid-wrap">
+      <div class="page-head">
+        <h2>Árbol de ubicaciones</h2>
+        <p>País → provincia → ciudad. Expandí los nodos — cada toggle es un evento del server.</p>
+      </div>
+      <div class="grid-card tree-card">
+        <ul class="tree tree-root">{tree}</ul>
+      </div>
+      <div class="tree-foot">
+        <button class="btn-clear" data-flv-click="show_grid">← Volver al grid</button>
+      </div>
+    </div>""")
 }
 
 // Load one empleado by id (for the edit form). `Err` if not found / DB error.
@@ -680,6 +773,9 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
     let f_skills = ""
     let f_activo = true
     let form_error = ""
+    // Tree view state (Slice 4e) — expanded país / provincia node ids.
+    let tree_exp_pais = ""
+    let tree_exp_prov = ""
     let last = grid_html(page, q, estado, depto, sort_col, sort_dir).await.raw
     loop {
         let frame = ws.recv()?
@@ -858,8 +954,22 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
                 }
             }
         }
+        // --- tree view (Slice 4e) ---
+        if (ev == "show_tree") {
+            mode = "tree"
+        }
+        if (ev == "show_grid") {
+            mode = "grid"
+        }
+        if (ev == "toggle_pais") {
+            tree_exp_pais = toggle_id(tree_exp_pais, pget_int(frame.payload, "id", 0))
+        }
+        if (ev == "toggle_prov") {
+            tree_exp_prov = toggle_id(tree_exp_prov, pget_int(frame.payload, "id", 0))
+        }
         let new_html = match mode {
             "form" => form_screen(edit_id, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_permisos, f_skills, f_activo, form_error).await.raw,
+            "tree" => tree_screen(tree_exp_pais, tree_exp_prov).await.raw,
             _ => grid_html(page, q, estado, depto, sort_col, sort_dir).await.raw,
         }
         let patches = diff_html(last, new_html)
