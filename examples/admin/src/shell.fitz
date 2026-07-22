@@ -158,15 +158,16 @@ fn page_layout(title: Str, active: Str, user_name: Str, body: Html, locale: Str)
 }
 
 // Bare layout for the login page — no shell, just a centered card.
-fn login_layout(body: Html) -> Html {
+fn login_layout(body: Html, locale: Str) -> Html {
     let css = shell_css()
     let boot = theme_init_js()
+    let title = t(locale, "login.title")
     return html("""<!doctype html>
-<html lang="es" data-theme="auto">
+<html lang="{locale}" data-theme="auto">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ingresar · Fitz Admin</title>
+  <title>{flv(title)} · Fitz Admin</title>
   <script>{boot}</script>
   <style>{css}</style>
 </head>

@@ -348,10 +348,28 @@ hard-coding a language.
   `let t` in one function clobbered the module-imported `t` used by others
   (checker didn't catch it; runtime `t is not invokable`); worked around by
   renaming the local, logged as a core scoping bug to fix in `d:\fitz`.
-- **S9b — TODO** translate the dashboard body, the grid (toolbar/headers/pills/
-  pager/toasts/empty state) and the login page.
-- **S9c — TODO** translate the form (tabs/stepper labels, field labels,
-  placeholders, validation, buttons) + expand-row detail + tooltips.
+- **S9b — DONE** ✅ (2026-07-22, lib v0.10.0) All the screens. Dictionary grew
+  to cover dashboard, grid, form, tree, confirm dialog, toasts, badges, tooltips,
+  detail panel and login (~120 keys). `locale` threaded through the whole grid
+  chain (grid_html → render_grid → grid_row / grouped_body / row_detail /
+  estado_badge / sort_th / pills), the form (form_screen → form_html + tabs /
+  stepper / depto_options / reporta_options), tree_screen, grid_error and the WS
+  toast/validation messages. Login page + login_layout translated. Verified run
+  + binary in both languages (dashboard, grid SSR + live WS re-renders, form
+  tabs/stepper, tree, confirm/toast). **Core findings → documented, not worked
+  around** (author directive): a `@ws` handler **can't read the handshake** —
+  `@header` on `@ws` is rejected at runtime (checker passes → mismatch) and the
+  `@ws` path must be a plain `Str` literal (no query/path params). So the live
+  socket can't learn the locale the normal HTTP way. **Lib v0.10.0 (`__flv_init`)**
+  solves it as a reusable feature: on connect the client sends the `ws_path`
+  query params as a `__flv_init` event; the SSR bakes the locale into
+  `live_embed("/live/empleados?lang={loc}", …)`; the `@ws` handler reads it from
+  that first event and re-renders its diff baseline. (Earlier finding: a local
+  `let t` clobbering an imported `t` — both logged for a Fitz-core fix in
+  `d:\fitz`.)
+- **Residual i18n (minor)**: the theme-toggle JS labels (🖥️ Auto / ☀️ Claro /
+  🌙 Oscuro) and the login-error JS string live in client `<script>` strings, so
+  they'd need the locale passed into the JS — left as a small follow-up.
 
 ## Expected Fitz core gaps (dogfooding)
 

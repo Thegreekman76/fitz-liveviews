@@ -24,7 +24,7 @@ from config import db_url
 from models import Empleado, Departamento, User, Pais, Provincia, Ciudad, Permiso, EmpleadoPermiso, Skill, EmpleadoSkill
 from session import user_from_cookie
 from shell import page_layout, redirect_to
-from i18n import t, locale_from_cookie
+from i18n import t, pick, locale_from_cookie
 from fitz_liveviews import Html, html, flv, h_join, html_response, live_embed, LiveFrame, diff_html
 
 // Rows per page. Small so pagination is visible with the demo seed.
@@ -61,10 +61,10 @@ fn pget_int(p: Map<Str, Str>, k: Str, dflt: Int) -> Int {
     }
 }
 
-fn estado_badge(activo: Bool) -> Str {
+fn estado_badge(activo: Bool, locale: Str) -> Str {
     return match activo {
-        true => """<span class="badge badge-ok">Activo</span>""",
-        false => """<span class="badge badge-off">Inactivo</span>""",
+        true => """<span class="badge badge-ok">{t(locale, "badge.active")}</span>""",
+        false => """<span class="badge badge-off">{t(locale, "badge.inactive")}</span>""",
     }
 }
 
@@ -128,9 +128,9 @@ fn page_buttons(page: Int, total_pages: Int) -> Str {
 // Render — one row + the whole grid (pure, no DB)
 // ---------------------------------------------------------------------------
 
-fn grid_row(e: Empleado, deptos: List<Departamento>, sel: Str, expanded: Str) -> Html {
+fn grid_row(e: Empleado, deptos: List<Departamento>, sel: Str, expanded: Str, locale: Str) -> Html {
     let depto = depto_name(deptos, e.departamento_id)
-    let estado = estado_badge(e.activo)
+    let estado = estado_badge(e.activo, locale)
     let checked = match id_checked(sel, e.id) {
         true => " checked",
         false => "",
@@ -148,7 +148,7 @@ fn grid_row(e: Empleado, deptos: List<Departamento>, sel: Str, expanded: Str) ->
         false => "▸",
     }
     return html("""<tr class="{tr_cls}">
-      <td data-label="" class="col-exp"><button class="btn-icon btn-exp" data-tooltip="Ver detalle" data-flv-click="toggle_row" data-flv-value-id="{e.id}">{chevron}</button></td>
+      <td data-label="" class="col-exp"><button class="btn-icon btn-exp" data-tooltip="{t(locale, "grid.tip.detail")}" data-flv-click="toggle_row" data-flv-value-id="{e.id}">{chevron}</button></td>
       <td data-label="" class="col-sel"><input type="checkbox" class="row-sel" data-flv-click="toggle_sel" data-flv-value-id="{e.id}"{checked} /></td>
       <td data-label="ID" class="col-id">{e.id}</td>
       <td data-label="Nombre"><strong>{flv(e.nombre)}</strong></td>
@@ -157,8 +157,8 @@ fn grid_row(e: Empleado, deptos: List<Departamento>, sel: Str, expanded: Str) ->
       <td data-label="Departamento">{flv(depto)}</td>
       <td data-label="Estado">{estado}</td>
       <td data-label="Acciones" class="col-actions">
-        <button class="btn-icon" data-tooltip="Editar" data-flv-click="edit_empleado" data-flv-value-id="{e.id}">✎</button>
-        <button class="btn-icon btn-danger" data-tooltip="Eliminar" data-flv-click="ask_delete_one" data-flv-value-id="{e.id}">🗑</button>
+        <button class="btn-icon" data-tooltip="{t(locale, "grid.tip.edit")}" data-flv-click="edit_empleado" data-flv-value-id="{e.id}">✎</button>
+        <button class="btn-icon btn-danger" data-tooltip="{t(locale, "grid.tip.delete")}" data-flv-click="ask_delete_one" data-flv-value-id="{e.id}">🗑</button>
       </td>
     </tr>""")
 }
@@ -169,10 +169,11 @@ fn grid_row(e: Empleado, deptos: List<Departamento>, sel: Str, expanded: Str) ->
 //
 // `<option>` tags for the departamento select, with the current value marked
 // `selected`. `selected_id` 0 = "(sin departamento)".
-fn depto_options(deptos: List<Departamento>, selected_id: Int) -> Str {
+fn depto_options(deptos: List<Departamento>, selected_id: Int, locale: Str) -> Str {
+    let none = t(locale, "form.depto.none")
     let head = match selected_id == 0 {
-        true => """<option value="0" selected>— Sin departamento —</option>""",
-        false => """<option value="0">— Sin departamento —</option>""",
+        true => """<option value="0" selected>{none}</option>""",
+        false => """<option value="0">{none}</option>""",
     }
     let opts = h_join(deptos.map(fn(d) => html(match d.id == selected_id {
         true => """<option value="{d.id}" selected>{flv(d.nombre)}</option>""",
@@ -432,10 +433,11 @@ fn skills_html(skills: List<Skill>, checked_csv: Str) -> Str {
 // GroupSelect (Slice 8) — a <select> with <optgroup>s: colleagues grouped by
 // department, for the "reporta a" field. `self_id` (the row being edited) is
 // excluded so an employee can't report to itself.
-fn reporta_options(colegas: List<Empleado>, deptos: List<Departamento>, self_id: Int, selected: Int) -> Str {
+fn reporta_options(colegas: List<Empleado>, deptos: List<Departamento>, self_id: Int, selected: Int, locale: Str) -> Str {
+    let none = t(locale, "form.reporta.none")
     let head = match selected == 0 {
-        true => """<option value="0" selected>— Nadie —</option>""",
-        false => """<option value="0">— Nadie —</option>""",
+        true => """<option value="0" selected>{none}</option>""",
+        false => """<option value="0">{none}</option>""",
     }
     let groups = ""
     for d in deptos {
@@ -499,10 +501,10 @@ fn step_dot(num: Str, label: Str, val: Str, f_tab: Str) -> Str {
     return """<div class="{cls}"><span class="step-num">{num}</span><span class="step-label">{flv(label)}</span></div>"""
 }
 
-fn stepper_bar(f_tab: Str) -> Str {
-    let s1 = step_dot("1", "Datos", "datos", f_tab)
-    let s2 = step_dot("2", "Organización", "org", f_tab)
-    let s3 = step_dot("3", "Accesos", "accesos", f_tab)
+fn stepper_bar(f_tab: Str, locale: Str) -> Str {
+    let s1 = step_dot("1", t(locale, "form.tab.datos"), "datos", f_tab)
+    let s2 = step_dot("2", t(locale, "form.tab.org"), "org", f_tab)
+    let s3 = step_dot("3", t(locale, "form.tab.accesos"), "accesos", f_tab)
     return """<div class="stepper">{s1}<div class="step-line"></div>{s2}<div class="step-line"></div>{s3}</div>"""
 }
 
@@ -534,13 +536,13 @@ fn stars_display(n: Int) -> Str {
     return out
 }
 
-fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provincias: List<Provincia>, ciudades: List<Ciudad>, permisos: List<Permiso>, skills: List<Skill>, colegas: List<Empleado>, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_pais: Int, f_provincia: Int, f_ciudad: Int, f_reporta: Int, f_fecha: Str, f_notas: Str, f_nivel: Int, f_permisos: Str, f_skills: Str, f_activo: Bool, f_tab: Str, error: Str) -> Html {
+fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provincias: List<Provincia>, ciudades: List<Ciudad>, permisos: List<Permiso>, skills: List<Skill>, colegas: List<Empleado>, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_pais: Int, f_provincia: Int, f_ciudad: Int, f_reporta: Int, f_fecha: Str, f_notas: Str, f_nivel: Int, f_permisos: Str, f_skills: Str, f_activo: Bool, f_tab: Str, error: Str, locale: Str) -> Html {
     let title = match edit_id == 0 {
-        true => "Nuevo empleado",
-        false => "Editar empleado",
+        true => t(locale, "form.title.new"),
+        false => t(locale, "form.title.edit"),
     }
-    let opts = depto_options(deptos, f_depto)
-    let reporta_opts = reporta_options(colegas, deptos, edit_id, f_reporta)
+    let opts = depto_options(deptos, f_depto, locale)
+    let reporta_opts = reporta_options(colegas, deptos, edit_id, f_reporta, locale)
     let pais_opts = pais_options(paises, f_pais)
     let prov_opts = provincia_options(provincias, f_provincia)
     let ciu_opts = ciudad_options(ciudades, f_ciudad)
@@ -562,9 +564,9 @@ fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provi
     }
     // Nav — alta is a guided Stepper (onboarding); edición uses free Tabs.
     let is_stepper = edit_id == 0
-    let tabs = tab_btn("Datos", "datos", f_tab) + tab_btn("Organización", "org", f_tab) + tab_btn("Accesos", "accesos", f_tab)
+    let tabs = tab_btn(t(locale, "form.tab.datos"), "datos", f_tab) + tab_btn(t(locale, "form.tab.org"), "org", f_tab) + tab_btn(t(locale, "form.tab.accesos"), "accesos", f_tab)
     let header_nav = match is_stepper {
-        true => stepper_bar(f_tab),
+        true => stepper_bar(f_tab, locale),
         false => """<div class="tab-nav">{tabs}</div>""",
     }
     let p_datos = tab_panel_cls("datos", f_tab)
@@ -581,27 +583,51 @@ fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provi
         "org" => "accesos",
         _ => "",
     }
+    let lbl_back = t(locale, "form.back")
+    let lbl_next = t(locale, "form.next")
+    let lbl_finish = t(locale, "form.finish")
+    let lbl_save = t(locale, "form.save")
     let back_btn = match prev_val == "" {
         true => "",
-        false => """<button type="button" class="btn-clear" data-flv-form data-flv-click="form_tab" data-flv-value-tab="{prev_val}">← Atrás</button>""",
+        false => """<button type="button" class="btn-clear" data-flv-form data-flv-click="form_tab" data-flv-value-tab="{prev_val}">{lbl_back}</button>""",
     }
     let next_btn = match next_val == "" {
         true => "",
-        false => """<button type="button" class="btn-primary" data-flv-form data-flv-click="form_tab" data-flv-value-tab="{next_val}">Siguiente →</button>""",
+        false => """<button type="button" class="btn-primary" data-flv-form data-flv-click="form_tab" data-flv-value-tab="{next_val}">{lbl_next}</button>""",
     }
     let save_last = match f_tab == "accesos" {
-        true => """<button class="btn-primary" type="submit">Finalizar</button>""",
+        true => """<button class="btn-primary" type="submit">{lbl_finish}</button>""",
         false => "",
     }
-    let cancel_btn = """<button class="btn-clear" type="button" data-flv-click="cancel_form">Cancelar</button>"""
+    let cancel_btn = """<button class="btn-clear" type="button" data-flv-click="cancel_form">{t(locale, "form.cancel")}</button>"""
     let footer_nav = match is_stepper {
         true => """<div class="form-actions">{cancel_btn}{back_btn}{next_btn}{save_last}</div>""",
-        false => """<div class="form-actions"><button class="btn-primary" type="submit">Guardar</button>{cancel_btn}</div>""",
+        false => """<div class="form-actions"><button class="btn-primary" type="submit">{lbl_save}</button>{cancel_btn}</div>""",
     }
+    let f_sub = t(locale, "form.subtitle")
+    let l_nombre = t(locale, "form.nombre")
+    let ph_nombre = t(locale, "form.nombre.ph")
+    let l_email = t(locale, "form.email")
+    let l_cargo = t(locale, "form.cargo")
+    let ph_cargo = t(locale, "form.cargo.ph")
+    let l_fecha = t(locale, "form.fecha")
+    let l_estado = t(locale, "form.estado")
+    let l_activo = t(locale, "badge.active")
+    let l_inactivo = t(locale, "badge.inactive")
+    let l_desemp = t(locale, "form.desempeno")
+    let l_notas = t(locale, "form.notas")
+    let ph_notas = t(locale, "form.notas.ph")
+    let l_depto = t(locale, "form.depto")
+    let l_reporta = t(locale, "form.reporta")
+    let l_pais = t(locale, "form.pais")
+    let l_prov = t(locale, "form.provincia")
+    let l_ciudad = t(locale, "form.ciudad")
+    let l_permisos = t(locale, "form.permisos")
+    let l_skills = t(locale, "form.skills")
     return html("""<div id="empleados-live" class="grid-wrap">
       <div class="page-head">
         <h2>{flv(title)}</h2>
-        <p>Completá los datos y guardá — se persiste en Postgres vía el ORM.</p>
+        <p>{flv(f_sub)}</p>
       </div>
       <div class="grid-card form-card">
         {banner}
@@ -611,64 +637,64 @@ fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provi
 
           <div class="{p_datos}">
             <div class="form-row">
-              <label>Nombre</label>
-              <input name="nombre" value="{flv(f_nombre)}" placeholder="Nombre y apellido" autocomplete="off" />
+              <label>{flv(l_nombre)}</label>
+              <input name="nombre" value="{flv(f_nombre)}" placeholder="{flv(ph_nombre)}" autocomplete="off" />
             </div>
             <div class="form-row">
-              <label>Email</label>
+              <label>{flv(l_email)}</label>
               <input name="email" type="email" value="{flv(f_email)}" placeholder="persona@empresa.com" autocomplete="off" />
             </div>
             <div class="form-grid-2">
               <div class="form-row">
-                <label>Cargo</label>
-                <input name="cargo" value="{flv(f_cargo)}" placeholder="Puesto / rol" autocomplete="off" />
+                <label>{flv(l_cargo)}</label>
+                <input name="cargo" value="{flv(f_cargo)}" placeholder="{flv(ph_cargo)}" autocomplete="off" />
               </div>
               <div class="form-row">
-                <label>Fecha de ingreso</label>
+                <label>{flv(l_fecha)}</label>
                 <input name="fecha_ingreso" type="date" value="{flv(f_fecha)}" />
               </div>
             </div>
             <div class="form-grid-2">
               <div class="form-row">
-                <label>Estado</label>
+                <label>{flv(l_estado)}</label>
                 <div class="radio-group">
-                  <label class="radio"><input type="radio" name="activo" value="true"{est_a} /> Activo</label>
-                  <label class="radio"><input type="radio" name="activo" value="false"{est_i} /> Inactivo</label>
+                  <label class="radio"><input type="radio" name="activo" value="true"{est_a} /> {flv(l_activo)}</label>
+                  <label class="radio"><input type="radio" name="activo" value="false"{est_i} /> {flv(l_inactivo)}</label>
                 </div>
               </div>
               <div class="form-row">
-                <label>Desempeño</label>
+                <label>{flv(l_desemp)}</label>
                 <div class="rating">{rating}</div>
               </div>
             </div>
             <div class="form-row">
-              <label>Notas</label>
-              <textarea name="notas" rows="3" placeholder="Notas internas…">{flv(f_notas)}</textarea>
+              <label>{flv(l_notas)}</label>
+              <textarea name="notas" rows="3" placeholder="{flv(ph_notas)}">{flv(f_notas)}</textarea>
             </div>
           </div>
 
           <div class="{p_org}">
             <div class="form-grid-2">
               <div class="form-row">
-                <label>Departamento</label>
+                <label>{flv(l_depto)}</label>
                 <select name="departamento_id">{opts}</select>
               </div>
               <div class="form-row">
-                <label>Reporta a</label>
+                <label>{flv(l_reporta)}</label>
                 <select name="reporta_a">{reporta_opts}</select>
               </div>
             </div>
             <div class="form-grid-3">
               <div class="form-row">
-                <label>País</label>
+                <label>{flv(l_pais)}</label>
                 <select name="pais_id" data-flv-change="cascade_pais">{pais_opts}</select>
               </div>
               <div class="form-row">
-                <label>Provincia</label>
+                <label>{flv(l_prov)}</label>
                 <select name="provincia_id" data-flv-change="cascade_provincia">{prov_opts}</select>
               </div>
               <div class="form-row">
-                <label>Ciudad</label>
+                <label>{flv(l_ciudad)}</label>
                 <select name="ciudad_id" data-flv-change="cascade_ciudad">{ciu_opts}</select>
               </div>
             </div>
@@ -676,11 +702,11 @@ fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provi
 
           <div class="{p_accesos}">
             <div class="form-row">
-              <label>Permisos</label>
+              <label>{flv(l_permisos)}</label>
               <div class="perm-groups">{perm_html}</div>
             </div>
             <div class="form-row">
-              <label>Skills</label>
+              <label>{flv(l_skills)}</label>
               <div class="skill-list">{skills_h}</div>
             </div>
           </div>
@@ -702,7 +728,7 @@ fn group_pill(label: Str, val: Str, event: Str, group_by: Str) -> Str {
 
 // One group section (Slice 6) — a header row (expand/collapse toggle + label +
 // count) spanning the table, followed by the member rows when expanded.
-fn group_section(key: Str, label: Str, members: List<Empleado>, collapsed: Str, deptos: List<Departamento>, sel: Str, expanded: Str) -> Str {
+fn group_section(key: Str, label: Str, members: List<Empleado>, collapsed: Str, deptos: List<Departamento>, sel: Str, expanded: Str, locale: Str) -> Str {
     let n = members.len()
     let open = not str_in(collapsed, key)
     let arrow = match open {
@@ -711,7 +737,7 @@ fn group_section(key: Str, label: Str, members: List<Empleado>, collapsed: Str, 
     }
     let head = """<tr class="grp-row"><td colspan="9" class="grp-cell"><button class="grp-toggle" data-flv-click="toggle_group" data-flv-value-key="{key}"><span class="tree-arrow">{arrow}</span> <strong>{flv(label)}</strong> <span class="grp-count">{n}</span></button></td></tr>"""
     let rows = match open {
-        true => h_join(members.map(fn(e) => grid_row(e, deptos, sel, expanded))),
+        true => h_join(members.map(fn(e) => grid_row(e, deptos, sel, expanded, locale))),
         false => "",
     }
     return head + rows
@@ -720,16 +746,16 @@ fn group_section(key: Str, label: Str, members: List<Empleado>, collapsed: Str, 
 // The grouped tbody (Slice 6) — buckets the (already filtered) rows by the
 // chosen dimension. Grouping shows every matching row (no pagination), each
 // section collapsible.
-fn grouped_body(rows: List<Empleado>, deptos: List<Departamento>, group_by: Str, collapsed: Str, sel: Str, expanded: Str) -> Html {
+fn grouped_body(rows: List<Empleado>, deptos: List<Departamento>, group_by: Str, collapsed: Str, sel: Str, expanded: Str, locale: Str) -> Html {
     if (group_by == "estado") {
         let act = rows.filter(fn(e) => e.activo == true)
         let ina = rows.filter(fn(e) => e.activo == false)
         let s1 = match act.len() > 0 {
-            true => group_section("estado-active", "Activos", act, collapsed, deptos, sel, expanded),
+            true => group_section("estado-active", t(locale, "grid.f.active"), act, collapsed, deptos, sel, expanded, locale),
             false => "",
         }
         let s2 = match ina.len() > 0 {
-            true => group_section("estado-inactive", "Inactivos", ina, collapsed, deptos, sel, expanded),
+            true => group_section("estado-inactive", t(locale, "grid.f.inactive"), ina, collapsed, deptos, sel, expanded, locale),
             false => "",
         }
         return html(s1 + s2)
@@ -739,23 +765,24 @@ fn grouped_body(rows: List<Empleado>, deptos: List<Departamento>, group_by: Str,
     for d in deptos {
         let members = rows.filter(fn(e) => e.departamento_id == d.id)
         if (members.len() > 0) {
-            out = out + group_section("depto-{d.id}", d.nombre, members, collapsed, deptos, sel, expanded)
+            out = out + group_section("depto-{d.id}", d.nombre, members, collapsed, deptos, sel, expanded, locale)
         }
     }
     let sin = rows.filter(fn(e) => e.departamento_id == 0)
     if (sin.len() > 0) {
-        out = out + group_section("depto-0", "Sin departamento", sin, collapsed, deptos, sel, expanded)
+        out = out + group_section("depto-0", t(locale, "grid.sin_depto"), sin, collapsed, deptos, sel, expanded, locale)
     }
     return html(out)
 }
 
-fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, total: Int, total_pages: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, confirm_ids: Str, group_by: Str, grp_collapsed: Str, flash: Str, flash_kind: Str, body: Html) -> Html {
+fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, total: Int, total_pages: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, confirm_ids: Str, group_by: Str, grp_collapsed: Str, flash: Str, flash_kind: Str, body: Html, locale: Str) -> Html {
     // "Agrupar por" control.
-    let grp_none = group_pill("Sin agrupar", "", "group_none", group_by)
-    let grp_depto = group_pill("Departamento", "depto", "group_depto", group_by)
-    let grp_estado = group_pill("Estado", "estado", "group_estado", group_by)
+    let grp_none = group_pill(t(locale, "grid.group.none"), "", "group_none", group_by)
+    let grp_depto = group_pill(t(locale, "grid.group.depto"), "depto", "group_depto", group_by)
+    let grp_estado = group_pill(t(locale, "grid.group.estado"), "estado", "group_estado", group_by)
+    let group_by_lbl = t(locale, "grid.group.by")
     let group_bar = """<div class="grid-filters grid-group">
-      <span class="filter-label">Agrupar por:</span>
+      <span class="filter-label">{flv(group_by_lbl)}</span>
       {grp_none}{grp_depto}{grp_estado}
     </div>"""
     // Select-all checkbox reflects the ids ON THIS PAGE.
@@ -768,9 +795,9 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
     let n_sel = csv_count(sel)
     let sel_bar: Str = match n_sel > 0 {
         true => """<div class="sel-bar">
-          <span class="sel-count">{n_sel} seleccionado(s)</span>
-          <button class="btn-danger" data-flv-click="ask_delete_selected">🗑 Eliminar seleccionados</button>
-          <button class="btn-clear" data-flv-click="clear_sel">Limpiar selección</button>
+          <span class="sel-count">{n_sel} {t(locale, "grid.selected")}</span>
+          <button class="btn-danger" data-flv-click="ask_delete_selected">🗑 {t(locale, "grid.del_selected")}</button>
+          <button class="btn-clear" data-flv-click="clear_sel">{t(locale, "grid.clear_sel")}</button>
         </div>""",
         false => "",
     }
@@ -786,14 +813,15 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
     }
     // Confirm dialog — shown while `confirm_ids` is pending.
     let n_del = csv_count(confirm_ids)
+    let confirm_q = pick(locale, "¿Eliminar {n_del} empleado(s)? Esta acción no se puede deshacer.", "Delete {n_del} employee(s)? This can't be undone.")
     let modal: Str = match n_del > 0 {
         true => """<div class="modal-overlay">
           <div class="modal">
-            <h3>Confirmar eliminación</h3>
-            <p>¿Eliminar {n_del} empleado(s)? Esta acción no se puede deshacer.</p>
+            <h3>{t(locale, "confirm.title")}</h3>
+            <p>{confirm_q}</p>
             <div class="modal-actions">
-              <button class="btn-clear" data-flv-click="cancel_delete">Cancelar</button>
-              <button class="btn-danger" data-flv-click="confirm_delete">Eliminar</button>
+              <button class="btn-clear" data-flv-click="cancel_delete">{t(locale, "confirm.cancel")}</button>
+              <button class="btn-danger" data-flv-click="confirm_delete">{t(locale, "confirm.delete")}</button>
             </div>
           </div>
         </div>""",
@@ -809,48 +837,62 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
     }
     let nums = page_buttons(page, total_pages)
     // Footer: pager in flat mode, a plain count when grouped.
+    let pg_lbl = t(locale, "grid.page")
+    let of_lbl = t(locale, "grid.of")
+    let grouped_lbl = t(locale, "grid.grouped_count")
     let foot: Str = match group_by == "" {
         true => """<div class="grid-foot">
-          <span class="grid-info">Página {page} de {total_pages}</span>
+          <span class="grid-info">{flv(pg_lbl)} {page} {flv(of_lbl)} {total_pages}</span>
           <div class="pager">{prev_btn}{nums}{next_btn}</div>
         </div>""",
-        false => """<div class="grid-foot"><span class="grid-info">{total} registro(s) agrupado(s)</span></div>""",
+        false => """<div class="grid-foot"><span class="grid-info">{total} {flv(grouped_lbl)}</span></div>""",
     }
     // Sortable headers.
     let th_id = sort_th("ID", "id", "col-id", sort_col, sort_dir)
-    let th_nombre = sort_th("Nombre", "nombre", "", sort_col, sort_dir)
-    let th_email = sort_th("Email", "email", "", sort_col, sort_dir)
-    let th_cargo = sort_th("Cargo", "cargo", "", sort_col, sort_dir)
-    let th_estado = sort_th("Estado", "estado", "", sort_col, sort_dir)
+    let th_nombre = sort_th(t(locale, "grid.col.nombre"), "nombre", "", sort_col, sort_dir)
+    let th_email = sort_th(t(locale, "grid.col.email"), "email", "", sort_col, sort_dir)
+    let th_cargo = sort_th(t(locale, "grid.col.cargo"), "cargo", "", sort_col, sort_dir)
+    let th_estado = sort_th(t(locale, "grid.col.estado"), "estado", "", sort_col, sort_dir)
+    let th_depto = t(locale, "grid.col.depto")
+    let th_acc = t(locale, "grid.col.acciones")
     // Estado filter pills.
-    let pill_all = estado_pill("Todos", "all", "estado_all", estado)
-    let pill_active = estado_pill("Activos", "active", "estado_active", estado)
-    let pill_inactive = estado_pill("Inactivos", "inactive", "estado_inactive", estado)
+    let pill_all = estado_pill(t(locale, "grid.f.all"), "all", "estado_all", estado)
+    let pill_active = estado_pill(t(locale, "grid.f.active"), "active", "estado_active", estado)
+    let pill_inactive = estado_pill(t(locale, "grid.f.inactive"), "inactive", "estado_inactive", estado)
     // Departamento filter pills (Todos + one per department).
-    let depto_todos = depto_pill("Todos", 0, depto)
+    let depto_todos = depto_pill(t(locale, "grid.f.all"), 0, depto)
     let depto_pills = h_join(deptos.map(fn(d) => html(depto_pill(d.nombre, d.id, depto))))
+    let g_title = t(locale, "nav.empleados")
+    let g_sub = t(locale, "grid.subtitle")
+    let ph_search = t(locale, "grid.search.ph")
+    let lbl_search = t(locale, "grid.search")
+    let lbl_clear = t(locale, "grid.clear")
+    let lbl_locations = t(locale, "grid.locations")
+    let lbl_new = t(locale, "grid.new")
+    let lbl_export = t(locale, "grid.export")
+    let lbl_depto = t(locale, "grid.f.depto")
     return html("""<div id="empleados-live" class="grid-wrap">
       <div class="page-head">
-        <h2>Empleados</h2>
-        <p>Personal de la organización — {total} registro(s), en vivo sobre WebSocket.</p>
+        <h2>{flv(g_title)}</h2>
+        <p>{flv(g_sub)} · {total}</p>
       </div>
       <div class="grid-toolbar">
         <form class="grid-search" data-flv-submit="search">
-          <input name="q" value="{flv(q)}" placeholder="Buscar por nombre, email o cargo…" autocomplete="off" />
-          <button class="btn-search" type="submit">Buscar</button>
-          <button class="btn-clear" type="button" data-flv-click="search" data-flv-value-q="">Limpiar</button>
+          <input name="q" value="{flv(q)}" placeholder="{flv(ph_search)}" autocomplete="off" />
+          <button class="btn-search" type="submit">{flv(lbl_search)}</button>
+          <button class="btn-clear" type="button" data-flv-click="search" data-flv-value-q="">{flv(lbl_clear)}</button>
         </form>
         <div class="grid-filters">
           {pill_all}
           {pill_active}
           {pill_inactive}
         </div>
-        <a class="btn-clear btn-export" href="{export_href}">⬇ CSV</a>
-        <button class="btn-clear btn-tree" data-flv-click="show_tree">🌳 Ubicaciones</button>
-        <button class="btn-primary btn-nuevo" data-flv-click="new_empleado">+ Nuevo</button>
+        <a class="btn-clear btn-export" href="{export_href}">⬇ {flv(lbl_export)}</a>
+        <button class="btn-clear btn-tree" data-flv-click="show_tree">🌳 {flv(lbl_locations)}</button>
+        <button class="btn-primary btn-nuevo" data-flv-click="new_empleado">+ {flv(lbl_new)}</button>
       </div>
       <div class="grid-filters grid-deptos">
-        <span class="filter-label">Departamento:</span>
+        <span class="filter-label">{flv(lbl_depto)}</span>
         {depto_todos}
         {depto_pills}
       </div>
@@ -867,9 +909,9 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
                 {th_nombre}
                 {th_email}
                 {th_cargo}
-                <th>Departamento</th>
+                <th>{flv(th_depto)}</th>
                 {th_estado}
-                <th class="col-actions">Acciones</th>
+                <th class="col-actions">{flv(th_acc)}</th>
               </tr>
             </thead>
             <tbody>
@@ -979,29 +1021,36 @@ async fn skills_labels(emp_id: Int) -> Str {
 // The expand-row detail panel (Slice 7) — a second <tr> spanning the table with
 // the employee's department, ubicación, permisos and skills (the last two as
 // chips). Only rendered for expanded rows, so the joins run just for those.
-async fn row_detail(e: Empleado, deptos: List<Departamento>) -> Str {
+async fn row_detail(e: Empleado, deptos: List<Departamento>, locale: Str) -> Str {
     let depto = depto_name(deptos, e.departamento_id)
     let ubi = ubi_label(e.ciudad_id).await
     let perms = permisos_labels(e.id).await
     let sks = skills_labels(e.id).await
     let stars = stars_display(e.nivel)
+    let k_dep = t(locale, "detail.depto")
+    let k_ubi = t(locale, "detail.ubicacion")
+    let k_des = t(locale, "detail.desempeno")
+    let k_per = t(locale, "detail.permisos")
+    let k_skl = t(locale, "detail.skills")
     return """<tr class="detail-row"><td colspan="9" class="detail-cell">
       <div class="detail-panel">
-        <div class="detail-item"><span class="detail-k">Departamento</span><span class="detail-v">{flv(depto)}</span></div>
-        <div class="detail-item"><span class="detail-k">Ubicación</span><span class="detail-v">{flv(ubi)}</span></div>
-        <div class="detail-item"><span class="detail-k">Desempeño</span><span class="detail-v stars-ro">{stars}</span></div>
-        <div class="detail-item"><span class="detail-k">Permisos</span><span class="detail-v chips">{perms}</span></div>
-        <div class="detail-item"><span class="detail-k">Skills</span><span class="detail-v chips">{sks}</span></div>
+        <div class="detail-item"><span class="detail-k">{flv(k_dep)}</span><span class="detail-v">{flv(depto)}</span></div>
+        <div class="detail-item"><span class="detail-k">{flv(k_ubi)}</span><span class="detail-v">{flv(ubi)}</span></div>
+        <div class="detail-item"><span class="detail-k">{flv(k_des)}</span><span class="detail-v stars-ro">{stars}</span></div>
+        <div class="detail-item"><span class="detail-k">{flv(k_per)}</span><span class="detail-v chips">{perms}</span></div>
+        <div class="detail-item"><span class="detail-k">{flv(k_skl)}</span><span class="detail-v chips">{sks}</span></div>
       </div>
     </td></tr>"""
 }
 
 // A DB error rendered with the SAME root id, so a mid-session failure still
 // patches cleanly over the socket instead of desyncing the client.
-fn grid_error(msg: Str) -> Html {
+fn grid_error(msg: Str, locale: Str) -> Html {
+    let title = t(locale, "nav.empleados")
+    let err = t(locale, "dash.db_error")
     return html("""<div id="empleados-live" class="grid-wrap">
-      <div class="page-head"><h2>Empleados</h2></div>
-      <div class="panel"><h3>Error de base de datos</h3><p>{flv(msg)}</p></div>
+      <div class="page-head"><h2>{flv(title)}</h2></div>
+      <div class="panel"><h3>{flv(err)}</h3><p>{flv(msg)}</p></div>
     </div>""")
 }
 
@@ -1015,10 +1064,10 @@ fn grid_error(msg: Str) -> Html {
 // on the SAME filtered builder so the pager reflects the filters. Sort is a
 // dynamic `.order_by(col, ascending)`. Any DB failure renders the error panel.
 
-async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, confirm_ids: Str, group_by: Str, grp_collapsed: Str, flash: Str, flash_kind: Str, expanded: Str) -> Html {
+async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, confirm_ids: Str, group_by: Str, grp_collapsed: Str, flash: Str, flash_kind: Str, expanded: Str, locale: Str) -> Html {
     let conn = match db.connect(db_url()).await {
         Ok(c) => c,
-        Err(e) => return grid_error(e),
+        Err(e) => return grid_error(e, locale),
     }
     // Search: ilike over name/email/cargo when there's a query.
     let pat = "%{q}%"
@@ -1040,7 +1089,7 @@ async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, so
     }
     let total: Int = match filtered.count(conn).await {
         Ok(n) => n,
-        Err(e) => return grid_error(e),
+        Err(e) => return grid_error(e, locale),
     }
     let total_pages: Int = match total <= 0 {
         true => 1,
@@ -1062,116 +1111,120 @@ async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, so
     let rows: List<Empleado> = match group_by == "" {
         true => match ordered.limit(PAGE_SIZE).offset(offset).all(conn).await {
             Ok(rs) => rs,
-            Err(e) => return grid_error(e),
+            Err(e) => return grid_error(e, locale),
         },
         false => match ordered.all(conn).await {
             Ok(rs) => rs,
-            Err(e) => return grid_error(e),
+            Err(e) => return grid_error(e, locale),
         },
     }
     let deptos: List<Departamento> = match Departamento.where(fn(d) => d.id > 0).order_by(fn(d) => d.nombre).all(conn).await {
         Ok(ds) => ds,
-        Err(e) => return grid_error(e),
+        Err(e) => return grid_error(e, locale),
     }
     // Build the tbody. Flat mode interleaves an expand-detail row after each
     // expanded row (the detail joins run only for those); grouped mode delegates
     // to `grouped_body` (no detail — expand is a flat-mode feature).
     let body_str = ""
     if (rows.len() == 0) {
-        body_str = """<tr><td colspan="9" class="grid-empty">No hay empleados que coincidan con la búsqueda.</td></tr>"""
+        let empty_msg = t(locale, "grid.empty")
+        body_str = """<tr><td colspan="9" class="grid-empty">{empty_msg}</td></tr>"""
     } else {
         if (group_by == "") {
             for e in rows {
-                body_str = body_str + grid_row(e, deptos, sel, expanded).raw
+                body_str = body_str + grid_row(e, deptos, sel, expanded, locale).raw
                 if (id_checked(expanded, e.id)) {
-                    body_str = body_str + row_detail(e, deptos).await
+                    body_str = body_str + row_detail(e, deptos, locale).await
                 }
             }
         } else {
-            body_str = grouped_body(rows, deptos, group_by, grp_collapsed, sel, expanded).raw
+            body_str = grouped_body(rows, deptos, group_by, grp_collapsed, sel, expanded, locale).raw
         }
     }
     let body = html(body_str)
-    return render_grid(rows, deptos, p, total, total_pages, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed, flash, flash_kind, body)
+    return render_grid(rows, deptos, p, total, total_pages, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed, flash, flash_kind, body, locale)
 }
 
 // The form screen (alta/edición) — queries the departamentos + the ubicaciones
 // options (cascade: provincias only for the picked país, ciudades only for the
 // picked provincia), then renders the form fragment. Same root id as the grid.
-async fn form_screen(edit_id: Int, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_pais: Int, f_provincia: Int, f_ciudad: Int, f_reporta: Int, f_fecha: Str, f_notas: Str, f_nivel: Int, f_permisos: Str, f_skills: Str, f_activo: Bool, f_tab: Str, error: Str) -> Html {
+async fn form_screen(edit_id: Int, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_pais: Int, f_provincia: Int, f_ciudad: Int, f_reporta: Int, f_fecha: Str, f_notas: Str, f_nivel: Int, f_permisos: Str, f_skills: Str, f_activo: Bool, f_tab: Str, error: Str, locale: Str) -> Html {
     let conn = match db.connect(db_url()).await {
         Ok(c) => c,
-        Err(e) => return grid_error(e),
+        Err(e) => return grid_error(e, locale),
     }
     let deptos: List<Departamento> = match Departamento.where(fn(d) => d.id > 0).order_by(fn(d) => d.nombre).all(conn).await {
         Ok(ds) => ds,
-        Err(e) => return grid_error(e),
+        Err(e) => return grid_error(e, locale),
     }
     // Colleagues for the "reporta a" group-select (grouped by department;
     // the employee being edited is excluded so it can't report to itself).
     let colegas: List<Empleado> = match Empleado.where(fn(e) => e.id > 0).order_by(fn(e) => e.nombre).all(conn).await {
         Ok(es) => es,
-        Err(e) => return grid_error(e),
+        Err(e) => return grid_error(e, locale),
     }
     let paises: List<Pais> = match Pais.where(fn(p) => p.id > 0).order_by(fn(p) => p.nombre).all(conn).await {
         Ok(ps) => ps,
-        Err(e) => return grid_error(e),
+        Err(e) => return grid_error(e, locale),
     }
     let provincias: List<Provincia> = match f_pais > 0 {
         true => match Provincia.where(fn(p) => p.pais_id == f_pais).order_by(fn(p) => p.nombre).all(conn).await {
             Ok(ps) => ps,
-            Err(e) => return grid_error(e),
+            Err(e) => return grid_error(e, locale),
         },
         false => [],
     }
     let ciudades: List<Ciudad> = match f_provincia > 0 {
         true => match Ciudad.where(fn(c) => c.provincia_id == f_provincia).order_by(fn(c) => c.nombre).all(conn).await {
             Ok(cs) => cs,
-            Err(e) => return grid_error(e),
+            Err(e) => return grid_error(e, locale),
         },
         false => [],
     }
     let permisos: List<Permiso> = match Permiso.where(fn(p) => p.id > 0).order_by(fn(p) => p.modulo).order_by(fn(p) => p.id).all(conn).await {
         Ok(ps) => ps,
-        Err(e) => return grid_error(e),
+        Err(e) => return grid_error(e, locale),
     }
     let skills: List<Skill> = match Skill.where(fn(s) => s.id > 0).order_by(fn(s) => s.nombre).all(conn).await {
         Ok(ss) => ss,
-        Err(e) => return grid_error(e),
+        Err(e) => return grid_error(e, locale),
     }
-    return form_html(edit_id, deptos, paises, provincias, ciudades, permisos, skills, colegas, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_reporta, f_fecha, f_notas, f_nivel, f_permisos, f_skills, f_activo, f_tab, error)
+    return form_html(edit_id, deptos, paises, provincias, ciudades, permisos, skills, colegas, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_reporta, f_fecha, f_notas, f_nivel, f_permisos, f_skills, f_activo, f_tab, error, locale)
 }
 
 // The tree screen (Slice 4e) — the ubicaciones hierarchy as an expandable
 // tree. `exp_pais` / `exp_prov` are the comma-joined ids of the expanded nodes.
-async fn tree_screen(exp_pais: Str, exp_prov: Str) -> Html {
+async fn tree_screen(exp_pais: Str, exp_prov: Str, locale: Str) -> Html {
     let conn = match db.connect(db_url()).await {
         Ok(c) => c,
-        Err(e) => return grid_error(e),
+        Err(e) => return grid_error(e, locale),
     }
     let paises: List<Pais> = match Pais.where(fn(p) => p.id > 0).order_by(fn(p) => p.nombre).all(conn).await {
         Ok(x) => x,
-        Err(e) => return grid_error(e),
+        Err(e) => return grid_error(e, locale),
     }
     let provincias: List<Provincia> = match Provincia.where(fn(p) => p.id > 0).order_by(fn(p) => p.nombre).all(conn).await {
         Ok(x) => x,
-        Err(e) => return grid_error(e),
+        Err(e) => return grid_error(e, locale),
     }
     let ciudades: List<Ciudad> = match Ciudad.where(fn(c) => c.id > 0).order_by(fn(c) => c.nombre).all(conn).await {
         Ok(x) => x,
-        Err(e) => return grid_error(e),
+        Err(e) => return grid_error(e, locale),
     }
     let tree = tree_html(paises, provincias, ciudades, exp_pais, exp_prov)
+    let tr_title = t(locale, "tree.title")
+    let tr_sub = t(locale, "tree.subtitle")
+    let tr_back = t(locale, "tree.back")
     return html("""<div id="empleados-live" class="grid-wrap">
       <div class="page-head">
-        <h2>Árbol de ubicaciones</h2>
-        <p>País → provincia → ciudad. Expandí los nodos — cada toggle es un evento del server.</p>
+        <h2>{flv(tr_title)}</h2>
+        <p>{flv(tr_sub)}</p>
       </div>
       <div class="grid-card tree-card">
         <ul class="tree tree-root">{tree}</ul>
       </div>
       <div class="tree-foot">
-        <button class="btn-clear" data-flv-click="show_grid">← Volver al grid</button>
+        <button class="btn-clear" data-flv-click="show_grid">{flv(tr_back)}</button>
       </div>
     </div>""")
 }
@@ -1389,8 +1442,8 @@ async fn empleados_page(cookie: Str?) -> Response {
         Err(_) => return redirect_to("/login"),
     }
     let loc = locale_from_cookie(cookie)
-    let grid = grid_html(1, "", "all", 0, "id", "asc", "", "", "", "", "", "", "").await
-    let live = live_embed("/live/empleados", "empleados-live", grid)
+    let grid = grid_html(1, "", "all", 0, "id", "asc", "", "", "", "", "", "", "", loc).await
+    let live = live_embed("/live/empleados?lang={loc}", "empleados-live", grid)
     return html_response(page_layout(t(loc, "nav.empleados"), "empleados", user.name, live, loc))
 }
 
@@ -1437,6 +1490,11 @@ async fn empleados_export(cookie: Str?, q: Str?, estado: Str?, depto: Int?) -> R
 
 @ws("/live/empleados")
 async fn empleados_socket(ws: WsConn<LiveFrame>) {
+    // The active language rides in the WS URL query the SSR page baked into the
+    // `live_embed` path (`?lang=en`). Fitz-core `@ws` can't read the handshake
+    // query/headers, so the client hands it to us as a `__flv_init` event on
+    // connect (fitz-liveviews v0.10.0); until then we default to Spanish.
+    let locale = "es"
     // Grid state.
     let page = 1
     let q = ""
@@ -1478,10 +1536,23 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
     let flash_kind = ""
     // Expanded rows (Slice 7) — comma-joined ids whose detail panel is open.
     let expanded = ""
-    let last = grid_html(page, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed, flash, flash_kind, expanded).await.raw
+    let last = grid_html(page, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed, flash, flash_kind, expanded, locale).await.raw
     loop {
         let frame = ws.recv()?
         let ev = frame.event
+        // Connection init (fitz-liveviews v0.10.0): learn the locale the SSR
+        // page baked into the socket URL, re-render the diff baseline in that
+        // language to match what the client already shows, and wait for a real
+        // event (no patch to send).
+        if (ev == "__flv_init") {
+            let lang = pget(frame.payload, "lang", "es")
+            locale = match lang == "en" {
+                true => "en",
+                false => "es",
+            }
+            last = grid_html(page, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed, flash, flash_kind, expanded, locale).await.raw
+            continue
+        }
         // A flash lives for exactly one render: any next event clears it.
         flash = ""
         flash_kind = ""
@@ -1674,7 +1745,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             f_permisos = pget(frame.payload, "permisos", f_permisos)
             f_skills = pget(frame.payload, "skills", f_skills)
             if (f_nombre == "" or f_email == "") {
-                form_error = "Nombre y email son obligatorios."
+                form_error = t(locale, "form.required")
             } else {
                 match save_empleado_db(edit_id, f_nombre, f_email, f_cargo, f_depto, f_ciudad, f_reporta, f_fecha, f_notas, f_nivel, f_activo).await {
                     Ok(saved_id) => {
@@ -1685,7 +1756,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
                                         mode = "grid"
                                         form_error = ""
                                         page = 1
-                                        flash = "Empleado guardado"
+                                        flash = t(locale, "toast.saved")
                                         flash_kind = "success"
                                     },
                                     Err(er) => {
@@ -1745,12 +1816,12 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
                     sel = ""
                     confirm_ids = ""
                     page = 1
-                    flash = "{n_deleted} empleado(s) eliminado(s)"
+                    flash = pick(locale, "{n_deleted} empleado(s) eliminado(s)", "{n_deleted} employee(s) deleted")
                     flash_kind = "success"
                 },
                 Err(e) => {
                     confirm_ids = ""
-                    flash = "Error al eliminar: {e}"
+                    flash = t(locale, "toast.del_error") + " " + e
                     flash_kind = "error"
                 },
             }
@@ -1773,9 +1844,9 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             expanded = toggle_id(expanded, pget_int(frame.payload, "id", 0))
         }
         let new_html = match mode {
-            "form" => form_screen(edit_id, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_reporta, f_fecha, f_notas, f_nivel, f_permisos, f_skills, f_activo, f_tab, form_error).await.raw,
-            "tree" => tree_screen(tree_exp_pais, tree_exp_prov).await.raw,
-            _ => grid_html(page, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed, flash, flash_kind, expanded).await.raw,
+            "form" => form_screen(edit_id, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_reporta, f_fecha, f_notas, f_nivel, f_permisos, f_skills, f_activo, f_tab, form_error, locale).await.raw,
+            "tree" => tree_screen(tree_exp_pais, tree_exp_prov, locale).await.raw,
+            _ => grid_html(page, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed, flash, flash_kind, expanded, locale).await.raw,
         }
         let patches = diff_html(last, new_html)
         ws.send(LiveFrame { html: new_html, patches: patches })?

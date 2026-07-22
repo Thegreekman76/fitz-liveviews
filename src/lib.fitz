@@ -278,6 +278,19 @@ let LIVE_CLIENT_JS: Str = """(function() \{
       root.outerHTML = msg.html;
     \}
   \};
+  // v0.10.0 — on connect, hand the @ws handler the connection's query params as
+  // a `__flv_init` event. Fitz-core `@ws` can't expose the handshake query or
+  // headers, so this is how a live socket learns per-connection context baked
+  // into its `ws_path` by the SSR page (e.g. `?lang=en`).
+  ws.onopen = function() \{
+    const qi = wsPath.indexOf('?');
+    const payload = \{\};
+    if (qi >= 0) \{
+      const qs = new URLSearchParams(wsPath.slice(qi));
+      for (const kv of qs.entries()) payload[kv[0]] = kv[1];
+    \}
+    ws.send(JSON.stringify(\{ event: '__flv_init', payload: payload, html: '', patches: [] \}));
+  \};
   function collectValues(el, payload) \{
     for (const attr of el.attributes) \{
       if (attr.name.startsWith('data-flv-value-')) \{
@@ -488,6 +501,17 @@ fn live_layout_includes_change_handler() {
   assert(full.raw.contains("addEventListener('change'"))
   assert(full.raw.contains("data-flv-change"))
   assert(full.raw.contains("flvChange"))
+}
+
+@test
+fn live_layout_sends_flv_init_with_connection_query() {
+  // v0.10.0 — on connect the client sends a `__flv_init` event carrying the
+  // query params of its ws_path, so the @ws handler can read per-connection
+  // context (locale, etc.) that Fitz-core @ws can't expose from the handshake.
+  let full = live_layout("/live/x?lang=en", "root", html("<div id=\"root\"></div>"))
+  assert(full.raw.contains("ws.onopen"))
+  assert(full.raw.contains("__flv_init"))
+  assert(full.raw.contains("URLSearchParams"))
 }
 
 @test

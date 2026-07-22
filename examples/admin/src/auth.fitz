@@ -13,7 +13,7 @@
 from config import db_url, jwt_secret, session_cookie_name
 from models import User, Departamento, Empleado
 from shell import login_layout, redirect_to
-from i18n import lang_cookie_name
+from i18n import lang_cookie_name, t, locale_from_cookie
 from fitz_liveviews import Html, html, flv, html_response
 
 // --- Input type -----------------------------------------------------------
@@ -41,30 +41,36 @@ fn login_failed() -> Response {
 
 // --- GET /login — public -------------------------------------------------
 
+@header(name="cookie")
 @get("/login")
-fn login_page() -> Response {
+fn login_page(cookie: Str?) -> Response {
+    let loc = locale_from_cookie(cookie)
     let js = login_js()
+    let sub = t(loc, "login.subtitle")
+    let l_email = t(loc, "login.email")
+    let l_pass = t(loc, "login.password")
+    let l_submit = t(loc, "login.submit")
     let body = html("""<div class="login-wrap">
   <div class="login-card">
     <div class="login-brand"><span class="mark">▲</span> Fitz Admin</div>
-    <p class="login-sub">Panel de administración · People &amp; Access</p>
+    <p class="login-sub">{flv(sub)} · People &amp; Access</p>
     <div id="login-error" class="login-error"></div>
     <form id="login-form">
       <div class="field">
-        <label for="email">Email</label>
+        <label for="email">{flv(l_email)}</label>
         <input id="email" name="email" type="email" required autocomplete="username" />
       </div>
       <div class="field">
-        <label for="password">Contraseña</label>
+        <label for="password">{flv(l_pass)}</label>
         <input id="password" name="password" type="password" required autocomplete="current-password" />
       </div>
-      <button class="btn-primary" type="submit">Ingresar</button>
+      <button class="btn-primary" type="submit">{flv(l_submit)}</button>
     </form>
     <p class="login-hint">Demo: <strong>admin@fitz.dev</strong> / <strong>admin1234</strong></p>
   </div>
 </div>
 <script>{js}</script>""")
-    return html_response(login_layout(body))
+    return html_response(login_layout(body, loc))
 }
 
 // --- POST /login — validate, sign JWT, set cookie ------------------------

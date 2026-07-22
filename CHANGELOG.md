@@ -5,6 +5,24 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.10.0] — 2026-07-22 — `__flv_init`: connection context for `@ws` handlers
+
+**Minor bump** — a live socket can now learn per-connection context (locale,
+tenant, …) that Fitz-core `@ws` can't expose from the handshake.
+
+### Added — `__flv_init` on connect
+
+- On `ws.onopen` the client parses the query params of its `ws_path` and sends
+  them as a `__flv_init` event (`{event:"__flv_init", payload:{lang:"en"}, …}`).
+- The `@ws` handler reads them from that first event and, typically, re-renders
+  its diff baseline to match what the SSR page already shows.
+- **Why**: Fitz-core `@ws` handlers can't read the handshake — `@header` is
+  rejected at runtime and the `@ws` path must be a plain `Str` literal (no query
+  or path params). So the SSR page bakes context into the socket URL
+  (`live_embed("/live/x?lang=en", …)`) and the client hands it over on connect.
+  Documented as a core finding to fix upstream (`d:\fitz`).
+- Drives full **i18n** of the Admin ABM live grid + form (S9).
+
 ## [v0.9.0] — 2026-07-22 — serialize-on-click (`data-flv-form`) for in-form nav
 
 **Minor bump** — a `data-flv-click` action button can now opt in to

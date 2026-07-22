@@ -66,7 +66,7 @@ fn progress_bar(label: Str, value: Int, max: Int, accent: Str) -> Str {
 
 // --- Dashboard body (real DB counts) -------------------------------------
 
-async fn render_dashboard() -> Result<Html> {
+async fn render_dashboard(locale: Str) -> Result<Html> {
     let conn = db.connect(db_url()).await?
     // `count` is a QueryBuilder terminal in the interpreter — so we count
     // via `.where(...).count(conn)`. `id > 0` matches every row (bigserial
@@ -76,10 +76,10 @@ async fn render_dashboard() -> Result<Html> {
     let inactivos = total_emp - activos
     let n_deptos = Departamento.where(fn(d) => d.id > 0).count(conn).await?
 
-    let c1 = stat_card("Empleados", total_emp, "Total en el sistema", "blue")
-    let c2 = stat_card("Activos", activos, "Con acceso habilitado", "green")
-    let c3 = stat_card("Inactivos", inactivos, "Baja o suspendidos", "amber")
-    let c4 = stat_card("Departamentos", n_deptos, "Áreas de la organización", "violet")
+    let c1 = stat_card(t(locale, "dash.stat.empleados"), total_emp, t(locale, "dash.stat.empleados.hint"), "blue")
+    let c2 = stat_card(t(locale, "dash.stat.activos"), activos, t(locale, "dash.stat.activos.hint"), "green")
+    let c3 = stat_card(t(locale, "dash.stat.inactivos"), inactivos, t(locale, "dash.stat.inactivos.hint"), "amber")
+    let c4 = stat_card(t(locale, "dash.stat.deptos"), n_deptos, t(locale, "dash.stat.deptos.hint"), "violet")
 
     // Chart data: every department + every employee, counted in Fitz.
     let deptos = Departamento.where(fn(d) => d.id > 0).order_by(fn(d) => d.nombre).all(conn).await?
@@ -87,22 +87,27 @@ async fn render_dashboard() -> Result<Html> {
     let chart = bar_chart(deptos, all_emp)
 
     // ProgressBars — headline ratios.
-    let pb_act = progress_bar("Activos", activos, total_emp, "green")
-    let pb_ina = progress_bar("Inactivos", inactivos, total_emp, "amber")
+    let pb_act = progress_bar(t(locale, "dash.stat.activos"), activos, total_emp, "green")
+    let pb_ina = progress_bar(t(locale, "dash.stat.inactivos"), inactivos, total_emp, "amber")
 
+    let d_title = t(locale, "dash.title")
+    let d_sub = t(locale, "dash.subtitle")
+    let d_live = t(locale, "dash.live")
+    let d_occ = t(locale, "dash.occupancy")
+    let d_bydep = t(locale, "dash.by_depto")
     return Ok(html("""<div class="page-head">
-      <h2>Dashboard <span class="live-dot"><span class="spinner"></span> en vivo</span></h2>
-      <p>Resumen de personal y accesos.</p>
+      <h2>{flv(d_title)} <span class="live-dot"><span class="spinner"></span> {flv(d_live)}</span></h2>
+      <p>{flv(d_sub)}</p>
     </div>
     <div class="stat-grid">
       {c1}{c2}{c3}{c4}
     </div>
     <div class="panel">
-      <h3>Ocupación</h3>
+      <h3>{flv(d_occ)}</h3>
       <div class="pbars">{pb_act}{pb_ina}</div>
       <hr class="divider" />
       <details class="exp-panel" open>
-        <summary>Empleados por departamento</summary>
+        <summary>{flv(d_bydep)}</summary>
         <div class="chart">{chart}</div>
       </details>
     </div>"""))
@@ -132,9 +137,9 @@ async fn dashboard_page(cookie: Str?) -> Response {
         Err(_) => return redirect_to("/login"),
     }
     let loc = locale_from_cookie(cookie)
-    let body: Html = match render_dashboard().await {
+    let body: Html = match render_dashboard(loc).await {
         Ok(h) => h,
-        Err(e) => html("""<div class="panel"><h3>Error de base de datos</h3><p>{flv(e)}</p></div>"""),
+        Err(e) => html("""<div class="panel"><h3>{flv(t(loc, "dash.db_error"))}</h3><p>{flv(e)}</p></div>"""),
     }
     return html_response(page_layout(t(loc, "nav.dashboard"), "dashboard", user.name, body, loc))
 }
