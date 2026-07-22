@@ -181,7 +181,25 @@ Companion UI library from **8 basic components** to **~22-25**:
      Showcase-only (sin cambio de lib). Verificado run + binario contra
      Postgres local. **Cierra S4 entero** (form + cascade + group-checkbox +
      multiselect + tree).
-5. **S5** — Selection + multi-delete + confirm + export.
+5. **S5 — DONE** ✅ (2026-07-22) Row selection + multi-delete + confirm
+   dialog + CSV export. Per-row checkbox + header "select all" (reflects the
+   current page); a selection bar shows the count with "Eliminar
+   seleccionados" / "Limpiar selección". Delete (single via the row 🗑 or bulk
+   via the bar) opens a **ConfirmDialog** modal; confirm runs `delete_ids`
+   (clears the permisos + skills join rows first, then the empleado). Selection
+   state (`sel`) + pending-confirm ids (`confirm_ids`) live per-connection in
+   the socket, tracked as comma-joined sets (reuses the `toggle_id`/`id_checked`
+   helpers from S4e). **CSV export** is a plain `@get("/empleados/export.csv?
+   q={q}&estado={estado}&depto={depto}")` (a WS can't stream a download) that
+   returns `Response { content_type: "text/csv", headers: Content-Disposition,
+   body }` — it respects the active filters (search + estado + depto), not the
+   checkbox selection. Verified run + binary against local Postgres (selection,
+   select-all, clear, single + multi delete with real row removal, filtered
+   export). Showcase-only, **no lib change** — **no workarounds** (query params
+   in the path template, `Response`, ORM `.delete`, and `str.chars()` for CSV
+   quoting all existed). Components extracted: **Checkbox · CheckboxGroup
+   (select-all) · Modal · ConfirmDialog · Toolbar (export) · Badge (selection
+   count)**.
 6. **S6** — Column grouping + tree view polish.
 
 ## Expected Fitz core gaps (dogfooding)

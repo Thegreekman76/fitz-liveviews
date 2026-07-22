@@ -127,10 +127,19 @@ fn page_buttons(page: Int, total_pages: Int) -> Str {
 // Render — one row + the whole grid (pure, no DB)
 // ---------------------------------------------------------------------------
 
-fn grid_row(e: Empleado, deptos: List<Departamento>) -> Html {
+fn grid_row(e: Empleado, deptos: List<Departamento>, sel: Str) -> Html {
     let depto = depto_name(deptos, e.departamento_id)
     let estado = estado_badge(e.activo)
-    return html("""<tr>
+    let checked = match id_checked(sel, e.id) {
+        true => " checked",
+        false => "",
+    }
+    let tr_cls = match id_checked(sel, e.id) {
+        true => "row-selected",
+        false => "",
+    }
+    return html("""<tr class="{tr_cls}">
+      <td data-label="" class="col-sel"><input type="checkbox" class="row-sel" data-flv-click="toggle_sel" data-flv-value-id="{e.id}"{checked} /></td>
       <td data-label="ID" class="col-id">{e.id}</td>
       <td data-label="Nombre"><strong>{flv(e.nombre)}</strong></td>
       <td data-label="Email">{flv(e.email)}</td>
@@ -139,6 +148,7 @@ fn grid_row(e: Empleado, deptos: List<Departamento>) -> Html {
       <td data-label="Estado">{estado}</td>
       <td data-label="Acciones" class="col-actions">
         <button class="btn-icon" title="Editar" data-flv-click="edit_empleado" data-flv-value-id="{e.id}">✎</button>
+        <button class="btn-icon btn-danger" title="Eliminar" data-flv-click="ask_delete_one" data-flv-value-id="{e.id}">🗑</button>
       </td>
     </tr>""")
 }
@@ -238,6 +248,97 @@ fn toggle_id(csv: Str, id: Int) -> Str {
         true => "{id}",
         false => csv + ",{id}",
     }
+}
+
+// Count the ids in a comma-joined set (Slice 5, row selection).
+fn csv_count(csv: Str) -> Int {
+    if (csv == "") {
+        return 0
+    }
+    let n = 0
+    for p in csv.split(",") {
+        if (p != "") {
+            n = n + 1
+        }
+    }
+    return n
+}
+
+// True when every id in `ids` is already present in `csv` (Slice 5 — drives the
+// header "select all" checkbox: checked only when the whole page is selected).
+fn all_in(csv: Str, ids: Str) -> Bool {
+    if (ids == "") {
+        return false
+    }
+    for s in ids.split(",") {
+        let n = match s.to_int() {
+            Ok(x) => x,
+            Err(_) => 0,
+        }
+        if (n > 0 and not id_checked(csv, n)) {
+            return false
+        }
+    }
+    return true
+}
+
+// Toggle a whole page's worth of ids in the selection set: if the page is fully
+// selected, clear those ids; otherwise add the missing ones (Slice 5).
+fn toggle_all_ids(sel: Str, ids: Str) -> Str {
+    let out = sel
+    let clear = all_in(sel, ids)
+    for s in ids.split(",") {
+        let n = match s.to_int() {
+            Ok(x) => x,
+            Err(_) => 0,
+        }
+        if (n > 0) {
+            let present = id_checked(out, n)
+            if (clear and present) {
+                out = toggle_id(out, n)
+            }
+            if (not clear and not present) {
+                out = toggle_id(out, n)
+            }
+        }
+    }
+    return out
+}
+
+// Percent-encode the characters that would break a query string (Slice 5 —
+// the export link bakes the active search term into its href).
+fn enc_char(c: Str) -> Str {
+    return match c {
+        "%" => "%25",
+        " " => "%20",
+        "&" => "%26",
+        "#" => "%23",
+        "+" => "%2B",
+        "?" => "%3F",
+        "=" => "%3D",
+        _ => c,
+    }
+}
+
+fn url_enc(s: Str) -> Str {
+    let out = ""
+    for ch in s.chars() {
+        out = out + enc_char(ch)
+    }
+    return out
+}
+
+// Comma-joined ids of the rows on the current page (Slice 5 — feeds the
+// "select all" checkbox's `data-flv-value-ids`).
+fn ids_csv(rows: List<Empleado>) -> Str {
+    let out = ""
+    for e in rows {
+        out = match out == "" {
+            true => "{e.id}",
+            false => out + ",{e.id}",
+        }
+    }
+    return out
 }
 
 // Tree view (Slice 4e) — the país → provincia → ciudad hierarchy as an
@@ -374,10 +475,43 @@ fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provi
     </div>""")
 }
 
-fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, total: Int, total_pages: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str) -> Html {
+fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, total: Int, total_pages: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, confirm_ids: Str) -> Html {
     let body: Html = match rows.len() == 0 {
-        true => html("""<tr><td colspan="7" class="grid-empty">No hay empleados que coincidan con la búsqueda.</td></tr>"""),
-        false => html(h_join(rows.map(fn(e) => grid_row(e, deptos)))),
+        true => html("""<tr><td colspan="8" class="grid-empty">No hay empleados que coincidan con la búsqueda.</td></tr>"""),
+        false => html(h_join(rows.map(fn(e) => grid_row(e, deptos, sel)))),
+    }
+    // Select-all checkbox reflects the ids ON THIS PAGE.
+    let page_ids = ids_csv(rows)
+    let all_checked = match all_in(sel, page_ids) {
+        true => " checked",
+        false => "",
+    }
+    // Selection bar — only when something is selected.
+    let n_sel = csv_count(sel)
+    let sel_bar: Str = match n_sel > 0 {
+        true => """<div class="sel-bar">
+          <span class="sel-count">{n_sel} seleccionado(s)</span>
+          <button class="btn-danger" data-flv-click="ask_delete_selected">🗑 Eliminar seleccionados</button>
+          <button class="btn-clear" data-flv-click="clear_sel">Limpiar selección</button>
+        </div>""",
+        false => "",
+    }
+    // Export link — respects the active filters (not the selection).
+    let export_href = "/empleados/export.csv?q={url_enc(q)}&estado={estado}&depto={depto}"
+    // Confirm dialog — shown while `confirm_ids` is pending.
+    let n_del = csv_count(confirm_ids)
+    let modal: Str = match n_del > 0 {
+        true => """<div class="modal-overlay">
+          <div class="modal">
+            <h3>Confirmar eliminación</h3>
+            <p>¿Eliminar {n_del} empleado(s)? Esta acción no se puede deshacer.</p>
+            <div class="modal-actions">
+              <button class="btn-clear" data-flv-click="cancel_delete">Cancelar</button>
+              <button class="btn-danger" data-flv-click="confirm_delete">Eliminar</button>
+            </div>
+          </div>
+        </div>""",
+        false => "",
     }
     let prev_btn: Str = match page > 1 {
         true => """<button class="pg-btn" data-flv-click="page_prev">‹</button>""",
@@ -417,6 +551,7 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
           {pill_active}
           {pill_inactive}
         </div>
+        <a class="btn-clear btn-export" href="{export_href}">⬇ CSV</a>
         <button class="btn-clear btn-tree" data-flv-click="show_tree">🌳 Ubicaciones</button>
         <button class="btn-primary btn-nuevo" data-flv-click="new_empleado">+ Nuevo</button>
       </div>
@@ -425,11 +560,13 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
         {depto_todos}
         {depto_pills}
       </div>
+      {sel_bar}
       <div class="grid-card">
         <div class="grid-scroll">
           <table class="grid">
             <thead>
               <tr>
+                <th class="col-sel"><input type="checkbox" data-flv-click="toggle_sel_all" data-flv-value-ids="{page_ids}"{all_checked} /></th>
                 {th_id}
                 {th_nombre}
                 {th_email}
@@ -453,6 +590,7 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
           </div>
         </div>
       </div>
+      {modal}
     </div>""")
 }
 
@@ -475,7 +613,7 @@ fn grid_error(msg: Str) -> Html {
 // on the SAME filtered builder so the pager reflects the filters. Sort is a
 // dynamic `.order_by(col, ascending)`. Any DB failure renders the error panel.
 
-async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str) -> Html {
+async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, confirm_ids: Str) -> Html {
     let conn = match db.connect(db_url()).await {
         Ok(c) => c,
         Err(e) => return grid_error(e),
@@ -525,7 +663,7 @@ async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, so
         Ok(ds) => ds,
         Err(e) => return grid_error(e),
     }
-    return render_grid(rows, deptos, p, total, total_pages, q, estado, depto, sort_col, sort_dir)
+    return render_grid(rows, deptos, p, total, total_pages, q, estado, depto, sort_col, sort_dir, sel, confirm_ids)
 }
 
 // The form screen (alta/edición) — queries the departamentos + the ubicaciones
@@ -726,6 +864,84 @@ async fn sync_skills(empleado_id: Int, csv: Str) -> Result<Null> {
     return Ok(null)
 }
 
+// Delete a set of empleados (Slice 5, multi-delete). For each id we clear the
+// join rows first (permisos + skills) so no orphans are left, then the row.
+// Returns how many rows were deleted.
+async fn delete_ids(csv: Str) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let n = 0
+    for s in csv.split(",") {
+        let id = match s.to_int() {
+            Ok(x) => x,
+            Err(_) => 0,
+        }
+        if (id > 0) {
+            let _ = EmpleadoPermiso.where(fn(ep) => ep.empleado_id == id).delete(conn).await?
+            let _ = EmpleadoSkill.where(fn(x) => x.empleado_id == id).delete(conn).await?
+            let _ = Empleado.where(fn(e) => e.id == id).delete(conn).await?
+            n = n + 1
+        }
+    }
+    return Ok(n)
+}
+
+// ---------------------------------------------------------------------------
+// CSV export (Slice 5) — the current filtered result set as a download
+// ---------------------------------------------------------------------------
+//
+// Export respects the grid's active filters (search + estado + departamento),
+// NOT the checkbox selection — you export what you're looking at. It's a plain
+// HTTP GET (a WebSocket can't stream a file download), so the filters ride in
+// the query string and the response is a `Response { body, headers }` with a
+// `Content-Disposition: attachment` so the browser saves it.
+
+// One RFC-4180 CSV field: quote it when it holds a comma / quote / newline,
+// doubling any embedded quote.
+fn csv_field(s: Str) -> Str {
+    if (s.contains(",") or s.contains("\"") or s.contains("\n")) {
+        let out = ""
+        for ch in s.chars() {
+            out = match ch == "\"" {
+                true => out + "\"\"",
+                false => out + ch,
+            }
+        }
+        return "\"" + out + "\""
+    }
+    return s
+}
+
+async fn export_csv_body(q: Str, estado: Str, depto: Int) -> Result<Str> {
+    let conn = db.connect(db_url()).await?
+    let pat = "%{q}%"
+    let base = Empleado.where(fn(e) => e.id > 0)
+    let searched = match q == "" {
+        true => base,
+        false => base.where(fn(e) => e.nombre.ilike(pat) or e.email.ilike(pat) or e.cargo.ilike(pat)),
+    }
+    let by_estado = match estado {
+        "active" => searched.where(fn(e) => e.activo == true),
+        "inactive" => searched.where(fn(e) => e.activo == false),
+        _ => searched,
+    }
+    let filtered = match depto > 0 {
+        true => by_estado.where(fn(e) => e.departamento_id == depto),
+        false => by_estado,
+    }
+    let rows = filtered.order_by(fn(e) => e.id, ascending: true).all(conn).await?
+    let deptos = Departamento.where(fn(d) => d.id > 0).all(conn).await?
+    let out = "id,nombre,email,cargo,departamento,estado\n"
+    for e in rows {
+        let dn = depto_name(deptos, e.departamento_id)
+        let est = match e.activo == true {
+            true => "activo",
+            false => "inactivo",
+        }
+        out = out + "{e.id}," + csv_field(e.nombre) + "," + csv_field(e.email) + "," + csv_field(e.cargo) + "," + csv_field(dn) + "," + est + "\n"
+    }
+    return Ok(out)
+}
+
 // ---------------------------------------------------------------------------
 // HTTP — SSR first paint, embedded live inside the admin shell
 // ---------------------------------------------------------------------------
@@ -737,9 +953,42 @@ async fn empleados_page(cookie: Str?) -> Response {
         Ok(u) => u,
         Err(_) => return redirect_to("/login"),
     }
-    let grid = grid_html(1, "", "all", 0, "id", "asc").await
+    let grid = grid_html(1, "", "all", 0, "id", "asc", "", "").await
     let live = live_embed("/live/empleados", "empleados-live", grid)
     return html_response(page_layout("Empleados", "empleados", user.name, live))
+}
+
+// CSV export of the current filtered result set (Slice 5). Query params carry
+// the active filters; the response is a downloadable text/csv attachment.
+@header(name="cookie")
+@get("/empleados/export.csv?q={q}&estado={estado}&depto={depto}")
+async fn empleados_export(cookie: Str?, q: Str?, estado: Str?, depto: Int?) -> Response {
+    let _user: User = match user_from_cookie(cookie).await {
+        Ok(u) => u,
+        Err(_) => return redirect_to("/login"),
+    }
+    let qq: Str = match q {
+        null => "",
+        x => x,
+    }
+    let est: Str = match estado {
+        null => "all",
+        x => x,
+    }
+    let dep: Int = match depto {
+        null => 0,
+        x => x,
+    }
+    let body: Str = match export_csv_body(qq, est, dep).await {
+        Ok(csv) => csv,
+        Err(e) => return html_response(html("""<p>Error al exportar: {flv(e)}</p>""")),
+    }
+    return Response {
+        status: 200,
+        content_type: "text/csv; charset=utf-8",
+        headers: { "content-disposition": "attachment; filename=\"empleados.csv\"" },
+        body: body,
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -776,7 +1025,10 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
     // Tree view state (Slice 4e) — expanded país / provincia node ids.
     let tree_exp_pais = ""
     let tree_exp_prov = ""
-    let last = grid_html(page, q, estado, depto, sort_col, sort_dir).await.raw
+    // Selection state (Slice 5) — selected row ids + ids pending delete-confirm.
+    let sel = ""
+    let confirm_ids = ""
+    let last = grid_html(page, q, estado, depto, sort_col, sort_dir, sel, confirm_ids).await.raw
     loop {
         let frame = ws.recv()?
         let ev = frame.event
@@ -967,10 +1219,44 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
         if (ev == "toggle_prov") {
             tree_exp_prov = toggle_id(tree_exp_prov, pget_int(frame.payload, "id", 0))
         }
+        // --- selection / multi-delete (Slice 5) ---
+        if (ev == "toggle_sel") {
+            sel = toggle_id(sel, pget_int(frame.payload, "id", 0))
+        }
+        if (ev == "toggle_sel_all") {
+            sel = toggle_all_ids(sel, pget(frame.payload, "ids", ""))
+        }
+        if (ev == "clear_sel") {
+            sel = ""
+        }
+        if (ev == "ask_delete_selected") {
+            if (sel != "") {
+                confirm_ids = sel
+            }
+        }
+        if (ev == "ask_delete_one") {
+            let del_one = pget_int(frame.payload, "id", 0)
+            confirm_ids = "{del_one}"
+        }
+        if (ev == "cancel_delete") {
+            confirm_ids = ""
+        }
+        if (ev == "confirm_delete") {
+            match delete_ids(confirm_ids).await {
+                Ok(_) => {
+                    sel = ""
+                    confirm_ids = ""
+                    page = 1
+                },
+                Err(_) => {
+                    confirm_ids = ""
+                },
+            }
+        }
         let new_html = match mode {
             "form" => form_screen(edit_id, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_permisos, f_skills, f_activo, form_error).await.raw,
             "tree" => tree_screen(tree_exp_pais, tree_exp_prov).await.raw,
-            _ => grid_html(page, q, estado, depto, sort_col, sort_dir).await.raw,
+            _ => grid_html(page, q, estado, depto, sort_col, sort_dir, sel, confirm_ids).await.raw,
         }
         let patches = diff_html(last, new_html)
         ws.send(LiveFrame { html: new_html, patches: patches })?
