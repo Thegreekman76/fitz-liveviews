@@ -1,0 +1,228 @@
+// empleados.fitz — Slice 2: the Empleados DataGrid, live over WebSocket.
+//
+// This is the first screen in the showcase to use the LiveViews WS layer.
+// Slice 1 was pure SSR (each page a full round-trip). Here the page loads
+// once over HTTP (SSR first paint, embedded via `live_embed` INSIDE the
+// admin shell), then opens a WebSocket to `/live/empleados`. Pagination
+// clicks travel over that socket as tiny events; the server re-renders the
+// grid, diffs it against the previous render, and sends back only the
+// patches — the sidebar/topbar never reload.
+//
+// Real SQL pagination: each page is a `.limit(PAGE_SIZE).offset(...)` query
+// (Fitz ORM, cap 31 of the language guide), not an in-memory slice. The
+// page number is per-connection state held in the `@ws` handler loop, so two
+// browsers paginate independently (we `ws.send` to the one socket, not
+// `ws.broadcast`).
+//
+// NOTE (Fitz core gap surfaced by this slice): there is no `Str -> Int`
+// builtin yet, so numbered "go to page N" links (which would carry the page
+// in the event payload as a string) aren't wired here — nav is
+// first/prev/next by event name, which needs no parsing. Numbered pages land
+// when a `str.to_int()` / `int(s)` lands in core.
+
+from config import db_url
+from models import Empleado, Departamento, User
+from session import user_from_cookie
+from shell import page_layout, redirect_to
+from fitz_liveviews import Html, html, flv, h_join, html_response, live_embed, LiveFrame, diff_html
+
+// Rows per page. Small so pagination is visible with the demo seed.
+let PAGE_SIZE: Int = 8
+
+// ---------------------------------------------------------------------------
+// Small helpers
+// ---------------------------------------------------------------------------
+
+fn clamp(v: Int, lo: Int, hi: Int) -> Int {
+    if (v < lo) {
+        return lo
+    }
+    if (v > hi) {
+        return hi
+    }
+    return v
+}
+
+fn estado_badge(activo: Bool) -> Str {
+    return match activo {
+        true => """<span class="badge badge-ok">Activo</span>""",
+        false => """<span class="badge badge-off">Inactivo</span>""",
+    }
+}
+
+// Resolve a department name from the preloaded list (linear find — the demo
+// has a handful of departments; a `.preload(...)` relation lands in S4).
+fn depto_name(deptos: List<Departamento>, id: Int) -> Str {
+    return match deptos.find(fn(d) => d.id == id) {
+        Ok(d) => d.nombre,
+        Err(_) => "—",
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Render — one row + the whole grid (pure, no DB)
+// ---------------------------------------------------------------------------
+
+fn grid_row(e: Empleado, deptos: List<Departamento>) -> Html {
+    let depto = depto_name(deptos, e.departamento_id)
+    let estado = estado_badge(e.activo)
+    return html("""<tr>
+      <td data-label="ID" class="col-id">{e.id}</td>
+      <td data-label="Nombre"><strong>{flv(e.nombre)}</strong></td>
+      <td data-label="Email">{flv(e.email)}</td>
+      <td data-label="Cargo">{flv(e.cargo)}</td>
+      <td data-label="Departamento">{flv(depto)}</td>
+      <td data-label="Estado">{estado}</td>
+    </tr>""")
+}
+
+fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, total: Int, total_pages: Int) -> Html {
+    let body: Html = match rows.len() == 0 {
+        true => html("""<tr><td colspan="6" class="grid-empty">No hay empleados para mostrar.</td></tr>"""),
+        false => html(h_join(rows.map(fn(e) => grid_row(e, deptos)))),
+    }
+    let prev_btn: Str = match page > 1 {
+        true => """<button class="pg-btn" data-flv-click="page_prev">‹ Anterior</button>""",
+        false => """<button class="pg-btn" disabled>‹ Anterior</button>""",
+    }
+    let next_btn: Str = match page < total_pages {
+        true => """<button class="pg-btn" data-flv-click="page_next">Siguiente ›</button>""",
+        false => """<button class="pg-btn" disabled>Siguiente ›</button>""",
+    }
+    let first_btn: Str = match page > 1 {
+        true => """<button class="pg-btn" data-flv-click="page_first">« Primera</button>""",
+        false => """<button class="pg-btn" disabled>« Primera</button>""",
+    }
+    return html("""<div id="empleados-live" class="grid-wrap">
+      <div class="page-head">
+        <h2>Empleados</h2>
+        <p>Personal de la organización — {total} registro(s), en vivo sobre WebSocket.</p>
+      </div>
+      <div class="grid-card">
+        <div class="grid-scroll">
+          <table class="grid">
+            <thead>
+              <tr>
+                <th class="col-id">ID</th>
+                <th>Nombre</th>
+                <th>Email</th>
+                <th>Cargo</th>
+                <th>Departamento</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {body.raw}
+            </tbody>
+          </table>
+        </div>
+        <div class="grid-foot">
+          <span class="grid-info">Página {page} de {total_pages}</span>
+          <div class="pager">
+            {first_btn}
+            {prev_btn}
+            {next_btn}
+          </div>
+        </div>
+      </div>
+    </div>""")
+}
+
+// A DB error rendered with the SAME root id, so a mid-session failure still
+// patches cleanly over the socket instead of desyncing the client.
+fn grid_error(msg: Str) -> Html {
+    return html("""<div id="empleados-live" class="grid-wrap">
+      <div class="page-head"><h2>Empleados</h2></div>
+      <div class="panel"><h3>Error de base de datos</h3><p>{flv(msg)}</p></div>
+    </div>""")
+}
+
+// ---------------------------------------------------------------------------
+// Data — one page from Postgres via the ORM
+// ---------------------------------------------------------------------------
+//
+// Connects per render (the pool reuses the underlying connection). Clamps the
+// requested page to [1, total_pages] so a stray event can never blank the
+// grid. Any DB failure renders the error panel (same root id).
+
+async fn grid_html(page: Int) -> Html {
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(e) => return grid_error(e),
+    }
+    let total: Int = match Empleado.where(fn(e) => e.id > 0).count(conn).await {
+        Ok(n) => n,
+        Err(e) => return grid_error(e),
+    }
+    let total_pages: Int = match total <= 0 {
+        true => 1,
+        false => (total + PAGE_SIZE - 1) / PAGE_SIZE,
+    }
+    let p = clamp(page, 1, total_pages)
+    let offset = (p - 1) * PAGE_SIZE
+    let rows: List<Empleado> = match Empleado.where(fn(e) => e.id > 0).order_by(fn(e) => e.id).limit(PAGE_SIZE).offset(offset).all(conn).await {
+        Ok(rs) => rs,
+        Err(e) => return grid_error(e),
+    }
+    let deptos: List<Departamento> = match Departamento.where(fn(d) => d.id > 0).all(conn).await {
+        Ok(ds) => ds,
+        Err(e) => return grid_error(e),
+    }
+    return render_grid(rows, deptos, p, total, total_pages)
+}
+
+// ---------------------------------------------------------------------------
+// HTTP — SSR first paint, embedded live inside the admin shell
+// ---------------------------------------------------------------------------
+
+@header(name="cookie")
+@get("/empleados")
+async fn empleados_page(cookie: Str?) -> Response {
+    let user: User = match user_from_cookie(cookie).await {
+        Ok(u) => u,
+        Err(_) => return redirect_to("/login"),
+    }
+    let grid = grid_html(1).await
+    let live = live_embed("/live/empleados", "empleados-live", grid)
+    return html_response(page_layout("Empleados", "empleados", user.name, live))
+}
+
+// ---------------------------------------------------------------------------
+// WebSocket — pagination events → re-render → diff → patch (this socket only)
+// ---------------------------------------------------------------------------
+//
+// `page` is per-connection state (this handler runs once per socket). We
+// `ws.send` the patches back to THIS client — pagination is per-user, so we
+// don't `ws.broadcast` (that would flip everyone's page). The parent handler
+// has no component events; nav is three plain events by name.
+
+@ws("/live/empleados")
+async fn empleados_socket(ws: WsConn<LiveFrame>) {
+    print("[ws] handler start")
+    let page = 1
+    let last = grid_html(page).await.raw
+    print("[ws] initial grid_html done")
+    loop {
+        print("[ws] waiting recv")
+        let frame = ws.recv()?
+        print("[ws] got frame")
+        if (frame.event == "page_next") {
+            page = page + 1
+        }
+        if (frame.event == "page_prev") {
+            if (page > 1) {
+                page = page - 1
+            }
+        }
+        if (frame.event == "page_first") {
+            page = 1
+        }
+        let new_html = grid_html(page).await.raw
+        print("[ws] rerender done")
+        let patches = diff_html(last, new_html)
+        print("[ws] diff done, sending")
+        ws.send(LiveFrame { html: new_html, patches: patches })?
+        print("[ws] sent")
+        last = new_html
+    }
+}

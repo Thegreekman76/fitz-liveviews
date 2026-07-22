@@ -64,6 +64,18 @@
     "description": "HTTP GET handler that returns the initial LiveView HTML"
   },
 
+  "@get handler (embedded live view)": {
+    "prefix": "get-embed",
+    "body": [
+      "@get(\"${1:/path}\")",
+      "fn ${2:handler}() -> Response {",
+      "  let view = live_embed(\"/live/${3:path}\", \"${4:root-id}\", render(${5:initial_state}))",
+      "  return html_response(${6:page_layout}(view))",
+      "}"
+    ],
+    "description": "GET handler that embeds a LiveView (fragment, no full document) inside your own shell/layout"
+  },
+
   "@ws handler": {
     "prefix": "ws",
     "body": [

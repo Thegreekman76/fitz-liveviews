@@ -306,6 +306,71 @@ fn shell_css() -> Str {
     font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
   \}
 
+  /* DataGrid (Slice 2) */
+  .grid-card \{
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; box-shadow: var(--shadow); overflow: hidden;
+  \}
+  .grid-scroll \{ overflow-x: auto; \}
+  table.grid \{ width: 100%; border-collapse: collapse; font-size: .9rem; \}
+  table.grid thead th \{
+    text-align: left; padding: .7rem 1rem; font-size: .72rem;
+    text-transform: uppercase; letter-spacing: .05em; color: var(--muted);
+    font-weight: 700; border-bottom: 1px solid var(--border);
+    background: var(--surface-2); white-space: nowrap;
+  \}
+  table.grid tbody td \{
+    padding: .7rem 1rem; border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  \}
+  table.grid tbody tr:last-child td \{ border-bottom: none; \}
+  table.grid tbody tr:hover \{ background: var(--surface-2); \}
+  .col-id \{ color: var(--muted); font-variant-numeric: tabular-nums; width: 1%; white-space: nowrap; \}
+  .grid-empty \{ text-align: center; color: var(--muted); padding: 2rem 1rem; \}
+  .badge \{
+    display: inline-block; padding: .15rem .55rem; border-radius: 999px;
+    font-size: .72rem; font-weight: 700;
+  \}
+  .badge-ok \{ background: #dcfce7; color: #166534; \}
+  .badge-off \{ background: #fee2e2; color: #991b1b; \}
+  :root[data-theme="dark"] .badge-ok \{ background: #14351f; color: #7ee2a8; \}
+  :root[data-theme="dark"] .badge-off \{ background: #3a1a1a; color: #f0a0a0; \}
+  .grid-foot \{
+    display: flex; align-items: center; justify-content: space-between;
+    gap: .75rem; padding: .75rem 1rem; border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+  \}
+  .grid-info \{ font-size: .82rem; color: var(--muted); \}
+  .pager \{ display: flex; gap: .4rem; flex-wrap: wrap; \}
+  .pg-btn \{
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--text); border-radius: 8px; padding: .4rem .7rem;
+    cursor: pointer; font-size: .82rem; font-weight: 600;
+  \}
+  .pg-btn:hover:not(:disabled) \{ background: var(--surface-2); border-color: var(--primary); \}
+  .pg-btn:disabled \{ opacity: .45; cursor: default; \}
+
+  /* Grid → cards on mobile (each row becomes a stacked card) */
+  @media (max-width: 640px) \{
+    table.grid thead \{ display: none; \}
+    table.grid, table.grid tbody, table.grid tr, table.grid td \{ display: block; width: 100%; \}
+    table.grid tr \{
+      border: 1px solid var(--border); border-radius: 10px;
+      margin-bottom: .75rem; padding: .35rem .25rem; background: var(--surface);
+    \}
+    table.grid tbody td \{
+      border: none; display: flex; justify-content: space-between; gap: 1rem;
+      padding: .4rem .85rem; text-align: right;
+    \}
+    table.grid tbody td::before \{
+      content: attr(data-label); color: var(--muted); font-weight: 700;
+      font-size: .7rem; text-transform: uppercase; letter-spacing: .04em;
+      text-align: left;
+    \}
+    .col-id \{ width: auto; \}
+    .grid-empty \{ justify-content: center; \}
+  \}
+
   /* Drawer overlay (mobile) */
   .drawer-overlay \{ display: none; \}
 

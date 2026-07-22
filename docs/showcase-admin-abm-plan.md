@@ -134,9 +134,17 @@ Companion UI library from **8 basic components** to **~22-25**:
 
 ## Slices (SSR-first, each one deployable)
 
-1. **S1** — Login + responsive shell + theme switch + dashboard.
+1. **S1 — DONE** ✅ Login + responsive shell + theme switch + dashboard.
    100% viable today; gives a navigable skeleton to deploy early.
-2. **S2** — DataGrid (Empleados), read-only: columns + pagination.
+2. **S2 — DONE** ✅ (2026-07-22, lib v0.6.0) DataGrid (Empleados),
+   read-only: columns + pagination. SSR first paint on `GET /empleados` +
+   live pagination over `@ws("/live/empleados")` with `WsConn<LiveFrame>`
+   (per-connection page state, diff-and-patch to that socket only), embedded
+   in the shell via the new `live_embed` lib fn. Verified end-to-end on the
+   native binary and via `docker compose up --build`. **Dogfooding →
+   Fitz core**: surfaced the cross-module `List<Nominal>` codegen hang
+   (WsConn message type + `diff_html` return in a submodule) → fixed as
+   Fitz **v0.26.1 (W19+W20)**; the app no longer needs to import `Patch`.
 3. **S3** — Filters + sort/multisort + search on the grid.
 4. **S4** — Alta/edición forms with the rich components (cascade,
    group-checkbox, multiselect, tree).

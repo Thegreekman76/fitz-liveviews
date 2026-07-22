@@ -13,9 +13,13 @@
 #     No shell, no package manager.
 #
 # Pin the Fitz version for reproducibility:
-#   docker build --build-arg FITZ_TAG=v0.26.0 ...
+#   docker build --build-arg FITZ_TAG=v0.26.1 ...
+# v0.26.1 is the first release with the cross-module `List<Nominal>` codegen
+# fix (W19+W20) that lets this app build without importing `Patch` (see
+# empleados.fitz — the WS grid uses `WsConn<LiveFrame>` where `LiveFrame`
+# has a `List<Patch>` field, and `diff_html` returns `List<Patch>`).
 
-ARG FITZ_TAG=latest
+ARG FITZ_TAG=v0.26.1
 
 # ---- Stage 1: builder ------------------------------------------------------
 FROM ghcr.io/thegreekman76/fitz:${FITZ_TAG} AS builder

@@ -86,15 +86,8 @@ async fn dashboard_page(cookie: Str?) -> Response {
     return html_response(page_layout("Dashboard", "dashboard", user.name, body))
 }
 
-@header(name="cookie")
-@get("/empleados")
-async fn empleados_page(cookie: Str?) -> Response {
-    let user: User = match user_from_cookie(cookie).await {
-        Ok(u) => u,
-        Err(_) => return redirect_to("/login"),
-    }
-    return html_response(page_layout("Empleados", "empleados", user.name, placeholder_body("Empleados")))
-}
+// NOTE: `/empleados` moved to empleados.fitz in Slice 2 — it's now the live
+// DataGrid (WebSocket + real SQL pagination), no longer a placeholder.
 
 @header(name="cookie")
 @get("/departamentos")

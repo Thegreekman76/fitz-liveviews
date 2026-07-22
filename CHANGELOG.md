@@ -5,6 +5,37 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.6.0] — 2026-07-22 — `live_embed` + Admin ABM Slice 2 (live DataGrid)
+
+**Minor bump** — one NEW public API plus the flagship showcase's Slice 2.
+
+### Added
+
+- **`live_embed(ws_path: Str, root_id: Str, initial: Html) -> Html`** —
+  embeds a LiveView as a **fragment** inside an existing page, instead of
+  owning the whole document like `live_layout` (which returns a full
+  `<!doctype html>`). Returns `initial`'s render followed by the client
+  `<script>` wired to `ws_path` + `root_id`; drop it inside your own
+  `<main>` and only `#root_id` is patched — the surrounding shell (sidebar,
+  topbar, tabs) stays put. Same contract as `live_layout`: `initial`'s
+  outermost tag carries `id="{root_id}"` and a matching `@ws(ws_path)`
+  handler recv/sends `LiveFrame`s. Covered by 2 `@test`s. VSCode snippet
+  added.
+
+### Showcase (Admin ABM — `examples/admin`)
+
+- **Slice 2 — Empleados DataGrid (read-only)**: SSR first paint on
+  `GET /empleados` + live pagination over `@ws("/live/empleados")` with
+  `WsConn<LiveFrame>` (per-connection page state, diff-and-patch back to
+  that socket only). Uses `live_embed` to sit inside the admin shell, plus
+  the grid CSS. Verified end-to-end on the native binary and via
+  `docker compose up --build` (login → grid → `page_next` → page 2).
+- Requires **Fitz ≥ v0.26.1** (cross-module `List<Nominal>` codegen fix,
+  W19+W20): the grid's `WsConn<LiveFrame>` (`LiveFrame.patches:
+  List<Patch>`) and `let patches = diff_html(...)` now build to a native
+  binary without importing `Patch` into the module. `Dockerfile` /
+  `docker-compose.yml` pin `FITZ_TAG=v0.26.1`.
+
 ## [v0.5.0] — 2026-07-16 — K-1 + K-2 framework fns: `dispatch_to` + `component_state` + `set_component_state`
 
 **Minor bump** — first NEW public API in the framework layer since

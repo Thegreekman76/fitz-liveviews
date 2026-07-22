@@ -356,6 +356,26 @@ fn live_layout(ws_path: Str, root_id: Str, initial: Html) -> Html {
 }
 
 
+// Embeds a LiveView into an EXISTING page instead of owning the whole
+// document. `live_layout` returns a full `<!doctype html>` — great for a
+// standalone view, wrong when the live view is one panel inside a larger
+// shell (an admin layout with its own sidebar/topbar, a tab, a widget).
+//
+// `live_embed` returns just the fragment: your `initial` render followed by
+// the client `<script>` wired to `ws_path` + `root_id`. Drop it inside your
+// own `<main>`; the shell's chrome stays put and only `#root_id` is patched.
+//
+// Same contract as `live_layout`: `initial`'s outermost tag must carry
+// `id="{root_id}"`, and the matching `@ws(ws_path)` handler recv/sends
+// `LiveFrame`s. The client runtime is identical — patches replace the root
+// element's content, nothing outside it.
+fn live_embed(ws_path: Str, root_id: Str, initial: Html) -> Html {
+  let js = LIVE_CLIENT_JS
+  return html("""{initial.raw}
+<script data-flv-ws="{ws_path}" data-flv-root="{root_id}">{js}</script>""")
+}
+
+
 // Wraps an Html value in a Response with `Content-Type: text/html`. Use
 // this in your @get(...) handlers instead of returning Html directly,
 // otherwise Fitz will serialize the Html as JSON (a shape Fitz uses for
@@ -489,6 +509,24 @@ fn live_layout_includes_all_six_patch_ops() {
   assert(full.raw.contains("case 'remove'"))
   assert(full.raw.contains("case 'set_attr'"))
   assert(full.raw.contains("case 'remove_attr'"))
+}
+
+@test
+fn live_embed_returns_fragment_not_full_document() {
+  // Unlike live_layout, live_embed must NOT wrap in a full HTML document —
+  // it goes inside an existing shell's <main>.
+  let frag = live_embed("/live/grid", "grid", html("<div id=\"grid\">rows</div>"))
+  assert(frag.raw.contains("<div id=\"grid\">rows</div>"))
+  assert(not frag.raw.contains("<!doctype"))
+  assert(not frag.raw.contains("<html"))
+}
+
+@test
+fn live_embed_wires_ws_path_root_and_runtime() {
+  let frag = live_embed("/live/empleados", "empleados-live", html("<div id=\"empleados-live\"></div>"))
+  assert(frag.raw.contains("data-flv-ws=\"/live/empleados\""))
+  assert(frag.raw.contains("data-flv-root=\"empleados-live\""))
+  assert(frag.raw.contains("applyPatches"))
 }
 
 

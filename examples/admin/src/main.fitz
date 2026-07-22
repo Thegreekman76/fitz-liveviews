@@ -13,15 +13,17 @@
 // the schema at boot and only connects during requests — see db/init.sql
 // for why. So there's nothing to run here at startup: just serve.
 //
-// Slice 1 is SSR-only (no WebSocket layer yet). The live WS layer + `.fitzv`
-// components arrive in Slice 2 with the employees grid.
+// Slice 2 adds the live WebSocket layer: `empleados.fitz` serves the
+// Empleados DataGrid over `/empleados` (SSR first paint) + `/live/empleados`
+// (WS pagination). The rest stays SSR.
 
 import auth
 import dashboard
+import empleados
 
 @server(3000, "0.0.0.0")
 fn main() => 0
 
 print("[ready] Admin ABM — http://127.0.0.1:3000/")
 print("[ready] login demo: admin@fitz.dev / admin1234")
-print("[ready] routes: /login  /  /empleados  /departamentos  /logout")
+print("[ready] routes: /login  /  /empleados (live)  /departamentos  /logout")
