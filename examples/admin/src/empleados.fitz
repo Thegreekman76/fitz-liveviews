@@ -137,12 +137,92 @@ fn grid_row(e: Empleado, deptos: List<Departamento>) -> Html {
       <td data-label="Cargo">{flv(e.cargo)}</td>
       <td data-label="Departamento">{flv(depto)}</td>
       <td data-label="Estado">{estado}</td>
+      <td data-label="Acciones" class="col-actions">
+        <button class="btn-icon" title="Editar" data-flv-click="edit_empleado" data-flv-value-id="{e.id}">✎</button>
+      </td>
     </tr>""")
+}
+
+// ---------------------------------------------------------------------------
+// Alta / edición form (Slice 4a) — lives inside the same LiveView as the grid
+// ---------------------------------------------------------------------------
+//
+// `<option>` tags for the departamento select, with the current value marked
+// `selected`. `selected_id` 0 = "(sin departamento)".
+fn depto_options(deptos: List<Departamento>, selected_id: Int) -> Str {
+    let head = match selected_id == 0 {
+        true => """<option value="0" selected>— Sin departamento —</option>""",
+        false => """<option value="0">— Sin departamento —</option>""",
+    }
+    let opts = h_join(deptos.map(fn(d) => html(match d.id == selected_id {
+        true => """<option value="{d.id}" selected>{flv(d.nombre)}</option>""",
+        false => """<option value="{d.id}">{flv(d.nombre)}</option>""",
+    })))
+    return head + opts
+}
+
+// The whole create/edit form as a fragment (same root id so it patches over
+// the grid). `edit_id` 0 = alta; > 0 = edición. `error` non-empty renders a
+// validation/DB banner.
+fn form_html(edit_id: Int, deptos: List<Departamento>, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_activo: Bool, error: Str) -> Html {
+    let title = match edit_id == 0 {
+        true => "Nuevo empleado",
+        false => "Editar empleado",
+    }
+    let opts = depto_options(deptos, f_depto)
+    let act_a = match f_activo {
+        true => """<option value="true" selected>Activo</option>""",
+        false => """<option value="true">Activo</option>""",
+    }
+    let act_i = match f_activo {
+        true => """<option value="false">Inactivo</option>""",
+        false => """<option value="false" selected>Inactivo</option>""",
+    }
+    let banner = match error == "" {
+        true => "",
+        false => """<div class="form-error">{flv(error)}</div>""",
+    }
+    return html("""<div id="empleados-live" class="grid-wrap">
+      <div class="page-head">
+        <h2>{flv(title)}</h2>
+        <p>Completá los datos y guardá — se persiste en Postgres vía el ORM.</p>
+      </div>
+      <div class="grid-card form-card">
+        {banner}
+        <form class="abm-form" data-flv-submit="save_empleado">
+          <input type="hidden" name="id" value="{edit_id}" />
+          <div class="form-row">
+            <label>Nombre</label>
+            <input name="nombre" value="{flv(f_nombre)}" placeholder="Nombre y apellido" autocomplete="off" />
+          </div>
+          <div class="form-row">
+            <label>Email</label>
+            <input name="email" type="email" value="{flv(f_email)}" placeholder="persona@empresa.com" autocomplete="off" />
+          </div>
+          <div class="form-row">
+            <label>Cargo</label>
+            <input name="cargo" value="{flv(f_cargo)}" placeholder="Puesto / rol" autocomplete="off" />
+          </div>
+          <div class="form-row">
+            <label>Departamento</label>
+            <select name="departamento_id">{opts}</select>
+          </div>
+          <div class="form-row">
+            <label>Estado</label>
+            <select name="activo">{act_a}{act_i}</select>
+          </div>
+          <div class="form-actions">
+            <button class="btn-primary" type="submit">Guardar</button>
+            <button class="btn-clear" type="button" data-flv-click="cancel_form">Cancelar</button>
+          </div>
+        </form>
+      </div>
+    </div>""")
 }
 
 fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, total: Int, total_pages: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str) -> Html {
     let body: Html = match rows.len() == 0 {
-        true => html("""<tr><td colspan="6" class="grid-empty">No hay empleados que coincidan con la búsqueda.</td></tr>"""),
+        true => html("""<tr><td colspan="7" class="grid-empty">No hay empleados que coincidan con la búsqueda.</td></tr>"""),
         false => html(h_join(rows.map(fn(e) => grid_row(e, deptos)))),
     }
     let prev_btn: Str = match page > 1 {
@@ -183,6 +263,7 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
           {pill_active}
           {pill_inactive}
         </div>
+        <button class="btn-primary btn-nuevo" data-flv-click="new_empleado">+ Nuevo</button>
       </div>
       <div class="grid-filters grid-deptos">
         <span class="filter-label">Departamento:</span>
@@ -200,6 +281,7 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
                 {th_cargo}
                 <th>Departamento</th>
                 {th_estado}
+                <th class="col-actions">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -291,6 +373,37 @@ async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, so
     return render_grid(rows, deptos, p, total, total_pages, q, estado, depto, sort_col, sort_dir)
 }
 
+// The form screen (alta/edición) — queries the departamentos for the select,
+// then renders the form fragment. Same root id as the grid, so it patches over.
+async fn form_screen(edit_id: Int, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_activo: Bool, error: Str) -> Html {
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(e) => return grid_error(e),
+    }
+    let deptos: List<Departamento> = match Departamento.where(fn(d) => d.id > 0).order_by(fn(d) => d.nombre).all(conn).await {
+        Ok(ds) => ds,
+        Err(e) => return grid_error(e),
+    }
+    return form_html(edit_id, deptos, f_nombre, f_email, f_cargo, f_depto, f_activo, error)
+}
+
+// Load one empleado by id (for the edit form). `Err` if not found / DB error.
+async fn load_empleado(id: Int) -> Result<Empleado> {
+    let conn = db.connect(db_url()).await?
+    return Empleado.where(fn(e) => e.id == id).first(conn).await
+}
+
+// Persist the form: INSERT when `edit_id == 0`, UPDATE otherwise. Returns the
+// number of affected/created rows-ish (1) or an `Err` with the DB message.
+async fn save_empleado_db(edit_id: Int, nombre: Str, email: Str, cargo: Str, depto: Int, activo: Bool) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    if (edit_id == 0) {
+        let created = Empleado.insert(conn, Empleado { nombre: nombre, email: email, cargo: cargo, departamento_id: depto, activo: activo }).await?
+        return Ok(created.id)
+    }
+    return Empleado.where(fn(e) => e.id == edit_id).update(conn, { "nombre": nombre, "email": email, "cargo": cargo, "departamento_id": depto, "activo": activo }).await
+}
+
 // ---------------------------------------------------------------------------
 // HTTP — SSR first paint, embedded live inside the admin shell
 // ---------------------------------------------------------------------------
@@ -317,16 +430,27 @@ async fn empleados_page(cookie: Str?) -> Response {
 
 @ws("/live/empleados")
 async fn empleados_socket(ws: WsConn<LiveFrame>) {
+    // Grid state.
     let page = 1
     let q = ""
     let estado = "all"
     let depto = 0
     let sort_col = "id"
     let sort_dir = "asc"
+    // Form state (Slice 4a). `mode` = "grid" | "form".
+    let mode = "grid"
+    let edit_id = 0
+    let f_nombre = ""
+    let f_email = ""
+    let f_cargo = ""
+    let f_depto = 0
+    let f_activo = true
+    let form_error = ""
     let last = grid_html(page, q, estado, depto, sort_col, sort_dir).await.raw
     loop {
         let frame = ws.recv()?
         let ev = frame.event
+        // --- grid navigation / filters / sort ---
         if (ev == "page_next") {
             page = page + 1
         }
@@ -374,7 +498,66 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             }
             page = 1
         }
-        let new_html = grid_html(page, q, estado, depto, sort_col, sort_dir).await.raw
+        // --- alta / edición form ---
+        if (ev == "new_empleado") {
+            mode = "form"
+            edit_id = 0
+            f_nombre = ""
+            f_email = ""
+            f_cargo = ""
+            f_depto = 0
+            f_activo = true
+            form_error = ""
+        }
+        if (ev == "edit_empleado") {
+            let id = pget_int(frame.payload, "id", 0)
+            match load_empleado(id).await {
+                Ok(e) => {
+                    edit_id = e.id
+                    f_nombre = e.nombre
+                    f_email = e.email
+                    f_cargo = e.cargo
+                    f_depto = e.departamento_id
+                    f_activo = e.activo
+                    form_error = ""
+                    mode = "form"
+                },
+                Err(er) => {
+                    form_error = er
+                    mode = "grid"
+                },
+            }
+        }
+        if (ev == "cancel_form") {
+            mode = "grid"
+            form_error = ""
+        }
+        if (ev == "save_empleado") {
+            edit_id = pget_int(frame.payload, "id", 0)
+            f_nombre = pget(frame.payload, "nombre", "")
+            f_email = pget(frame.payload, "email", "")
+            f_cargo = pget(frame.payload, "cargo", "")
+            f_depto = pget_int(frame.payload, "departamento_id", 0)
+            f_activo = pget(frame.payload, "activo", "true") == "true"
+            if (f_nombre == "" or f_email == "") {
+                form_error = "Nombre y email son obligatorios."
+            } else {
+                match save_empleado_db(edit_id, f_nombre, f_email, f_cargo, f_depto, f_activo).await {
+                    Ok(_) => {
+                        mode = "grid"
+                        form_error = ""
+                        page = 1
+                    },
+                    Err(er) => {
+                        form_error = er
+                    },
+                }
+            }
+        }
+        let new_html = match mode {
+            "form" => form_screen(edit_id, f_nombre, f_email, f_cargo, f_depto, f_activo, form_error).await.raw,
+            _ => grid_html(page, q, estado, depto, sort_col, sort_dir).await.raw,
+        }
         let patches = diff_html(last, new_html)
         ws.send(LiveFrame { html: new_html, patches: patches })?
         last = new_html
