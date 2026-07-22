@@ -13,6 +13,7 @@
 from config import db_url, jwt_secret, session_cookie_name
 from models import User, Departamento, Empleado
 from shell import login_layout, redirect_to
+from i18n import lang_cookie_name
 from fitz_liveviews import Html, html, flv, html_response
 
 // --- Input type -----------------------------------------------------------
@@ -85,6 +86,28 @@ async fn login_submit(creds: Credentials) -> Response {
         content_type: "application/json",
         headers: { "Set-Cookie": cookie },
         body: """\{"ok": true\}""",
+    }
+}
+
+// --- GET /lang/{code} — set the language cookie + redirect back ----------
+
+@header(name="referer")
+@get("/lang/{code}")
+fn set_lang(code: Str, referer: Str?) -> Response {
+    let loc = match code == "en" {
+        true => "en",
+        false => "es",
+    }
+    let cookie = lang_cookie_name() + "=" + loc + "; Path=/; SameSite=Lax; Max-Age=31536000"
+    let back: Str = match referer {
+        null => "/",
+        r => r,
+    }
+    return Response {
+        status: 303,
+        content_type: "text/html; charset=utf-8",
+        headers: { "Set-Cookie": cookie, "Location": back },
+        body: "",
     }
 }
 

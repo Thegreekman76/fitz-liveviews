@@ -24,6 +24,7 @@ from config import db_url
 from models import Empleado, Departamento, User, Pais, Provincia, Ciudad, Permiso, EmpleadoPermiso, Skill, EmpleadoSkill
 from session import user_from_cookie
 from shell import page_layout, redirect_to
+from i18n import t, locale_from_cookie
 from fitz_liveviews import Html, html, flv, h_join, html_response, live_embed, LiveFrame, diff_html
 
 // Rows per page. Small so pagination is visible with the demo seed.
@@ -1387,9 +1388,10 @@ async fn empleados_page(cookie: Str?) -> Response {
         Ok(u) => u,
         Err(_) => return redirect_to("/login"),
     }
+    let loc = locale_from_cookie(cookie)
     let grid = grid_html(1, "", "all", 0, "id", "asc", "", "", "", "", "", "", "").await
     let live = live_embed("/live/empleados", "empleados-live", grid)
-    return html_response(page_layout("Empleados", "empleados", user.name, live))
+    return html_response(page_layout(t(loc, "nav.empleados"), "empleados", user.name, live, loc))
 }
 
 // CSV export of the current filtered result set (Slice 5). Query params carry

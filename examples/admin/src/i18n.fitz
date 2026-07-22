@@ -1,0 +1,83 @@
+// i18n.fitz — server-side internationalization for the Admin ABM (Slice 9).
+//
+// The active locale rides in a cookie (`flv_admin_lang`), read the same way as
+// the session cookie. `t(locale, key)` returns the string for a key in the
+// active language — Spanish by default, English when the locale is "en". This
+// is the reusable i18n pattern for the Companion UI library: components take a
+// `locale` and translate through `t(...)`, never hard-coding a language.
+//
+// Keys are dotted and grouped by area (nav.*, grid.*, form.*, ...). An unknown
+// key returns itself, so a missing translation is visible but never crashes.
+
+// Cookie the browser carries with the chosen language.
+fn lang_cookie_name() -> Str => "flv_admin_lang"
+
+// Supported locales — the language switch cycles through these.
+fn locale_from_cookie(cookie: Str?) -> Str {
+    let raw: Str = match cookie {
+        null => return "es",
+        c => c,
+    }
+    let name = lang_cookie_name()
+    for part in raw.split(";") {
+        let kv = part.trim().split("=")
+        if (kv.len() >= 2) {
+            if (kv[0] == name) {
+                return match kv[1] == "en" {
+                    true => "en",
+                    false => "es",
+                }
+            }
+        }
+    }
+    return "es"
+}
+
+// Human label for the language switch (shows the OTHER language to switch to).
+fn other_locale(locale: Str) -> Str {
+    return match locale == "en" {
+        true => "es",
+        false => "en",
+    }
+}
+
+fn lang_flag(locale: Str) -> Str {
+    return match locale == "en" {
+        true => "EN",
+        false => "ES",
+    }
+}
+
+// Pick the string for the active locale.
+fn pick(locale: Str, es: Str, en: Str) -> Str {
+    return match locale == "en" {
+        true => en,
+        false => es,
+    }
+}
+
+// The dictionary. One entry per user-facing string, grouped by area.
+fn t(locale: Str, key: Str) -> Str {
+    return match key {
+        // App shell
+        "app.title" => pick(locale, "Fitz Admin", "Fitz Admin"),
+        "app.tagline" => pick(locale, "Personas y Accesos", "People & Access"),
+        "nav.dashboard" => pick(locale, "Dashboard", "Dashboard"),
+        "nav.empleados" => pick(locale, "Empleados", "Employees"),
+        "nav.departamentos" => pick(locale, "Departamentos", "Departments"),
+        "nav.organizacion" => pick(locale, "Organización", "Organization"),
+        "crumb.admin" => pick(locale, "Admin", "Admin"),
+        "topbar.menu" => pick(locale, "Menú", "Menu"),
+        "topbar.logout" => pick(locale, "Salir", "Log out"),
+        "topbar.theme" => pick(locale, "Cambiar tema", "Toggle theme"),
+        "topbar.lang" => pick(locale, "Cambiar idioma", "Change language"),
+        // Login
+        "login.title" => pick(locale, "Ingresar", "Sign in"),
+        "login.subtitle" => pick(locale, "Panel de administración", "Admin panel"),
+        "login.email" => pick(locale, "Email", "Email"),
+        "login.password" => pick(locale, "Contraseña", "Password"),
+        "login.submit" => pick(locale, "Ingresar", "Sign in"),
+        "login.error" => pick(locale, "Email o contraseña incorrectos.", "Wrong email or password."),
+        _ => key,
+    }
+}

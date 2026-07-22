@@ -14,6 +14,7 @@
 // The head script runs before first paint to avoid a flash of the wrong
 // theme (FOUC).
 
+from i18n import t, other_locale, lang_flag
 from fitz_liveviews import Html, html, flv, html_response
 
 // ---------------------------------------------------------------------------
@@ -43,16 +44,18 @@ fn nav_item(href: Str, icon: Str, label: Str, key: Str, active: Str) -> Str {
     </a>"""
 }
 
-fn render_sidebar(active: Str) -> Str {
-    let d = nav_item("/", "📊", "Dashboard", "dashboard", active)
-    let e = nav_item("/empleados", "👥", "Empleados", "empleados", active)
-    let p = nav_item("/departamentos", "🏢", "Departamentos", "departamentos", active)
+fn render_sidebar(active: Str, locale: Str) -> Str {
+    let d = nav_item("/", "📊", t(locale, "nav.dashboard"), "dashboard", active)
+    let e = nav_item("/empleados", "👥", t(locale, "nav.empleados"), "empleados", active)
+    let p = nav_item("/departamentos", "🏢", t(locale, "nav.departamentos"), "departamentos", active)
     // The "Organización" group is a native <details> nested menu — open when one
     // of its children is the active screen (zero JS, client-side collapse).
     let grp_open = match active == "empleados" or active == "departamentos" {
         true => " open",
         false => "",
     }
+    let org = t(locale, "nav.organizacion")
+    let tagline = t(locale, "app.tagline")
     return """<aside class="sidebar">
       <div class="brand">
         <span class="brand-mark">▲</span>
@@ -62,7 +65,7 @@ fn render_sidebar(active: Str) -> Str {
         {d}
         <details class="nav-group"{grp_open}>
           <summary class="nav-item nav-group-head">
-            <span class="nav-icon">🗂️</span><span class="nav-label">Organización</span>
+            <span class="nav-icon">🗂️</span><span class="nav-label">{flv(org)}</span>
             <span class="nav-caret nav-label">▾</span>
           </summary>
           <div class="nav-sub">
@@ -71,29 +74,37 @@ fn render_sidebar(active: Str) -> Str {
           </div>
         </details>
       </nav>
-      <div class="sidebar-foot nav-label">People &amp; Access</div>
+      <div class="sidebar-foot nav-label">{flv(tagline)}</div>
     </aside>"""
 }
 
-fn render_topbar(title: Str, user_name: Str) -> Str {
+fn render_topbar(title: Str, user_name: Str, locale: Str) -> Str {
+    let menu_lbl = t(locale, "topbar.menu")
+    let theme_lbl = t(locale, "topbar.theme")
+    let logout_lbl = t(locale, "topbar.logout")
+    let lang_lbl = t(locale, "topbar.lang")
+    let next_lang = other_locale(locale)
+    let cur_flag = lang_flag(locale)
     return """<header class="topbar">
-      <button class="icon-btn" onclick="flvToggleNav()" aria-label="Menú">☰</button>
+      <button class="icon-btn" onclick="flvToggleNav()" aria-label="{flv(menu_lbl)}">☰</button>
       <h1 class="page-title">{flv(title)}</h1>
       <div class="topbar-spacer"></div>
-      <button id="theme-btn" class="theme-btn" onclick="flvCycleTheme()" aria-label="Cambiar tema">🖥️ Auto</button>
+      <a class="icon-btn lang-btn" href="/lang/{next_lang}" data-tooltip="{flv(lang_lbl)}" aria-label="{flv(lang_lbl)}">🌐 {cur_flag}</a>
+      <button id="theme-btn" class="theme-btn" onclick="flvCycleTheme()" aria-label="{flv(theme_lbl)}">🖥️ Auto</button>
       <div class="user-chip" title="{flv(user_name)}">
         <span class="user-avatar">{flv(initials(user_name))}</span>
         <span class="user-name nav-label">{flv(user_name)}</span>
       </div>
-      <a class="icon-btn logout" href="/logout" aria-label="Salir">🚪</a>
+      <a class="icon-btn logout" href="/logout" aria-label="{flv(logout_lbl)}">🚪</a>
     </header>"""
 }
 
 // Breadcrumbs (Slice 7) — "Admin / <screen>", the home crumb links to the
 // dashboard. Trivial today (two levels); ready to grow for nested screens.
-fn render_breadcrumbs(title: Str) -> Str {
-    return """<nav class="breadcrumbs" aria-label="Ruta">
-      <a href="/">Admin</a>
+fn render_breadcrumbs(title: Str, locale: Str) -> Str {
+    let home = t(locale, "crumb.admin")
+    return """<nav class="breadcrumbs" aria-label="{flv(home)}">
+      <a href="/">{flv(home)}</a>
       <span class="crumb-sep">/</span>
       <span class="crumb-current">{flv(title)}</span>
     </nav>"""
@@ -101,11 +112,11 @@ fn render_breadcrumbs(title: Str) -> Str {
 
 // First 1-2 letters for the avatar chip.
 fn initials(name: Str) -> Str {
-    let t = name.trim()
-    if (t.is_empty()) {
+    let nm = name.trim()
+    if (nm.is_empty()) {
         return "?"
     }
-    return t.left(1).upper()
+    return nm.left(1).upper()
 }
 
 // ---------------------------------------------------------------------------
@@ -113,15 +124,15 @@ fn initials(name: Str) -> Str {
 // ---------------------------------------------------------------------------
 
 // Protected page layout — sidebar + topbar + the screen's body.
-fn page_layout(title: Str, active: Str, user_name: Str, body: Html) -> Html {
-    let sidebar = render_sidebar(active)
-    let topbar = render_topbar(title, user_name)
-    let crumbs = render_breadcrumbs(title)
+fn page_layout(title: Str, active: Str, user_name: Str, body: Html, locale: Str) -> Html {
+    let sidebar = render_sidebar(active, locale)
+    let topbar = render_topbar(title, user_name, locale)
+    let crumbs = render_breadcrumbs(title, locale)
     let css = shell_css()
     let boot = theme_init_js()
     let script = interactive_js()
     return html("""<!doctype html>
-<html lang="es" data-theme="auto">
+<html lang="{locale}" data-theme="auto">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -295,6 +306,8 @@ fn shell_css() -> Str {
     background: transparent; color: var(--text); cursor: pointer; font-size: 1.1rem;
   \}
   .icon-btn:hover \{ background: var(--surface-2); \}
+  /* Language switch (Slice 9) */
+  .lang-btn \{ width: auto; padding: 0 .6rem; gap: .25rem; font-size: .82rem; font-weight: 700; text-decoration: none; \}
   .theme-btn \{
     border: 1px solid var(--border); background: var(--surface);
     color: var(--text); border-radius: 8px; padding: .4rem .7rem;

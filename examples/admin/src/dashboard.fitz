@@ -11,6 +11,7 @@ from config import db_url
 from models import User, Departamento, Empleado
 from session import user_from_cookie
 from shell import page_layout, redirect_to
+from i18n import t, locale_from_cookie
 from fitz_liveviews import Html, html, flv, html_response
 
 // --- StatCard -------------------------------------------------------------
@@ -130,11 +131,12 @@ async fn dashboard_page(cookie: Str?) -> Response {
         Ok(u) => u,
         Err(_) => return redirect_to("/login"),
     }
+    let loc = locale_from_cookie(cookie)
     let body: Html = match render_dashboard().await {
         Ok(h) => h,
         Err(e) => html("""<div class="panel"><h3>Error de base de datos</h3><p>{flv(e)}</p></div>"""),
     }
-    return html_response(page_layout("Dashboard", "dashboard", user.name, body))
+    return html_response(page_layout(t(loc, "nav.dashboard"), "dashboard", user.name, body, loc))
 }
 
 // NOTE: `/empleados` moved to empleados.fitz in Slice 2 — it's now the live
@@ -147,5 +149,6 @@ async fn departamentos_page(cookie: Str?) -> Response {
         Ok(u) => u,
         Err(_) => return redirect_to("/login"),
     }
-    return html_response(page_layout("Departamentos", "departamentos", user.name, placeholder_body("Departamentos")))
+    let loc = locale_from_cookie(cookie)
+    return html_response(page_layout(t(loc, "nav.departamentos"), "departamentos", user.name, placeholder_body("Departamentos"), loc))
 }

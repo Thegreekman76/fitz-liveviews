@@ -328,17 +328,30 @@ one schema migration for the new columns.
 remaining Vuetify items — virtual tables, media — are out of scope for an admin
 panel). Next: **S9 (i18n)**.
 
-### S9 (planned) — Internationalization (i18n)
+### S9 — Internationalization (i18n) — in progress
 
-After the component set is complete, **internationalize the whole ABM and every
-component** (author directive, 2026-07-22): every user-facing string routed
-through a translation layer, **ES + EN** at minimum, language switch in the
-topbar (persisted like the theme). This doubles as the reusable **i18n pattern
-for the Companion UI library** — the components ship translation-ready, not with
-hard-coded Spanish. Scope: labels, buttons, placeholders, table headers, tab/
-step names, toasts, validation messages, chart/detail labels, breadcrumbs,
-`title`/`aria-label`. Server-side dictionary + a `t(key)` helper; the active
-locale lives in the session (cookie), same mechanism as auth.
+**Internationalize the whole ABM and every component** (author directive,
+2026-07-22): every user-facing string routed through a translation layer,
+**ES + EN**, language switch in the topbar (persisted in a cookie like the
+theme). This doubles as the reusable **i18n pattern for the Companion UI
+library** — components take a `locale` and translate through `t(...)`, never
+hard-coding a language.
+
+- **S9a — DONE** ✅ (2026-07-22) Infra + shell chrome. New `i18n.fitz`:
+  `t(locale, key)` dictionary (dotted keys, `pick(locale, es, en)`, unknown key
+  → itself), `locale_from_cookie` (cookie `flv_admin_lang`, default `es`),
+  `other_locale` / `lang_flag`. New `@get("/lang/{code}")` sets the cookie +
+  303-redirects to the Referer. Topbar **language switch** (🌐 ES/EN). `locale`
+  threaded through `page_layout` → sidebar / topbar / breadcrumbs; `<html lang>`
+  reflects it. Verified run + binary (switch ES↔EN, nav/breadcrumbs/tagline/
+  aria translate, cookie persists). **Dogfood → Fitz core finding**: a local
+  `let t` in one function clobbered the module-imported `t` used by others
+  (checker didn't catch it; runtime `t is not invokable`); worked around by
+  renaming the local, logged as a core scoping bug to fix in `d:\fitz`.
+- **S9b — TODO** translate the dashboard body, the grid (toolbar/headers/pills/
+  pager/toasts/empty state) and the login page.
+- **S9c — TODO** translate the form (tabs/stepper labels, field labels,
+  placeholders, validation, buttons) + expand-row detail + tooltips.
 
 ## Expected Fitz core gaps (dogfooding)
 
