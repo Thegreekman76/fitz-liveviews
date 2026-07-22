@@ -89,6 +89,21 @@ CREATE TABLE IF NOT EXISTS empleado_permisos (
 
 CREATE INDEX IF NOT EXISTS idx_emp_perm_empleado ON empleado_permisos(empleado_id);
 
+-- Skills — a flat catalog; the employee form picks a subset via a multiselect
+-- (checkbox list, Slice 4d). Selection lives in `empleado_skills`.
+CREATE TABLE IF NOT EXISTS skills (
+    id      bigserial PRIMARY KEY,
+    nombre  text NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS empleado_skills (
+    id          bigserial PRIMARY KEY,
+    empleado_id bigint NOT NULL DEFAULT 0,
+    skill_id    bigint NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_emp_skill_empleado ON empleado_skills(empleado_id);
+
 -- --- Seed ------------------------------------------------------------------
 
 -- Demo admin. Password: admin1234 (Argon2id hash generated with the Fitz
@@ -172,6 +187,14 @@ SELECT modulo, accion, nombre FROM (VALUES
     ('Reportes',      'exportar', 'Exportar reportes')
 ) AS v(modulo, accion, nombre)
 WHERE NOT EXISTS (SELECT 1 FROM permisos);
+
+-- Demo skills — flat catalog. Seeded only when empty.
+INSERT INTO skills (nombre)
+SELECT nombre FROM (VALUES
+    ('Rust'), ('Python'), ('SQL'), ('Docker'),
+    ('Kubernetes'), ('React'), ('Liderazgo'), ('Inglés')
+) AS v(nombre)
+WHERE NOT EXISTS (SELECT 1 FROM skills);
 
 -- --- Grants ----------------------------------------------------------------
 -- In Docker init.sql runs as the app role (POSTGRES_USER=fitz), which owns

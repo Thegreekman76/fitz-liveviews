@@ -21,7 +21,7 @@
 // filters; dynamic `.order_by(col, ascending)`), not an in-memory slice.
 
 from config import db_url
-from models import Empleado, Departamento, User, Pais, Provincia, Ciudad, Permiso, EmpleadoPermiso
+from models import Empleado, Departamento, User, Pais, Provincia, Ciudad, Permiso, EmpleadoPermiso, Skill, EmpleadoSkill
 from session import user_from_cookie
 from shell import page_layout, redirect_to
 from fitz_liveviews import Html, html, flv, h_join, html_response, live_embed, LiveFrame, diff_html
@@ -219,11 +219,21 @@ fn permisos_html(permisos: List<Permiso>, checked_csv: Str) -> Str {
     return out
 }
 
+// Multiselect (Slice 4d) — a flat checkbox list; all share `name="skills"` so
+// the client joins the checked ones comma-separated (same mechanism as the
+// group-checkbox). Pre-checked from `checked_csv`.
+fn skills_html(skills: List<Skill>, checked_csv: Str) -> Str {
+    return h_join(skills.map(fn(s) => html(match id_checked(checked_csv, s.id) {
+        true => """<label class="skill-check skill-on"><input type="checkbox" name="skills" value="{s.id}" checked /> {flv(s.nombre)}</label>""",
+        false => """<label class="skill-check"><input type="checkbox" name="skills" value="{s.id}" /> {flv(s.nombre)}</label>""",
+    })))
+}
+
 // The whole create/edit form as a fragment (same root id so it patches over
 // the grid). `edit_id` 0 = alta; > 0 = edición. `error` non-empty renders a
 // validation/DB banner. The país/provincia/ciudad selects are a cascade: each
 // `change` re-queries the dependent options server-side (Slice 4b).
-fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provincias: List<Provincia>, ciudades: List<Ciudad>, permisos: List<Permiso>, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_pais: Int, f_provincia: Int, f_ciudad: Int, f_permisos: Str, f_activo: Bool, error: Str) -> Html {
+fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provincias: List<Provincia>, ciudades: List<Ciudad>, permisos: List<Permiso>, skills: List<Skill>, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_pais: Int, f_provincia: Int, f_ciudad: Int, f_permisos: Str, f_skills: Str, f_activo: Bool, error: Str) -> Html {
     let title = match edit_id == 0 {
         true => "Nuevo empleado",
         false => "Editar empleado",
@@ -233,6 +243,7 @@ fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provi
     let prov_opts = provincia_options(provincias, f_provincia)
     let ciu_opts = ciudad_options(ciudades, f_ciudad)
     let perm_html = permisos_html(permisos, f_permisos)
+    let skills_h = skills_html(skills, f_skills)
     let act_a = match f_activo {
         true => """<option value="true" selected>Activo</option>""",
         false => """<option value="true">Activo</option>""",
@@ -287,6 +298,10 @@ fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provi
           <div class="form-row">
             <label>Permisos</label>
             <div class="perm-groups">{perm_html}</div>
+          </div>
+          <div class="form-row">
+            <label>Skills</label>
+            <div class="skill-list">{skills_h}</div>
           </div>
           <div class="form-row">
             <label>Estado</label>
@@ -457,7 +472,7 @@ async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, so
 // The form screen (alta/edición) — queries the departamentos + the ubicaciones
 // options (cascade: provincias only for the picked país, ciudades only for the
 // picked provincia), then renders the form fragment. Same root id as the grid.
-async fn form_screen(edit_id: Int, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_pais: Int, f_provincia: Int, f_ciudad: Int, f_permisos: Str, f_activo: Bool, error: Str) -> Html {
+async fn form_screen(edit_id: Int, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_pais: Int, f_provincia: Int, f_ciudad: Int, f_permisos: Str, f_skills: Str, f_activo: Bool, error: Str) -> Html {
     let conn = match db.connect(db_url()).await {
         Ok(c) => c,
         Err(e) => return grid_error(e),
@@ -488,7 +503,11 @@ async fn form_screen(edit_id: Int, f_nombre: Str, f_email: Str, f_cargo: Str, f_
         Ok(ps) => ps,
         Err(e) => return grid_error(e),
     }
-    return form_html(edit_id, deptos, paises, provincias, ciudades, permisos, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_permisos, f_activo, error)
+    let skills: List<Skill> = match Skill.where(fn(s) => s.id > 0).order_by(fn(s) => s.nombre).all(conn).await {
+        Ok(ss) => ss,
+        Err(e) => return grid_error(e),
+    }
+    return form_html(edit_id, deptos, paises, provincias, ciudades, permisos, skills, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_permisos, f_skills, f_activo, error)
 }
 
 // Load one empleado by id (for the edit form). `Err` if not found / DB error.
@@ -574,6 +593,46 @@ async fn sync_permisos(empleado_id: Int, csv: Str) -> Result<Null> {
     return Ok(null)
 }
 
+// Skills — same load/sync pattern as permisos, over `empleado_skills`.
+async fn load_skills_csv(empleado_id: Int) -> Str {
+    if (empleado_id == 0) {
+        return ""
+    }
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => return "",
+    }
+    let es = match EmpleadoSkill.where(fn(x) => x.empleado_id == empleado_id).all(conn).await {
+        Ok(x) => x,
+        Err(_) => return "",
+    }
+    let out = ""
+    for e in es {
+        out = match out == "" {
+            true => "{e.skill_id}",
+            false => out + ",{e.skill_id}",
+        }
+    }
+    return out
+}
+
+async fn sync_skills(empleado_id: Int, csv: Str) -> Result<Null> {
+    let conn = db.connect(db_url()).await?
+    let _ = EmpleadoSkill.where(fn(x) => x.empleado_id == empleado_id).delete(conn).await?
+    if (csv != "") {
+        for s in csv.split(",") {
+            let sid = match s.to_int() {
+                Ok(n) => n,
+                Err(_) => 0,
+            }
+            if (sid > 0) {
+                let _ = EmpleadoSkill.insert(conn, EmpleadoSkill { empleado_id: empleado_id, skill_id: sid }).await?
+            }
+        }
+    }
+    return Ok(null)
+}
+
 // ---------------------------------------------------------------------------
 // HTTP — SSR first paint, embedded live inside the admin shell
 // ---------------------------------------------------------------------------
@@ -618,6 +677,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
     let f_provincia = 0
     let f_ciudad = 0
     let f_permisos = ""
+    let f_skills = ""
     let f_activo = true
     let form_error = ""
     let last = grid_html(page, q, estado, depto, sort_col, sort_dir).await.raw
@@ -684,6 +744,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             f_provincia = 0
             f_ciudad = 0
             f_permisos = ""
+            f_skills = ""
             f_activo = true
             form_error = ""
         }
@@ -703,6 +764,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
                     f_provincia = prov.id
                     f_pais = prov.pais_id
                     f_permisos = load_permisos_csv(e.id).await
+                    f_skills = load_skills_csv(e.id).await
                     form_error = ""
                     mode = "form"
                 },
@@ -722,6 +784,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             f_depto = pget_int(frame.payload, "departamento_id", f_depto)
             f_activo = pget(frame.payload, "activo", "true") == "true"
             f_permisos = pget(frame.payload, "permisos", f_permisos)
+            f_skills = pget(frame.payload, "skills", f_skills)
             f_pais = pget_int(frame.payload, "value", 0)
             f_provincia = 0
             f_ciudad = 0
@@ -733,6 +796,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             f_depto = pget_int(frame.payload, "departamento_id", f_depto)
             f_activo = pget(frame.payload, "activo", "true") == "true"
             f_permisos = pget(frame.payload, "permisos", f_permisos)
+            f_skills = pget(frame.payload, "skills", f_skills)
             f_pais = pget_int(frame.payload, "pais_id", f_pais)
             f_provincia = pget_int(frame.payload, "value", 0)
             f_ciudad = 0
@@ -744,6 +808,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             f_depto = pget_int(frame.payload, "departamento_id", f_depto)
             f_activo = pget(frame.payload, "activo", "true") == "true"
             f_permisos = pget(frame.payload, "permisos", f_permisos)
+            f_skills = pget(frame.payload, "skills", f_skills)
             f_pais = pget_int(frame.payload, "pais_id", f_pais)
             f_provincia = pget_int(frame.payload, "provincia_id", f_provincia)
             f_ciudad = pget_int(frame.payload, "value", 0)
@@ -763,6 +828,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             f_ciudad = pget_int(frame.payload, "ciudad_id", 0)
             f_activo = pget(frame.payload, "activo", "true") == "true"
             f_permisos = pget(frame.payload, "permisos", f_permisos)
+            f_skills = pget(frame.payload, "skills", f_skills)
             if (f_nombre == "" or f_email == "") {
                 form_error = "Nombre y email son obligatorios."
             } else {
@@ -770,9 +836,16 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
                     Ok(saved_id) => {
                         match sync_permisos(saved_id, f_permisos).await {
                             Ok(_) => {
-                                mode = "grid"
-                                form_error = ""
-                                page = 1
+                                match sync_skills(saved_id, f_skills).await {
+                                    Ok(_) => {
+                                        mode = "grid"
+                                        form_error = ""
+                                        page = 1
+                                    },
+                                    Err(er) => {
+                                        form_error = er
+                                    },
+                                }
                             },
                             Err(er) => {
                                 form_error = er
@@ -786,7 +859,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             }
         }
         let new_html = match mode {
-            "form" => form_screen(edit_id, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_permisos, f_activo, form_error).await.raw,
+            "form" => form_screen(edit_id, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_permisos, f_skills, f_activo, form_error).await.raw,
             _ => grid_html(page, q, estado, depto, sort_col, sort_dir).await.raw,
         }
         let patches = diff_html(last, new_html)

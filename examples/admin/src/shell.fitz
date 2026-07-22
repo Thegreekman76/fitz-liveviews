@@ -413,6 +413,16 @@ fn shell_css() -> Str {
   @media (max-width: 560px) \{ .perm-checks \{ grid-template-columns: 1fr; \} \}
   .perm-check \{ display: flex; align-items: center; gap: .45rem; font-size: .85rem; cursor: pointer; \}
   .perm-check input \{ width: auto; margin: 0; accent-color: var(--primary); \}
+  /* Multiselect (skills) — chip-style checkbox list. */
+  .skill-list \{ display: flex; flex-wrap: wrap; gap: .4rem; \}
+  .skill-check \{
+    display: inline-flex; align-items: center; gap: .4rem; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 999px; padding: .3rem .7rem;
+    font-size: .82rem; background: var(--surface); user-select: none;
+  \}
+  .skill-check:hover \{ border-color: var(--primary); \}
+  .skill-check input \{ width: auto; margin: 0; accent-color: var(--primary); \}
+  .skill-on \{ background: var(--primary); color: #fff; border-color: var(--primary); \}
   .form-actions \{ display: flex; gap: .5rem; margin-top: .35rem; \}
   .form-error \{
     background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;

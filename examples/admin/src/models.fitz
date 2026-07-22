@@ -84,3 +84,15 @@
     empleado_id: Int = 0
     permiso_id: Int = 0
 }
+
+// Skills — flat catalog picked via a multiselect (checkbox list, Slice 4d).
+@table("skills") type Skill {
+    @primary id: Int = 0
+    nombre: Str = ""
+}
+
+@table("empleado_skills") type EmpleadoSkill {
+    @primary id: Int = 0
+    empleado_id: Int = 0
+    skill_id: Int = 0
+}
