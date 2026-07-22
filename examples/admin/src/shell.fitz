@@ -517,6 +517,26 @@ fn shell_css() -> Str {
     background: var(--primary); color: #fff; border-radius: 999px;
     padding: .05rem .55rem; font-size: .72rem; font-weight: 700;
   \}
+  /* Expandable rows (Slice 7) */
+  .col-exp \{ width: 2.2rem; text-align: center; \}
+  .btn-exp \{ font-size: .8rem; color: var(--muted); \}
+  tr.row-expanded > td \{ border-bottom: none; \}
+  tr.detail-row > td \{ background: color-mix(in srgb, var(--primary) 5%, var(--surface)); padding: 0; \}
+  .detail-panel \{
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem 1.5rem;
+    padding: .85rem 1.25rem 1rem;
+  \}
+  .detail-item \{ display: flex; flex-direction: column; gap: .25rem; min-width: 0; \}
+  .detail-k \{ font-size: .72rem; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); font-weight: 700; \}
+  .detail-v \{ font-size: .88rem; \}
+  .detail-v.chips \{ display: flex; flex-wrap: wrap; gap: .35rem; \}
+  .chip \{
+    display: inline-flex; align-items: center;
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    color: var(--primary); border-radius: 999px; padding: .1rem .6rem;
+    font-size: .76rem; font-weight: 600;
+  \}
+  @media (max-width: 560px) \{ .detail-panel \{ grid-template-columns: 1fr; \} \}
   /* Dashboard bar chart (Slice 7) — pure CSS bars, no JS */
   .chart \{ display: flex; flex-direction: column; gap: .6rem; margin-top: .5rem; \}
   .chart-row \{ display: flex; align-items: center; gap: .75rem; \}

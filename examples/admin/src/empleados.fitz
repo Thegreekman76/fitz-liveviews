@@ -127,18 +127,27 @@ fn page_buttons(page: Int, total_pages: Int) -> Str {
 // Render — one row + the whole grid (pure, no DB)
 // ---------------------------------------------------------------------------
 
-fn grid_row(e: Empleado, deptos: List<Departamento>, sel: Str) -> Html {
+fn grid_row(e: Empleado, deptos: List<Departamento>, sel: Str, expanded: Str) -> Html {
     let depto = depto_name(deptos, e.departamento_id)
     let estado = estado_badge(e.activo)
     let checked = match id_checked(sel, e.id) {
         true => " checked",
         false => "",
     }
+    let ex = id_checked(expanded, e.id)
     let tr_cls = match id_checked(sel, e.id) {
         true => "row-selected",
-        false => "",
+        false => match ex {
+            true => "row-expanded",
+            false => "",
+        },
+    }
+    let chevron = match ex {
+        true => "▾",
+        false => "▸",
     }
     return html("""<tr class="{tr_cls}">
+      <td data-label="" class="col-exp"><button class="btn-icon btn-exp" title="Detalle" data-flv-click="toggle_row" data-flv-value-id="{e.id}">{chevron}</button></td>
       <td data-label="" class="col-sel"><input type="checkbox" class="row-sel" data-flv-click="toggle_sel" data-flv-value-id="{e.id}"{checked} /></td>
       <td data-label="ID" class="col-id">{e.id}</td>
       <td data-label="Nombre"><strong>{flv(e.nombre)}</strong></td>
@@ -513,16 +522,16 @@ fn group_pill(label: Str, val: Str, event: Str, group_by: Str) -> Str {
 
 // One group section (Slice 6) — a header row (expand/collapse toggle + label +
 // count) spanning the table, followed by the member rows when expanded.
-fn group_section(key: Str, label: Str, members: List<Empleado>, collapsed: Str, deptos: List<Departamento>, sel: Str) -> Str {
+fn group_section(key: Str, label: Str, members: List<Empleado>, collapsed: Str, deptos: List<Departamento>, sel: Str, expanded: Str) -> Str {
     let n = members.len()
     let open = not str_in(collapsed, key)
     let arrow = match open {
         true => "▾",
         false => "▸",
     }
-    let head = """<tr class="grp-row"><td colspan="8" class="grp-cell"><button class="grp-toggle" data-flv-click="toggle_group" data-flv-value-key="{key}"><span class="tree-arrow">{arrow}</span> <strong>{flv(label)}</strong> <span class="grp-count">{n}</span></button></td></tr>"""
+    let head = """<tr class="grp-row"><td colspan="9" class="grp-cell"><button class="grp-toggle" data-flv-click="toggle_group" data-flv-value-key="{key}"><span class="tree-arrow">{arrow}</span> <strong>{flv(label)}</strong> <span class="grp-count">{n}</span></button></td></tr>"""
     let rows = match open {
-        true => h_join(members.map(fn(e) => grid_row(e, deptos, sel))),
+        true => h_join(members.map(fn(e) => grid_row(e, deptos, sel, expanded))),
         false => "",
     }
     return head + rows
@@ -531,16 +540,16 @@ fn group_section(key: Str, label: Str, members: List<Empleado>, collapsed: Str, 
 // The grouped tbody (Slice 6) — buckets the (already filtered) rows by the
 // chosen dimension. Grouping shows every matching row (no pagination), each
 // section collapsible.
-fn grouped_body(rows: List<Empleado>, deptos: List<Departamento>, group_by: Str, collapsed: Str, sel: Str) -> Html {
+fn grouped_body(rows: List<Empleado>, deptos: List<Departamento>, group_by: Str, collapsed: Str, sel: Str, expanded: Str) -> Html {
     if (group_by == "estado") {
         let act = rows.filter(fn(e) => e.activo == true)
         let ina = rows.filter(fn(e) => e.activo == false)
         let s1 = match act.len() > 0 {
-            true => group_section("estado-active", "Activos", act, collapsed, deptos, sel),
+            true => group_section("estado-active", "Activos", act, collapsed, deptos, sel, expanded),
             false => "",
         }
         let s2 = match ina.len() > 0 {
-            true => group_section("estado-inactive", "Inactivos", ina, collapsed, deptos, sel),
+            true => group_section("estado-inactive", "Inactivos", ina, collapsed, deptos, sel, expanded),
             false => "",
         }
         return html(s1 + s2)
@@ -550,24 +559,17 @@ fn grouped_body(rows: List<Empleado>, deptos: List<Departamento>, group_by: Str,
     for d in deptos {
         let members = rows.filter(fn(e) => e.departamento_id == d.id)
         if (members.len() > 0) {
-            out = out + group_section("depto-{d.id}", d.nombre, members, collapsed, deptos, sel)
+            out = out + group_section("depto-{d.id}", d.nombre, members, collapsed, deptos, sel, expanded)
         }
     }
     let sin = rows.filter(fn(e) => e.departamento_id == 0)
     if (sin.len() > 0) {
-        out = out + group_section("depto-0", "Sin departamento", sin, collapsed, deptos, sel)
+        out = out + group_section("depto-0", "Sin departamento", sin, collapsed, deptos, sel, expanded)
     }
     return html(out)
 }
 
-fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, total: Int, total_pages: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, confirm_ids: Str, group_by: Str, grp_collapsed: Str, flash: Str, flash_kind: Str) -> Html {
-    let body: Html = match rows.len() == 0 {
-        true => html("""<tr><td colspan="8" class="grid-empty">No hay empleados que coincidan con la búsqueda.</td></tr>"""),
-        false => match group_by == "" {
-            true => html(h_join(rows.map(fn(e) => grid_row(e, deptos, sel)))),
-            false => grouped_body(rows, deptos, group_by, grp_collapsed, sel),
-        },
-    }
+fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, total: Int, total_pages: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, confirm_ids: Str, group_by: Str, grp_collapsed: Str, flash: Str, flash_kind: Str, body: Html) -> Html {
     // "Agrupar por" control.
     let grp_none = group_pill("Sin agrupar", "", "group_none", group_by)
     let grp_depto = group_pill("Departamento", "depto", "group_depto", group_by)
@@ -679,6 +681,7 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
           <table class="grid">
             <thead>
               <tr>
+                <th class="col-exp"></th>
                 <th class="col-sel"><input type="checkbox" data-flv-click="toggle_sel_all" data-flv-value-ids="{page_ids}"{all_checked} /></th>
                 {th_id}
                 {th_nombre}
@@ -701,6 +704,116 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
     </div>""")
 }
 
+// A small pill/chip label (Slice 7 — used in the expand-row detail panel to
+// show an employee's permisos and skills).
+fn chip(label: Str) -> Str {
+    return """<span class="chip">{flv(label)}</span>"""
+}
+
+// Human ubicación label ("Ciudad, Provincia, País") from a ciudad_id.
+async fn ubi_label(ciudad_id: Int) -> Str {
+    if (ciudad_id == 0) {
+        return "—"
+    }
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => return "—",
+    }
+    let ciu = match Ciudad.where(fn(c) => c.id == ciudad_id).first(conn).await {
+        Ok(c) => c,
+        Err(_) => return "—",
+    }
+    let prov = match Provincia.where(fn(p) => p.id == ciu.provincia_id).first(conn).await {
+        Ok(p) => p,
+        Err(_) => return ciu.nombre,
+    }
+    let pais_n = match Pais.where(fn(p) => p.id == prov.pais_id).first(conn).await {
+        Ok(p) => p.nombre,
+        Err(_) => "",
+    }
+    return "{ciu.nombre}, {prov.nombre}, {pais_n}"
+}
+
+// The employee's permisos as chips (names, joined via empleado_permisos).
+async fn permisos_labels(emp_id: Int) -> Str {
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => return "—",
+    }
+    let eps = match EmpleadoPermiso.where(fn(ep) => ep.empleado_id == emp_id).all(conn).await {
+        Ok(x) => x,
+        Err(_) => return "—",
+    }
+    if (eps.len() == 0) {
+        return "—"
+    }
+    let all_perms = match Permiso.where(fn(p) => p.id > 0).all(conn).await {
+        Ok(x) => x,
+        Err(_) => return "—",
+    }
+    let out = ""
+    for ep in eps {
+        for p in all_perms {
+            if (p.id == ep.permiso_id) {
+                out = out + chip(p.nombre)
+            }
+        }
+    }
+    return match out == "" {
+        true => "—",
+        false => out,
+    }
+}
+
+// The employee's skills as chips (names, joined via empleado_skills).
+async fn skills_labels(emp_id: Int) -> Str {
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => return "—",
+    }
+    let es = match EmpleadoSkill.where(fn(x) => x.empleado_id == emp_id).all(conn).await {
+        Ok(x) => x,
+        Err(_) => return "—",
+    }
+    if (es.len() == 0) {
+        return "—"
+    }
+    let all_skills = match Skill.where(fn(s) => s.id > 0).all(conn).await {
+        Ok(x) => x,
+        Err(_) => return "—",
+    }
+    let out = ""
+    for e in es {
+        for s in all_skills {
+            if (s.id == e.skill_id) {
+                out = out + chip(s.nombre)
+            }
+        }
+    }
+    return match out == "" {
+        true => "—",
+        false => out,
+    }
+}
+
+// The expand-row detail panel (Slice 7) — a second <tr> spanning the table with
+// the employee's department, ubicación, permisos and skills (the last two as
+// chips). Only rendered for expanded rows, so the joins run just for those.
+async fn row_detail(e: Empleado, deptos: List<Departamento>) -> Str {
+    let depto = depto_name(deptos, e.departamento_id)
+    let ubi = ubi_label(e.ciudad_id).await
+    let perms = permisos_labels(e.id).await
+    let sks = skills_labels(e.id).await
+    return """<tr class="detail-row"><td colspan="9" class="detail-cell">
+      <div class="detail-panel">
+        <div class="detail-item"><span class="detail-k">Departamento</span><span class="detail-v">{flv(depto)}</span></div>
+        <div class="detail-item"><span class="detail-k">Ubicación</span><span class="detail-v">{flv(ubi)}</span></div>
+        <div class="detail-item"><span class="detail-k">Permisos</span><span class="detail-v chips">{perms}</span></div>
+        <div class="detail-item"><span class="detail-k">Skills</span><span class="detail-v chips">{sks}</span></div>
+      </div>
+    </td></tr>"""
+}
+
 // A DB error rendered with the SAME root id, so a mid-session failure still
 // patches cleanly over the socket instead of desyncing the client.
 fn grid_error(msg: Str) -> Html {
@@ -720,7 +833,7 @@ fn grid_error(msg: Str) -> Html {
 // on the SAME filtered builder so the pager reflects the filters. Sort is a
 // dynamic `.order_by(col, ascending)`. Any DB failure renders the error panel.
 
-async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, confirm_ids: Str, group_by: Str, grp_collapsed: Str, flash: Str, flash_kind: Str) -> Html {
+async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, confirm_ids: Str, group_by: Str, grp_collapsed: Str, flash: Str, flash_kind: Str, expanded: Str) -> Html {
     let conn = match db.connect(db_url()).await {
         Ok(c) => c,
         Err(e) => return grid_error(e),
@@ -778,7 +891,26 @@ async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, so
         Ok(ds) => ds,
         Err(e) => return grid_error(e),
     }
-    return render_grid(rows, deptos, p, total, total_pages, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed, flash, flash_kind)
+    // Build the tbody. Flat mode interleaves an expand-detail row after each
+    // expanded row (the detail joins run only for those); grouped mode delegates
+    // to `grouped_body` (no detail — expand is a flat-mode feature).
+    let body_str = ""
+    if (rows.len() == 0) {
+        body_str = """<tr><td colspan="9" class="grid-empty">No hay empleados que coincidan con la búsqueda.</td></tr>"""
+    } else {
+        if (group_by == "") {
+            for e in rows {
+                body_str = body_str + grid_row(e, deptos, sel, expanded).raw
+                if (id_checked(expanded, e.id)) {
+                    body_str = body_str + row_detail(e, deptos).await
+                }
+            }
+        } else {
+            body_str = grouped_body(rows, deptos, group_by, grp_collapsed, sel, expanded).raw
+        }
+    }
+    let body = html(body_str)
+    return render_grid(rows, deptos, p, total, total_pages, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed, flash, flash_kind, body)
 }
 
 // The form screen (alta/edición) — queries the departamentos + the ubicaciones
@@ -1068,7 +1200,7 @@ async fn empleados_page(cookie: Str?) -> Response {
         Ok(u) => u,
         Err(_) => return redirect_to("/login"),
     }
-    let grid = grid_html(1, "", "all", 0, "id", "asc", "", "", "", "", "", "").await
+    let grid = grid_html(1, "", "all", 0, "id", "asc", "", "", "", "", "", "", "").await
     let live = live_embed("/live/empleados", "empleados-live", grid)
     return html_response(page_layout("Empleados", "empleados", user.name, live))
 }
@@ -1149,7 +1281,9 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
     // Flash message (Slice 7) — a transient toast shown after a save / delete.
     let flash = ""
     let flash_kind = ""
-    let last = grid_html(page, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed, flash, flash_kind).await.raw
+    // Expanded rows (Slice 7) — comma-joined ids whose detail panel is open.
+    let expanded = ""
+    let last = grid_html(page, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed, flash, flash_kind, expanded).await.raw
     loop {
         let frame = ws.recv()?
         let ev = frame.event
@@ -1396,10 +1530,14 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
         if (ev == "toggle_group") {
             grp_collapsed = toggle_str(grp_collapsed, pget(frame.payload, "key", ""))
         }
+        // --- expandable rows (Slice 7) ---
+        if (ev == "toggle_row") {
+            expanded = toggle_id(expanded, pget_int(frame.payload, "id", 0))
+        }
         let new_html = match mode {
             "form" => form_screen(edit_id, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_permisos, f_skills, f_activo, form_error).await.raw,
             "tree" => tree_screen(tree_exp_pais, tree_exp_prov).await.raw,
-            _ => grid_html(page, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed, flash, flash_kind).await.raw,
+            _ => grid_html(page, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed, flash, flash_kind, expanded).await.raw,
         }
         let patches = diff_html(last, new_html)
         ws.send(LiveFrame { html: new_html, patches: patches })?

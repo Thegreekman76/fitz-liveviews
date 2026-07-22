@@ -232,18 +232,45 @@ UI inventory (~22-25) with the remaining SSR-viable components.
 - **S7c — DONE** ✅ (2026-07-22) **Breadcrumbs** in the shell: "Admin /
   <screen>" under the topbar, home crumb links to the dashboard. Verified run +
   binary. Showcase-only.
+- **S7d — DONE** ✅ (2026-07-22) **Expandable rows** (Vuetify `v-data-table`
+  expand pattern) + **Chips**. A chevron column toggles a detail `<tr>` under
+  each row showing the employee's **departamento**, **ubicación**
+  ("Ciudad, Provincia, País"), **permisos** and **skills** — the last two as
+  chips (joins run only for the expanded rows). Expanded ids live per-connection
+  as a comma-joined set (`toggle_row` → `toggle_id`). `render_grid` was
+  refactored to receive a pre-built `body: Html` so `grid_html` (async) can
+  interleave the detail rows (flat mode; grouping stays flat-row). Verified run +
+  binary (expand/collapse single + multiple, chips render the joined names).
+  Components extracted: **ExpandableRow / RowDetail · Chip**.
 
-All of S7a-c are **no core gap, no workarounds, no lib change**. Components
-extracted: **Chart / BarChart · Toast / Alert · Breadcrumbs**.
+All of S7a-d are **no core gap, no workarounds, no lib change**. Components
+extracted: **Chart/BarChart · Toast/Alert · Breadcrumbs · ExpandableRow · Chip**.
 
 Still open (SSR-viable, lower priority):
 
-- **GroupSelect (optgroup)** — a `<select>` with grouped options (e.g. "reporta
-  a" by department; needs a `reporta_a` column → small schema add).
-- **Multisort** — shift-click secondary sort (needs a client-runtime tweak to
-  forward the shift key → lib).
-- **Spinner** — loading indicator (WS updates are ~instant, so low value).
-- **Menu (nested dropdown)** — nested sidebar sections.
+- **GroupSelect (optgroup)** — a `<select>` with grouped options ("reporta a" by
+  department; needs a `reporta_a` column → small schema add).
+- **Tabs** — organize the (now long) edit form into Datos / Ubicación / Accesos /
+  Skills. Needs server-side active-tab state (the LiveView re-render resets any
+  CSS-only tab selection). High value → candidate S8 anchor.
+- **DatePicker** (native `<input type="date">`, `fecha_ingreso`), **Textarea**
+  (`notas`), **Radio group** (estado) — form inputs from the Vuetify catalog.
+- **Tooltip** (CSS-only hints), **Multisort** (shift-click → client-runtime
+  tweak → lib), **Spinner**, **Menu (nested dropdown)**.
+
+### Vuetify catalog cross-check (2026-07-22)
+
+Mapped the admin's components against Vuetify's catalog to find gaps. **Covered**:
+tables/data-table (grid + sort + filter + search + pagination + selection +
+grouping + expand + export), cards (StatCard/panels), chart, forms (input/select/
+cascade/checkbox/checkbox-group/multiselect/tree), dialogs+snackbar+alert+badge+
+chips, app-bar/drawer/breadcrumbs/pagination, avatar. **Not yet built (all
+SSR-viable)**: Tabs, DatePicker, Textarea, Radio, Tooltip, GroupSelect (optgroup),
+Stepper (multi-step form wizard), Rating (skill level), ProgressBar/Spinner,
+ExpansionPanel (generic), Divider, nested Menu. Media (carousel/parallax/video)
+and virtual tables are out of scope for an admin panel. → **S8 anchors on form
+enrichment**: Tabs + DatePicker + Textarea + Radio + GroupSelect (reporta_a),
+one schema migration for the new columns.
 
 ## Expected Fitz core gaps (dogfooding)
 
