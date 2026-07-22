@@ -1443,7 +1443,7 @@ async fn empleados_page(cookie: Str?) -> Response {
     }
     let loc = locale_from_cookie(cookie)
     let grid = grid_html(1, "", "all", 0, "id", "asc", "", "", "", "", "", "", "", loc).await
-    let live = live_embed("/live/empleados?lang={loc}", "empleados-live", grid)
+    let live = live_embed("/live/empleados", "empleados-live", grid)
     return html_response(page_layout(t(loc, "nav.empleados"), "empleados", user.name, live, loc))
 }
 
@@ -1488,13 +1488,13 @@ async fn empleados_export(cookie: Str?, q: Str?, estado: Str?, depto: Int?) -> R
 // change to a filter or the sort resets the page to 1 (so you don't land on an
 // empty page past the new result count). We `ws.send` to THIS socket only.
 
+@header(name="cookie")
 @ws("/live/empleados")
-async fn empleados_socket(ws: WsConn<LiveFrame>) {
-    // The active language rides in the WS URL query the SSR page baked into the
-    // `live_embed` path (`?lang=en`). Fitz-core `@ws` can't read the handshake
-    // query/headers, so the client hands it to us as a `__flv_init` event on
-    // connect (fitz-liveviews v0.10.0); until then we default to Spanish.
-    let locale = "es"
+async fn empleados_socket(ws: WsConn<LiveFrame>, cookie: Str?) {
+    // The active language is read from the handshake cookie — the WS upgrade is
+    // an HTTP request, so `@header` works on `@ws` (Fitz core v0.28.0). No
+    // client-side handshake needed.
+    let locale = locale_from_cookie(cookie)
     // Grid state.
     let page = 1
     let q = ""
@@ -1540,19 +1540,6 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
     loop {
         let frame = ws.recv()?
         let ev = frame.event
-        // Connection init (fitz-liveviews v0.10.0): learn the locale the SSR
-        // page baked into the socket URL, re-render the diff baseline in that
-        // language to match what the client already shows, and wait for a real
-        // event (no patch to send).
-        if (ev == "__flv_init") {
-            let lang = pget(frame.payload, "lang", "es")
-            locale = match lang == "en" {
-                true => "en",
-                false => "es",
-            }
-            last = grid_html(page, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed, flash, flash_kind, expanded, locale).await.raw
-            continue
-        }
         // A flash lives for exactly one render: any next event clears it.
         flash = ""
         flash_kind = ""

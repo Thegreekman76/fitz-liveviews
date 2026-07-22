@@ -380,10 +380,20 @@ hard-coding a language.
   logged alongside the `let t` finding for the Fitz-core fix.
 
 **S9 (i18n) complete** — every screen + every client-`<script>` string localized
-ES/EN. Next per the author's order: **fix the core limitations in `d:\fitz`**
-(the two scoping bugs + `@ws` handshake access), then revisit the ABM to drop the
-`__flv_init` workaround / local renames once the core is fixed, then the
-Companion UI adoption package.
+ES/EN.
+
+- **Core fixes landed (Fitz v0.28.0)** ✅ (2026-07-22) The two scoping bugs
+  (local `let` shadowing an import/param) and **`@header` on `@ws`** were fixed
+  in `d:\fitz`. **The ABM now reads the locale straight from the handshake
+  cookie** — `@header(name="cookie") @ws("/live/empleados") … cookie: Str?` +
+  `locale_from_cookie(cookie)`. The client-side `__flv_init` handshake and the
+  `?lang=` query on `live_embed` are **removed** (the lib's `__flv_init` stays
+  as a general feature; the ABM just no longer needs it). Verified run + binary
+  against local Postgres (grid + form translate ES/EN from the cookie). The
+  local renames (`nm`, `set_cookie`) are kept — clearer names, and no longer
+  load-bearing now that the scoping bug is fixed.
+
+Next per the author's order: the **Companion UI adoption package**.
 
 ## Expected Fitz core gaps (dogfooding)
 
