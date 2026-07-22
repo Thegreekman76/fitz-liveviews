@@ -272,6 +272,35 @@ and virtual tables are out of scope for an admin panel. → **S8 anchors on form
 enrichment**: Tabs + DatePicker + Textarea + Radio + GroupSelect (reporta_a),
 one schema migration for the new columns.
 
+### S8 — Form enrichment + component completion (in progress)
+
+- **S8a — DONE** ✅ (2026-07-22, lib v0.9.0) The edit form, enriched and
+  organized into **Tabs** (Datos / Organización / Accesos), plus four new form
+  components. One schema migration added `reporta_a bigint`, `fecha_ingreso
+  text` (ISO date — Fitz dates are Str), `notas text`. New components:
+  - **Tabs** — server-tracked active tab (`f_tab`). All panels stay in the DOM
+    (hidden via CSS) so the form serializes every field on save regardless of
+    the visible tab. Switching tabs carries the typed values via the new lib
+    **`data-flv-form`** opt-in (see below) → nothing typed is lost.
+  - **DatePicker** — native `<input type="date">` bound to `fecha_ingreso`.
+  - **Textarea** — `notas`.
+  - **Radio group** — estado (activo/inactivo), replacing the select.
+  - **GroupSelect (optgroup)** — "reporta a", colleagues grouped by department
+    (`<optgroup>`), excluding the row being edited.
+  - **Lib v0.9.0** (`data-flv-form`): a `data-flv-click` button can opt into
+    serializing its enclosing form — the foundation for in-form tab/stepper
+    navigation. Serialized before `collectValues`, so explicit `data-flv-value-*`
+    still wins (the grid's "Limpiar" button is unaffected). +1 lib test (88).
+  - Verified run + binary against local Postgres: create with all fields, tab
+    switch preserving typed input, edit prefill (date/notas/radio/reporta_a),
+    save round-trip. **No core gap, no workarounds.** Components: Tabs ·
+    DatePicker · Textarea · Radio · GroupSelect.
+- **S8b — TODO** the remaining catalog items: **ProgressBar / Spinner**
+  (dashboard), **nested Menu** (sidebar), **Divider**, **Tooltip** (CSS hints),
+  **Rating** (a `nivel` star field), **ExpansionPanel** (generic collapsible).
+  Stepper is the same family as Tabs (covered) — revisit only if a multi-step
+  onboarding flow appears.
+
 ## Expected Fitz core gaps (dogfooding)
 
 Same mechanism as the chat/kanban migrations (which pushed §9.cc/dd/ee

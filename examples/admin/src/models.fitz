@@ -46,6 +46,9 @@
     cargo: Str = ""
     departamento_id: Int = 0
     ciudad_id: Int = 0
+    reporta_a: Int = 0
+    fecha_ingreso: Str = ""
+    notas: Str = ""
     activo: Bool = true
     @db_default created_at: Str = ""
 }

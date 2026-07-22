@@ -319,6 +319,14 @@ let LIVE_CLIENT_JS: Str = """(function() \{
     const t = e.target.closest('[data-flv-click]');
     if (t && ws.readyState === WebSocket.OPEN) \{
       const payload = \{\};
+      // v0.9.0 — a click that opts in with `data-flv-form` also serializes its
+      // enclosing form, so an in-form action button (tab / stepper navigation)
+      // carries the currently typed values and a re-render never wipes them.
+      // Serialized first so any explicit `data-flv-value-*` still wins.
+      if (t.hasAttribute('data-flv-form')) \{
+        const clickForm = t.closest('form');
+        if (clickForm) serializeForm(clickForm, payload);
+      \}
       collectValues(t, payload);
       enrichWithComponentContext(t, payload);
       ws.send(JSON.stringify(\{ event: t.dataset.flvClick, payload: payload, html: '', patches: [] \}));
@@ -480,6 +488,17 @@ fn live_layout_includes_change_handler() {
   assert(full.raw.contains("addEventListener('change'"))
   assert(full.raw.contains("data-flv-change"))
   assert(full.raw.contains("flvChange"))
+}
+
+@test
+fn live_layout_click_can_serialize_enclosing_form() {
+  // v0.9.0 — a `data-flv-click` element that opts in with `data-flv-form`
+  // also serializes its enclosing form, so an in-form action button (tab /
+  // stepper navigation) carries the typed values and a re-render never wipes
+  // them. Serialized before collectValues so explicit values still win.
+  let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
+  assert(full.raw.contains("data-flv-form"))
+  assert(full.raw.contains("clickForm"))
 }
 
 @test

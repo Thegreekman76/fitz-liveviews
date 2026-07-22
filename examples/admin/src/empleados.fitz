@@ -428,29 +428,80 @@ fn skills_html(skills: List<Skill>, checked_csv: Str) -> Str {
 // the grid). `edit_id` 0 = alta; > 0 = edición. `error` non-empty renders a
 // validation/DB banner. The país/provincia/ciudad selects are a cascade: each
 // `change` re-queries the dependent options server-side (Slice 4b).
-fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provincias: List<Provincia>, ciudades: List<Ciudad>, permisos: List<Permiso>, skills: List<Skill>, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_pais: Int, f_provincia: Int, f_ciudad: Int, f_permisos: Str, f_skills: Str, f_activo: Bool, error: Str) -> Html {
+// GroupSelect (Slice 8) — a <select> with <optgroup>s: colleagues grouped by
+// department, for the "reporta a" field. `self_id` (the row being edited) is
+// excluded so an employee can't report to itself.
+fn reporta_options(colegas: List<Empleado>, deptos: List<Departamento>, self_id: Int, selected: Int) -> Str {
+    let head = match selected == 0 {
+        true => """<option value="0" selected>— Nadie —</option>""",
+        false => """<option value="0">— Nadie —</option>""",
+    }
+    let groups = ""
+    for d in deptos {
+        let members = colegas.filter(fn(e) => e.departamento_id == d.id and e.id != self_id)
+        if (members.len() > 0) {
+            let opts = ""
+            for e in members {
+                opts = opts + match e.id == selected {
+                    true => """<option value="{e.id}" selected>{flv(e.nombre)}</option>""",
+                    false => """<option value="{e.id}">{flv(e.nombre)}</option>""",
+                }
+            }
+            groups = groups + """<optgroup label="{flv(d.nombre)}">{opts}</optgroup>"""
+        }
+    }
+    return head + groups
+}
+
+// One form tab button (Slice 8). Opts into form serialization (`data-flv-form`,
+// lib v0.9.0) so switching tabs keeps whatever is typed in the other tabs.
+fn tab_btn(label: Str, val: Str, f_tab: Str) -> Str {
+    let cls = match val == f_tab {
+        true => "tab-btn tab-on",
+        false => "tab-btn",
+    }
+    return """<button type="button" class="{cls}" data-flv-form data-flv-click="form_tab" data-flv-value-tab="{val}">{flv(label)}</button>"""
+}
+
+// CSS class for a tab panel — only the active one is shown, but ALL panels stay
+// in the DOM so the form serializes every field on save regardless of tab.
+fn tab_panel_cls(val: Str, f_tab: Str) -> Str {
+    return match val == f_tab {
+        true => "tab-panel tab-active",
+        false => "tab-panel",
+    }
+}
+
+fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provincias: List<Provincia>, ciudades: List<Ciudad>, permisos: List<Permiso>, skills: List<Skill>, colegas: List<Empleado>, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_pais: Int, f_provincia: Int, f_ciudad: Int, f_reporta: Int, f_fecha: Str, f_notas: Str, f_permisos: Str, f_skills: Str, f_activo: Bool, f_tab: Str, error: Str) -> Html {
     let title = match edit_id == 0 {
         true => "Nuevo empleado",
         false => "Editar empleado",
     }
     let opts = depto_options(deptos, f_depto)
+    let reporta_opts = reporta_options(colegas, deptos, edit_id, f_reporta)
     let pais_opts = pais_options(paises, f_pais)
     let prov_opts = provincia_options(provincias, f_provincia)
     let ciu_opts = ciudad_options(ciudades, f_ciudad)
     let perm_html = permisos_html(permisos, f_permisos)
     let skills_h = skills_html(skills, f_skills)
-    let act_a = match f_activo {
-        true => """<option value="true" selected>Activo</option>""",
-        false => """<option value="true">Activo</option>""",
+    // Estado as a radio group (Slice 8).
+    let est_a = match f_activo {
+        true => " checked",
+        false => "",
     }
-    let act_i = match f_activo {
-        true => """<option value="false">Inactivo</option>""",
-        false => """<option value="false" selected>Inactivo</option>""",
+    let est_i = match f_activo {
+        true => "",
+        false => " checked",
     }
     let banner = match error == "" {
         true => "",
         false => """<div class="form-error">{flv(error)}</div>""",
     }
+    // Tab nav + panel classes.
+    let tabs = tab_btn("Datos", "datos", f_tab) + tab_btn("Organización", "org", f_tab) + tab_btn("Accesos", "accesos", f_tab)
+    let p_datos = tab_panel_cls("datos", f_tab)
+    let p_org = tab_panel_cls("org", f_tab)
+    let p_accesos = tab_panel_cls("accesos", f_tab)
     return html("""<div id="empleados-live" class="grid-wrap">
       <div class="page-head">
         <h2>{flv(title)}</h2>
@@ -460,48 +511,78 @@ fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provi
         {banner}
         <form class="abm-form" data-flv-submit="save_empleado">
           <input type="hidden" name="id" value="{edit_id}" />
-          <div class="form-row">
-            <label>Nombre</label>
-            <input name="nombre" value="{flv(f_nombre)}" placeholder="Nombre y apellido" autocomplete="off" />
-          </div>
-          <div class="form-row">
-            <label>Email</label>
-            <input name="email" type="email" value="{flv(f_email)}" placeholder="persona@empresa.com" autocomplete="off" />
-          </div>
-          <div class="form-row">
-            <label>Cargo</label>
-            <input name="cargo" value="{flv(f_cargo)}" placeholder="Puesto / rol" autocomplete="off" />
-          </div>
-          <div class="form-row">
-            <label>Departamento</label>
-            <select name="departamento_id">{opts}</select>
-          </div>
-          <div class="form-grid-3">
+          <div class="tab-nav">{tabs}</div>
+
+          <div class="{p_datos}">
             <div class="form-row">
-              <label>País</label>
-              <select name="pais_id" data-flv-change="cascade_pais">{pais_opts}</select>
+              <label>Nombre</label>
+              <input name="nombre" value="{flv(f_nombre)}" placeholder="Nombre y apellido" autocomplete="off" />
             </div>
             <div class="form-row">
-              <label>Provincia</label>
-              <select name="provincia_id" data-flv-change="cascade_provincia">{prov_opts}</select>
+              <label>Email</label>
+              <input name="email" type="email" value="{flv(f_email)}" placeholder="persona@empresa.com" autocomplete="off" />
+            </div>
+            <div class="form-grid-2">
+              <div class="form-row">
+                <label>Cargo</label>
+                <input name="cargo" value="{flv(f_cargo)}" placeholder="Puesto / rol" autocomplete="off" />
+              </div>
+              <div class="form-row">
+                <label>Fecha de ingreso</label>
+                <input name="fecha_ingreso" type="date" value="{flv(f_fecha)}" />
+              </div>
             </div>
             <div class="form-row">
-              <label>Ciudad</label>
-              <select name="ciudad_id" data-flv-change="cascade_ciudad">{ciu_opts}</select>
+              <label>Estado</label>
+              <div class="radio-group">
+                <label class="radio"><input type="radio" name="activo" value="true"{est_a} /> Activo</label>
+                <label class="radio"><input type="radio" name="activo" value="false"{est_i} /> Inactivo</label>
+              </div>
+            </div>
+            <div class="form-row">
+              <label>Notas</label>
+              <textarea name="notas" rows="3" placeholder="Notas internas…">{flv(f_notas)}</textarea>
             </div>
           </div>
-          <div class="form-row">
-            <label>Permisos</label>
-            <div class="perm-groups">{perm_html}</div>
+
+          <div class="{p_org}">
+            <div class="form-grid-2">
+              <div class="form-row">
+                <label>Departamento</label>
+                <select name="departamento_id">{opts}</select>
+              </div>
+              <div class="form-row">
+                <label>Reporta a</label>
+                <select name="reporta_a">{reporta_opts}</select>
+              </div>
+            </div>
+            <div class="form-grid-3">
+              <div class="form-row">
+                <label>País</label>
+                <select name="pais_id" data-flv-change="cascade_pais">{pais_opts}</select>
+              </div>
+              <div class="form-row">
+                <label>Provincia</label>
+                <select name="provincia_id" data-flv-change="cascade_provincia">{prov_opts}</select>
+              </div>
+              <div class="form-row">
+                <label>Ciudad</label>
+                <select name="ciudad_id" data-flv-change="cascade_ciudad">{ciu_opts}</select>
+              </div>
+            </div>
           </div>
-          <div class="form-row">
-            <label>Skills</label>
-            <div class="skill-list">{skills_h}</div>
+
+          <div class="{p_accesos}">
+            <div class="form-row">
+              <label>Permisos</label>
+              <div class="perm-groups">{perm_html}</div>
+            </div>
+            <div class="form-row">
+              <label>Skills</label>
+              <div class="skill-list">{skills_h}</div>
+            </div>
           </div>
-          <div class="form-row">
-            <label>Estado</label>
-            <select name="activo">{act_a}{act_i}</select>
-          </div>
+
           <div class="form-actions">
             <button class="btn-primary" type="submit">Guardar</button>
             <button class="btn-clear" type="button" data-flv-click="cancel_form">Cancelar</button>
@@ -916,13 +997,19 @@ async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, so
 // The form screen (alta/edición) — queries the departamentos + the ubicaciones
 // options (cascade: provincias only for the picked país, ciudades only for the
 // picked provincia), then renders the form fragment. Same root id as the grid.
-async fn form_screen(edit_id: Int, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_pais: Int, f_provincia: Int, f_ciudad: Int, f_permisos: Str, f_skills: Str, f_activo: Bool, error: Str) -> Html {
+async fn form_screen(edit_id: Int, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_pais: Int, f_provincia: Int, f_ciudad: Int, f_reporta: Int, f_fecha: Str, f_notas: Str, f_permisos: Str, f_skills: Str, f_activo: Bool, f_tab: Str, error: Str) -> Html {
     let conn = match db.connect(db_url()).await {
         Ok(c) => c,
         Err(e) => return grid_error(e),
     }
     let deptos: List<Departamento> = match Departamento.where(fn(d) => d.id > 0).order_by(fn(d) => d.nombre).all(conn).await {
         Ok(ds) => ds,
+        Err(e) => return grid_error(e),
+    }
+    // Colleagues for the "reporta a" group-select (grouped by department;
+    // the employee being edited is excluded so it can't report to itself).
+    let colegas: List<Empleado> = match Empleado.where(fn(e) => e.id > 0).order_by(fn(e) => e.nombre).all(conn).await {
+        Ok(es) => es,
         Err(e) => return grid_error(e),
     }
     let paises: List<Pais> = match Pais.where(fn(p) => p.id > 0).order_by(fn(p) => p.nombre).all(conn).await {
@@ -951,7 +1038,7 @@ async fn form_screen(edit_id: Int, f_nombre: Str, f_email: Str, f_cargo: Str, f_
         Ok(ss) => ss,
         Err(e) => return grid_error(e),
     }
-    return form_html(edit_id, deptos, paises, provincias, ciudades, permisos, skills, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_permisos, f_skills, f_activo, error)
+    return form_html(edit_id, deptos, paises, provincias, ciudades, permisos, skills, colegas, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_reporta, f_fecha, f_notas, f_permisos, f_skills, f_activo, f_tab, error)
 }
 
 // The tree screen (Slice 4e) — the ubicaciones hierarchy as an expandable
@@ -996,13 +1083,13 @@ async fn load_empleado(id: Int) -> Result<Empleado> {
 
 // Persist the form: INSERT when `edit_id == 0`, UPDATE otherwise. Returns the
 // number of affected/created rows-ish (1) or an `Err` with the DB message.
-async fn save_empleado_db(edit_id: Int, nombre: Str, email: Str, cargo: Str, depto: Int, ciudad: Int, activo: Bool) -> Result<Int> {
+async fn save_empleado_db(edit_id: Int, nombre: Str, email: Str, cargo: Str, depto: Int, ciudad: Int, reporta: Int, fecha: Str, notas: Str, activo: Bool) -> Result<Int> {
     let conn = db.connect(db_url()).await?
     if (edit_id == 0) {
-        let created = Empleado.insert(conn, Empleado { nombre: nombre, email: email, cargo: cargo, departamento_id: depto, ciudad_id: ciudad, activo: activo }).await?
+        let created = Empleado.insert(conn, Empleado { nombre: nombre, email: email, cargo: cargo, departamento_id: depto, ciudad_id: ciudad, reporta_a: reporta, fecha_ingreso: fecha, notas: notas, activo: activo }).await?
         return Ok(created.id)
     }
-    let _ = Empleado.where(fn(e) => e.id == edit_id).update(conn, { "nombre": nombre, "email": email, "cargo": cargo, "departamento_id": depto, "ciudad_id": ciudad, "activo": activo }).await?
+    let _ = Empleado.where(fn(e) => e.id == edit_id).update(conn, { "nombre": nombre, "email": email, "cargo": cargo, "departamento_id": depto, "ciudad_id": ciudad, "reporta_a": reporta, "fecha_ingreso": fecha, "notas": notas, "activo": activo }).await?
     return Ok(edit_id)
 }
 
@@ -1265,10 +1352,15 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
     let f_pais = 0
     let f_provincia = 0
     let f_ciudad = 0
+    let f_reporta = 0
+    let f_fecha = ""
+    let f_notas = ""
     let f_permisos = ""
     let f_skills = ""
     let f_activo = true
     let form_error = ""
+    // Active form tab (Slice 8) — "datos" | "ubicacion" | "accesos".
+    let f_tab = "datos"
     // Tree view state (Slice 4e) — expanded país / provincia node ids.
     let tree_exp_pais = ""
     let tree_exp_prov = ""
@@ -1349,9 +1441,13 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             f_pais = 0
             f_provincia = 0
             f_ciudad = 0
+            f_reporta = 0
+            f_fecha = ""
+            f_notas = ""
             f_permisos = ""
             f_skills = ""
             f_activo = true
+            f_tab = "datos"
             form_error = ""
         }
         if (ev == "edit_empleado") {
@@ -1369,9 +1465,13 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
                     f_ciudad = e.ciudad_id
                     f_provincia = prov.id
                     f_pais = prov.pais_id
+                    f_reporta = e.reporta_a
+                    f_fecha = e.fecha_ingreso
+                    f_notas = e.notas
                     f_permisos = load_permisos_csv(e.id).await
                     f_skills = load_skills_csv(e.id).await
                     form_error = ""
+                    f_tab = "datos"
                     mode = "form"
                 },
                 Err(er) => {
@@ -1387,6 +1487,9 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             f_nombre = pget(frame.payload, "nombre", f_nombre)
             f_email = pget(frame.payload, "email", f_email)
             f_cargo = pget(frame.payload, "cargo", f_cargo)
+            f_reporta = pget_int(frame.payload, "reporta_a", f_reporta)
+            f_fecha = pget(frame.payload, "fecha_ingreso", f_fecha)
+            f_notas = pget(frame.payload, "notas", f_notas)
             f_depto = pget_int(frame.payload, "departamento_id", f_depto)
             f_activo = pget(frame.payload, "activo", "true") == "true"
             f_permisos = pget(frame.payload, "permisos", f_permisos)
@@ -1399,6 +1502,9 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             f_nombre = pget(frame.payload, "nombre", f_nombre)
             f_email = pget(frame.payload, "email", f_email)
             f_cargo = pget(frame.payload, "cargo", f_cargo)
+            f_reporta = pget_int(frame.payload, "reporta_a", f_reporta)
+            f_fecha = pget(frame.payload, "fecha_ingreso", f_fecha)
+            f_notas = pget(frame.payload, "notas", f_notas)
             f_depto = pget_int(frame.payload, "departamento_id", f_depto)
             f_activo = pget(frame.payload, "activo", "true") == "true"
             f_permisos = pget(frame.payload, "permisos", f_permisos)
@@ -1411,6 +1517,9 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             f_nombre = pget(frame.payload, "nombre", f_nombre)
             f_email = pget(frame.payload, "email", f_email)
             f_cargo = pget(frame.payload, "cargo", f_cargo)
+            f_reporta = pget_int(frame.payload, "reporta_a", f_reporta)
+            f_fecha = pget(frame.payload, "fecha_ingreso", f_fecha)
+            f_notas = pget(frame.payload, "notas", f_notas)
             f_depto = pget_int(frame.payload, "departamento_id", f_depto)
             f_activo = pget(frame.payload, "activo", "true") == "true"
             f_permisos = pget(frame.payload, "permisos", f_permisos)
@@ -1423,6 +1532,22 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             mode = "grid"
             form_error = ""
         }
+        // Tab switch (Slice 8) — the button opts into form serialization
+        // (data-flv-form), so the typed fields arrive and we sync them before
+        // flipping the active tab; nothing typed is lost.
+        if (ev == "form_tab") {
+            f_nombre = pget(frame.payload, "nombre", f_nombre)
+            f_email = pget(frame.payload, "email", f_email)
+            f_cargo = pget(frame.payload, "cargo", f_cargo)
+            f_reporta = pget_int(frame.payload, "reporta_a", f_reporta)
+            f_fecha = pget(frame.payload, "fecha_ingreso", f_fecha)
+            f_notas = pget(frame.payload, "notas", f_notas)
+            f_depto = pget_int(frame.payload, "departamento_id", f_depto)
+            f_activo = pget(frame.payload, "activo", "true") == "true"
+            f_permisos = pget(frame.payload, "permisos", f_permisos)
+            f_skills = pget(frame.payload, "skills", f_skills)
+            f_tab = pget(frame.payload, "tab", f_tab)
+        }
         if (ev == "save_empleado") {
             edit_id = pget_int(frame.payload, "id", 0)
             f_nombre = pget(frame.payload, "nombre", "")
@@ -1432,13 +1557,16 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             f_pais = pget_int(frame.payload, "pais_id", 0)
             f_provincia = pget_int(frame.payload, "provincia_id", 0)
             f_ciudad = pget_int(frame.payload, "ciudad_id", 0)
+            f_reporta = pget_int(frame.payload, "reporta_a", 0)
+            f_fecha = pget(frame.payload, "fecha_ingreso", "")
+            f_notas = pget(frame.payload, "notas", "")
             f_activo = pget(frame.payload, "activo", "true") == "true"
             f_permisos = pget(frame.payload, "permisos", f_permisos)
             f_skills = pget(frame.payload, "skills", f_skills)
             if (f_nombre == "" or f_email == "") {
                 form_error = "Nombre y email son obligatorios."
             } else {
-                match save_empleado_db(edit_id, f_nombre, f_email, f_cargo, f_depto, f_ciudad, f_activo).await {
+                match save_empleado_db(edit_id, f_nombre, f_email, f_cargo, f_depto, f_ciudad, f_reporta, f_fecha, f_notas, f_activo).await {
                     Ok(saved_id) => {
                         match sync_permisos(saved_id, f_permisos).await {
                             Ok(_) => {
@@ -1535,7 +1663,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             expanded = toggle_id(expanded, pget_int(frame.payload, "id", 0))
         }
         let new_html = match mode {
-            "form" => form_screen(edit_id, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_permisos, f_skills, f_activo, form_error).await.raw,
+            "form" => form_screen(edit_id, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_reporta, f_fecha, f_notas, f_permisos, f_skills, f_activo, f_tab, form_error).await.raw,
             "tree" => tree_screen(tree_exp_pais, tree_exp_prov).await.raw,
             _ => grid_html(page, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed, flash, flash_kind, expanded).await.raw,
         }

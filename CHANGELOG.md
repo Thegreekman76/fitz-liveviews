@@ -5,6 +5,25 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.9.0] — 2026-07-22 — serialize-on-click (`data-flv-form`) for in-form nav
+
+**Minor bump** — a `data-flv-click` action button can now opt in to
+serializing its enclosing form, so in-form navigation (tabs, stepper steps)
+preserves the currently typed values across a server re-render.
+
+### Added — `data-flv-form` opt-in on click
+
+- When a `data-flv-click` element also has the `data-flv-form` attribute, the
+  client runtime serializes its enclosing `<form>` into the event payload
+  (reusing `serializeForm`, same as `data-flv-submit` / `data-flv-change`).
+  Serialized **before** `collectValues`, so any explicit `data-flv-value-*`
+  on the same element still wins.
+- Motivation: tabbed / stepped forms switch sections with a click; without
+  carrying the form, the server re-render would wipe unsaved input in the
+  other sections. Buttons without `data-flv-form` are unaffected (e.g. the
+  grid's "Limpiar" button keeps its explicit `data-flv-value-q=""`).
+- Drives the **Tabs** and **Stepper** components in the Admin ABM showcase (S8).
+
 ## [v0.8.0] — 2026-07-22 — checkbox-group serialization + Admin ABM Slice 4c (permisos)
 
 **Minor bump** — the client form serialization now understands checkbox

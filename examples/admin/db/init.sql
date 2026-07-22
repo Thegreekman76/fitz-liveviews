@@ -40,12 +40,20 @@ CREATE TABLE IF NOT EXISTS empleados (
     cargo            text NOT NULL DEFAULT '',
     departamento_id  bigint NOT NULL DEFAULT 0,
     ciudad_id        bigint NOT NULL DEFAULT 0,
+    reporta_a        bigint NOT NULL DEFAULT 0,
+    fecha_ingreso    text NOT NULL DEFAULT '',
+    notas            text NOT NULL DEFAULT '',
     activo           boolean NOT NULL DEFAULT true,
     created_at       timestamptz NOT NULL DEFAULT NOW()
 );
 
 -- Existing databases (created before Slice 4b) get the new column too.
 ALTER TABLE empleados ADD COLUMN IF NOT EXISTS ciudad_id bigint NOT NULL DEFAULT 0;
+-- Slice 8 columns (fecha_ingreso / notas as ISO-8601 text — Fitz dates are Str;
+-- reporta_a is a self-FK for the "reporta a" group-select).
+ALTER TABLE empleados ADD COLUMN IF NOT EXISTS reporta_a bigint NOT NULL DEFAULT 0;
+ALTER TABLE empleados ADD COLUMN IF NOT EXISTS fecha_ingreso text NOT NULL DEFAULT '';
+ALTER TABLE empleados ADD COLUMN IF NOT EXISTS notas text NOT NULL DEFAULT '';
 
 CREATE INDEX IF NOT EXISTS idx_empleados_depto ON empleados(departamento_id);
 

@@ -406,17 +406,35 @@ fn shell_css() -> Str {
   \}
   .btn-icon:hover \{ border-color: var(--primary); color: var(--primary); \}
   /* Alta / edición form (Slice 4). */
-  .form-card \{ padding: 1.25rem; max-width: 560px; \}
+  .form-card \{ padding: 1.25rem; max-width: 620px; \}
   .abm-form \{ display: flex; flex-direction: column; gap: .9rem; \}
   .form-row \{ display: flex; flex-direction: column; gap: .3rem; \}
   .form-row label \{ font-size: .78rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; \}
-  .form-row input, .form-row select \{
+  .form-row input, .form-row select, .form-row textarea \{
     border: 1px solid var(--border); background: var(--surface); color: var(--text);
     border-radius: 8px; padding: .55rem .75rem; font-size: .9rem; width: 100%;
+    font-family: inherit;
   \}
-  .form-row input:focus, .form-row select:focus \{ outline: none; border-color: var(--primary); \}
+  .form-row textarea \{ resize: vertical; min-height: 3.2rem; \}
+  .form-row input:focus, .form-row select:focus, .form-row textarea:focus \{ outline: none; border-color: var(--primary); \}
   .form-grid-3 \{ display: grid; grid-template-columns: repeat(3, 1fr); gap: .9rem; \}
-  @media (max-width: 560px) \{ .form-grid-3 \{ grid-template-columns: 1fr; \} \}
+  .form-grid-2 \{ display: grid; grid-template-columns: repeat(2, 1fr); gap: .9rem; \}
+  @media (max-width: 560px) \{ .form-grid-3, .form-grid-2 \{ grid-template-columns: 1fr; \} \}
+  /* Tabs (Slice 8) — server-tracked active tab; all panels stay in the DOM */
+  .tab-nav \{ display: flex; gap: .25rem; border-bottom: 1px solid var(--border); margin-bottom: .3rem; \}
+  .tab-btn \{
+    border: none; background: none; color: var(--muted); cursor: pointer;
+    padding: .55rem .95rem; font-size: .88rem; font-weight: 600;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+  \}
+  .tab-btn:hover \{ color: var(--text); \}
+  .tab-btn.tab-on \{ color: var(--primary); border-bottom-color: var(--primary); \}
+  .tab-panel \{ display: none; flex-direction: column; gap: .9rem; \}
+  .tab-panel.tab-active \{ display: flex; \}
+  /* Radio group (Slice 8) */
+  .radio-group \{ display: flex; gap: 1.25rem; padding: .2rem 0; \}
+  .radio \{ display: inline-flex; align-items: center; gap: .4rem; cursor: pointer; font-size: .9rem; \}
+  .radio input \{ width: auto; margin: 0; accent-color: var(--primary); \}
   /* Group-checkbox (permisos por módulo). */
   .perm-groups \{ display: flex; flex-direction: column; gap: .6rem; \}
   .perm-group \{ border: 1px solid var(--border); border-radius: 8px; padding: .5rem .75rem .65rem; margin: 0; \}
