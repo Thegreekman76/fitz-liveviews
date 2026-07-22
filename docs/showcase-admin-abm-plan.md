@@ -145,7 +145,17 @@ Companion UI library from **8 basic components** to **~22-25**:
    Fitz core**: surfaced the cross-module `List<Nominal>` codegen hang
    (WsConn message type + `diff_html` return in a submodule) → fixed as
    Fitz **v0.26.1 (W19+W20)**; the app no longer needs to import `Patch`.
-3. **S3** — Filters + sort/multisort + search on the grid.
+3. **S3 — DONE** ✅ (2026-07-22, Fitz v0.27.0) The grid is fully interactive
+   — search, estado filter, **departamento filter**, sort with asc/desc
+   toggle, and **numbered pages** — all as WS events that re-query Postgres
+   server-side (chained `.where` ANDs; `.ilike("%q%")` for search; dynamic
+   `.order_by(col, ascending)`; `str.to_int()` to parse the page number /
+   department id from the `Map<Str,Str>` payload). Verified end-to-end on
+   the native binary + Docker + local Postgres. **No workarounds** — the two
+   gaps this slice surfaced were both fixed in Fitz core (dogfooding):
+   **W21** (dynamic `.order_by(ascending:)` in `fitz build`) and **W22**
+   (the `str.to_int() -> Result<Int>` builtin). `FITZ_TAG` pinned to
+   v0.27.0.
 4. **S4** — Alta/edición forms with the rich components (cascade,
    group-checkbox, multiselect, tree).
 5. **S5** — Selection + multi-delete + confirm + export.

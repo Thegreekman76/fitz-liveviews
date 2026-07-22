@@ -33,7 +33,7 @@ services:
       context: ../..
       dockerfile: examples/admin/Dockerfile
       args:
-        FITZ_TAG: ${FITZ_TAG:-v0.26.1}
+        FITZ_TAG: ${FITZ_TAG:-v0.27.0}
     container_name: admin-abm-app
     depends_on:
       db:

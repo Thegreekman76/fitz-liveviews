@@ -350,6 +350,42 @@ fn shell_css() -> Str {
   .pg-btn:hover:not(:disabled) \{ background: var(--surface-2); border-color: var(--primary); \}
   .pg-btn:disabled \{ opacity: .45; cursor: default; \}
 
+  /* Toolbar: search + estado filters (Slice 3) */
+  .grid-toolbar \{
+    display: flex; align-items: center; justify-content: space-between;
+    gap: .75rem; margin-bottom: .85rem; flex-wrap: wrap;
+  \}
+  .grid-search \{ display: flex; gap: .4rem; flex: 1 1 260px; min-width: 200px; \}
+  .grid-search input \{
+    flex: 1; min-width: 0; border: 1px solid var(--border); background: var(--surface);
+    color: var(--text); border-radius: 8px; padding: .5rem .75rem; font-size: .88rem;
+  \}
+  .grid-search input:focus \{ outline: none; border-color: var(--primary); \}
+  .btn-search \{
+    border: 1px solid var(--primary); background: var(--primary); color: #fff;
+    border-radius: 8px; padding: .5rem .9rem; cursor: pointer; font-weight: 600; font-size: .84rem;
+  \}
+  .btn-clear \{
+    border: 1px solid var(--border); background: var(--surface); color: var(--muted);
+    border-radius: 8px; padding: .5rem .8rem; cursor: pointer; font-size: .84rem;
+  \}
+  .grid-filters \{ display: flex; gap: .35rem; flex-wrap: wrap; \}
+  .pill \{
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    border-radius: 999px; padding: .4rem .85rem; cursor: pointer; font-size: .82rem; font-weight: 600;
+  \}
+  .pill:hover \{ border-color: var(--primary); \}
+  .pill-active \{ background: var(--primary); color: #fff; border-color: var(--primary); \}
+  th.th-sort \{ cursor: pointer; user-select: none; \}
+  th.th-sort:hover \{ color: var(--primary); \}
+  /* Departamento filter row. */
+  .grid-deptos \{ align-items: center; margin-bottom: .85rem; \}
+  .filter-label \{ font-size: .8rem; color: var(--muted); font-weight: 700; margin-right: .15rem; \}
+  /* Numbered page buttons. */
+  .pg-num \{ min-width: 2.1rem; text-align: center; \}
+  .pg-active \{ background: var(--primary); color: #fff; border-color: var(--primary); \}
+  .pg-active:hover \{ background: var(--primary); \}
+
   /* Grid → cards on mobile (each row becomes a stacked card) */
   @media (max-width: 640px) \{
     table.grid thead \{ display: none; \}

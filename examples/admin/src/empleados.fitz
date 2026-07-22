@@ -1,24 +1,24 @@
-// empleados.fitz — Slice 2: the Empleados DataGrid, live over WebSocket.
+// empleados.fitz — Slice 3: the Empleados DataGrid with search + filters + sort.
 //
-// This is the first screen in the showcase to use the LiveViews WS layer.
-// Slice 1 was pure SSR (each page a full round-trip). Here the page loads
-// once over HTTP (SSR first paint, embedded via `live_embed` INSIDE the
-// admin shell), then opens a WebSocket to `/live/empleados`. Pagination
-// clicks travel over that socket as tiny events; the server re-renders the
-// grid, diffs it against the previous render, and sends back only the
-// patches — the sidebar/topbar never reload.
+// Builds on Slice 2 (SSR first paint + live pagination over `/live/empleados`).
+// S3 makes the grid fully interactive — every dimension is a tiny WS event that
+// re-queries Postgres server-side and diff-and-patches the grid back to THIS
+// socket:
 //
-// Real SQL pagination: each page is a `.limit(PAGE_SIZE).offset(...)` query
-// (Fitz ORM, cap 31 of the language guide), not an in-memory slice. The
-// page number is per-connection state held in the `@ws` handler loop, so two
-// browsers paginate independently (we `ws.send` to the one socket, not
-// `ws.broadcast`).
+//   - Search    — a form; `<input name="q">` value travels in the payload,
+//                 filters name/email/cargo with `.ilike("%q%")`.
+//   - Estado    — pills (Todos / Activos / Inactivos) → `.where(activo)`.
+//   - Departamento — pills (one per department) → `.where(departamento_id)`.
+//   - Sort      — clickable column headers → `.order_by(col, ascending)` with
+//                 asc/desc toggle (click the same header again to flip).
+//   - Pages     — numbered page buttons + first/prev/next.
 //
-// NOTE (Fitz core gap surfaced by this slice): there is no `Str -> Int`
-// builtin yet, so numbered "go to page N" links (which would carry the page
-// in the event payload as a string) aren't wired here — nav is
-// first/prev/next by event name, which needs no parsing. Numbered pages land
-// when a `str.to_int()` / `int(s)` lands in core.
+// The departamento filter and the numbered pages both parse a string from the
+// `Map<Str, Str>` payload into an `Int` with the `str.to_int()` builtin (Fitz
+// core v0.26.2 / W22) — no workarounds. The active search/filter/sort/page is
+// per-connection state in the `@ws` loop, so two browsers filter independently.
+// Every dimension is real SQL (chained `.where` ANDs; `.count` reflects the
+// filters; dynamic `.order_by(col, ascending)`), not an in-memory slice.
 
 from config import db_url
 from models import Empleado, Departamento, User
@@ -43,6 +43,23 @@ fn clamp(v: Int, lo: Int, hi: Int) -> Int {
     return v
 }
 
+// Read a payload key with a default (the payload is a `Map<Str, Str>`).
+fn pget(p: Map<Str, Str>, k: Str, dflt: Str) -> Str {
+    return match p.get(k) {
+        Ok(v) => v,
+        Err(_) => dflt,
+    }
+}
+
+// Read a payload key as an Int, falling back to `dflt` when it's missing or
+// not a valid integer (`str.to_int()` — Fitz core v0.26.2).
+fn pget_int(p: Map<Str, Str>, k: Str, dflt: Int) -> Int {
+    return match pget(p, k, "").to_int() {
+        Ok(n) => n,
+        Err(_) => dflt,
+    }
+}
+
 fn estado_badge(activo: Bool) -> Str {
     return match activo {
         true => """<span class="badge badge-ok">Activo</span>""",
@@ -57,6 +74,53 @@ fn depto_name(deptos: List<Departamento>, id: Int) -> Str {
         Ok(d) => d.nombre,
         Err(_) => "—",
     }
+}
+
+// A sortable column header: clicking it sends a `sort` event carrying the
+// column key; the current sort column shows an ▲/▼ arrow.
+fn sort_th(label: Str, col: Str, cls: Str, sort_col: Str, sort_dir: Str) -> Str {
+    let arrow = match col == sort_col {
+        true => match sort_dir == "desc" {
+            true => " ▼",
+            false => " ▲",
+        },
+        false => "",
+    }
+    return """<th class="{cls} th-sort" data-flv-click="sort" data-flv-value-col="{col}">{flv(label)}{arrow}</th>"""
+}
+
+// An estado filter pill — highlighted when it's the active filter.
+fn estado_pill(label: Str, val: Str, event: Str, estado: Str) -> Str {
+    let cls = match val == estado {
+        true => "pill pill-active",
+        false => "pill",
+    }
+    return """<button class="{cls}" data-flv-click="{event}">{flv(label)}</button>"""
+}
+
+// One departamento pill. `id` 0 = "Todos". Highlighted when it's the active
+// department filter. Clicking carries the id in the payload (parsed with
+// `to_int` server-side).
+fn depto_pill(label: Str, id: Int, depto: Int) -> Str {
+    let cls = match id == depto {
+        true => "pill pill-active",
+        false => "pill",
+    }
+    return """<button class="{cls}" data-flv-click="filter_depto" data-flv-value-depto="{id}">{flv(label)}</button>"""
+}
+
+// Numbered page buttons (1..total_pages), current page highlighted. Each
+// carries its page number in the payload (parsed with `to_int` server-side).
+fn page_buttons(page: Int, total_pages: Int) -> Str {
+    let out = ""
+    for n in 1..(total_pages + 1) {
+        let cls = match n == page {
+            true => "pg-btn pg-num pg-active",
+            false => "pg-btn pg-num",
+        }
+        out = out + """<button class="{cls}" data-flv-click="goto_page" data-flv-value-page="{n}">{n}</button>"""
+    }
+    return out
 }
 
 // ---------------------------------------------------------------------------
@@ -76,39 +140,66 @@ fn grid_row(e: Empleado, deptos: List<Departamento>) -> Html {
     </tr>""")
 }
 
-fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, total: Int, total_pages: Int) -> Html {
+fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, total: Int, total_pages: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str) -> Html {
     let body: Html = match rows.len() == 0 {
-        true => html("""<tr><td colspan="6" class="grid-empty">No hay empleados para mostrar.</td></tr>"""),
+        true => html("""<tr><td colspan="6" class="grid-empty">No hay empleados que coincidan con la búsqueda.</td></tr>"""),
         false => html(h_join(rows.map(fn(e) => grid_row(e, deptos)))),
     }
     let prev_btn: Str = match page > 1 {
-        true => """<button class="pg-btn" data-flv-click="page_prev">‹ Anterior</button>""",
-        false => """<button class="pg-btn" disabled>‹ Anterior</button>""",
+        true => """<button class="pg-btn" data-flv-click="page_prev">‹</button>""",
+        false => """<button class="pg-btn" disabled>‹</button>""",
     }
     let next_btn: Str = match page < total_pages {
-        true => """<button class="pg-btn" data-flv-click="page_next">Siguiente ›</button>""",
-        false => """<button class="pg-btn" disabled>Siguiente ›</button>""",
+        true => """<button class="pg-btn" data-flv-click="page_next">›</button>""",
+        false => """<button class="pg-btn" disabled>›</button>""",
     }
-    let first_btn: Str = match page > 1 {
-        true => """<button class="pg-btn" data-flv-click="page_first">« Primera</button>""",
-        false => """<button class="pg-btn" disabled>« Primera</button>""",
-    }
+    let nums = page_buttons(page, total_pages)
+    // Sortable headers.
+    let th_id = sort_th("ID", "id", "col-id", sort_col, sort_dir)
+    let th_nombre = sort_th("Nombre", "nombre", "", sort_col, sort_dir)
+    let th_email = sort_th("Email", "email", "", sort_col, sort_dir)
+    let th_cargo = sort_th("Cargo", "cargo", "", sort_col, sort_dir)
+    let th_estado = sort_th("Estado", "estado", "", sort_col, sort_dir)
+    // Estado filter pills.
+    let pill_all = estado_pill("Todos", "all", "estado_all", estado)
+    let pill_active = estado_pill("Activos", "active", "estado_active", estado)
+    let pill_inactive = estado_pill("Inactivos", "inactive", "estado_inactive", estado)
+    // Departamento filter pills (Todos + one per department).
+    let depto_todos = depto_pill("Todos", 0, depto)
+    let depto_pills = h_join(deptos.map(fn(d) => html(depto_pill(d.nombre, d.id, depto))))
     return html("""<div id="empleados-live" class="grid-wrap">
       <div class="page-head">
         <h2>Empleados</h2>
         <p>Personal de la organización — {total} registro(s), en vivo sobre WebSocket.</p>
+      </div>
+      <div class="grid-toolbar">
+        <form class="grid-search" data-flv-submit="search">
+          <input name="q" value="{flv(q)}" placeholder="Buscar por nombre, email o cargo…" autocomplete="off" />
+          <button class="btn-search" type="submit">Buscar</button>
+          <button class="btn-clear" type="button" data-flv-click="search" data-flv-value-q="">Limpiar</button>
+        </form>
+        <div class="grid-filters">
+          {pill_all}
+          {pill_active}
+          {pill_inactive}
+        </div>
+      </div>
+      <div class="grid-filters grid-deptos">
+        <span class="filter-label">Departamento:</span>
+        {depto_todos}
+        {depto_pills}
       </div>
       <div class="grid-card">
         <div class="grid-scroll">
           <table class="grid">
             <thead>
               <tr>
-                <th class="col-id">ID</th>
-                <th>Nombre</th>
-                <th>Email</th>
-                <th>Cargo</th>
+                {th_id}
+                {th_nombre}
+                {th_email}
+                {th_cargo}
                 <th>Departamento</th>
-                <th>Estado</th>
+                {th_estado}
               </tr>
             </thead>
             <tbody>
@@ -119,8 +210,8 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
         <div class="grid-foot">
           <span class="grid-info">Página {page} de {total_pages}</span>
           <div class="pager">
-            {first_btn}
             {prev_btn}
+            {nums}
             {next_btn}
           </div>
         </div>
@@ -138,19 +229,39 @@ fn grid_error(msg: Str) -> Html {
 }
 
 // ---------------------------------------------------------------------------
-// Data — one page from Postgres via the ORM
+// Data — one filtered/sorted page from Postgres via the ORM
 // ---------------------------------------------------------------------------
 //
-// Connects per render (the pool reuses the underlying connection). Clamps the
-// requested page to [1, total_pages] so a stray event can never blank the
-// grid. Any DB failure renders the error panel (same root id).
+// The query is built by conditionally chaining `.where` (the ORM ANDs them): a
+// search term adds an ilike-over-three-columns clause; an estado pill adds a
+// boolean clause; a departamento pill adds an id-equality clause. `.count` runs
+// on the SAME filtered builder so the pager reflects the filters. Sort is a
+// dynamic `.order_by(col, ascending)`. Any DB failure renders the error panel.
 
-async fn grid_html(page: Int) -> Html {
+async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str) -> Html {
     let conn = match db.connect(db_url()).await {
         Ok(c) => c,
         Err(e) => return grid_error(e),
     }
-    let total: Int = match Empleado.where(fn(e) => e.id > 0).count(conn).await {
+    // Search: ilike over name/email/cargo when there's a query.
+    let pat = "%{q}%"
+    let base = Empleado.where(fn(e) => e.id > 0)
+    let searched = match q == "" {
+        true => base,
+        false => base.where(fn(e) => e.nombre.ilike(pat) or e.email.ilike(pat) or e.cargo.ilike(pat)),
+    }
+    // Estado filter.
+    let by_estado = match estado {
+        "active" => searched.where(fn(e) => e.activo == true),
+        "inactive" => searched.where(fn(e) => e.activo == false),
+        _ => searched,
+    }
+    // Departamento filter (0 = all).
+    let filtered = match depto > 0 {
+        true => by_estado.where(fn(e) => e.departamento_id == depto),
+        false => by_estado,
+    }
+    let total: Int = match filtered.count(conn).await {
         Ok(n) => n,
         Err(e) => return grid_error(e),
     }
@@ -160,15 +271,24 @@ async fn grid_html(page: Int) -> Html {
     }
     let p = clamp(page, 1, total_pages)
     let offset = (p - 1) * PAGE_SIZE
-    let rows: List<Empleado> = match Empleado.where(fn(e) => e.id > 0).order_by(fn(e) => e.id).limit(PAGE_SIZE).offset(offset).all(conn).await {
+    // Sort: dynamic column + direction.
+    let asc = sort_dir != "desc"
+    let ordered = match sort_col {
+        "nombre" => filtered.order_by(fn(e) => e.nombre, ascending: asc),
+        "email" => filtered.order_by(fn(e) => e.email, ascending: asc),
+        "cargo" => filtered.order_by(fn(e) => e.cargo, ascending: asc),
+        "estado" => filtered.order_by(fn(e) => e.activo, ascending: asc),
+        _ => filtered.order_by(fn(e) => e.id, ascending: asc),
+    }
+    let rows: List<Empleado> = match ordered.limit(PAGE_SIZE).offset(offset).all(conn).await {
         Ok(rs) => rs,
         Err(e) => return grid_error(e),
     }
-    let deptos: List<Departamento> = match Departamento.where(fn(d) => d.id > 0).all(conn).await {
+    let deptos: List<Departamento> = match Departamento.where(fn(d) => d.id > 0).order_by(fn(d) => d.nombre).all(conn).await {
         Ok(ds) => ds,
         Err(e) => return grid_error(e),
     }
-    return render_grid(rows, deptos, p, total, total_pages)
+    return render_grid(rows, deptos, p, total, total_pages, q, estado, depto, sort_col, sort_dir)
 }
 
 // ---------------------------------------------------------------------------
@@ -182,47 +302,81 @@ async fn empleados_page(cookie: Str?) -> Response {
         Ok(u) => u,
         Err(_) => return redirect_to("/login"),
     }
-    let grid = grid_html(1).await
+    let grid = grid_html(1, "", "all", 0, "id", "asc").await
     let live = live_embed("/live/empleados", "empleados-live", grid)
     return html_response(page_layout("Empleados", "empleados", user.name, live))
 }
 
 // ---------------------------------------------------------------------------
-// WebSocket — pagination events → re-render → diff → patch (this socket only)
+// WebSocket — search / filter / sort / paginate → re-query → diff → patch
 // ---------------------------------------------------------------------------
 //
-// `page` is per-connection state (this handler runs once per socket). We
-// `ws.send` the patches back to THIS client — pagination is per-user, so we
-// don't `ws.broadcast` (that would flip everyone's page). The parent handler
-// has no component events; nav is three plain events by name.
+// All state (page + search + estado + depto + sort) is per-connection. Any
+// change to a filter or the sort resets the page to 1 (so you don't land on an
+// empty page past the new result count). We `ws.send` to THIS socket only.
 
 @ws("/live/empleados")
 async fn empleados_socket(ws: WsConn<LiveFrame>) {
-    print("[ws] handler start")
     let page = 1
-    let last = grid_html(page).await.raw
-    print("[ws] initial grid_html done")
+    let q = ""
+    let estado = "all"
+    let depto = 0
+    let sort_col = "id"
+    let sort_dir = "asc"
+    let last = grid_html(page, q, estado, depto, sort_col, sort_dir).await.raw
     loop {
-        print("[ws] waiting recv")
         let frame = ws.recv()?
-        print("[ws] got frame")
-        if (frame.event == "page_next") {
+        let ev = frame.event
+        if (ev == "page_next") {
             page = page + 1
         }
-        if (frame.event == "page_prev") {
+        if (ev == "page_prev") {
             if (page > 1) {
                 page = page - 1
             }
         }
-        if (frame.event == "page_first") {
+        if (ev == "page_first") {
             page = 1
         }
-        let new_html = grid_html(page).await.raw
-        print("[ws] rerender done")
+        if (ev == "goto_page") {
+            page = pget_int(frame.payload, "page", page)
+        }
+        if (ev == "search") {
+            q = pget(frame.payload, "q", "")
+            page = 1
+        }
+        if (ev == "estado_all") {
+            estado = "all"
+            page = 1
+        }
+        if (ev == "estado_active") {
+            estado = "active"
+            page = 1
+        }
+        if (ev == "estado_inactive") {
+            estado = "inactive"
+            page = 1
+        }
+        if (ev == "filter_depto") {
+            depto = pget_int(frame.payload, "depto", 0)
+            page = 1
+        }
+        if (ev == "sort") {
+            let col = pget(frame.payload, "col", "id")
+            if (col == sort_col) {
+                sort_dir = match sort_dir == "asc" {
+                    true => "desc",
+                    false => "asc",
+                }
+            } else {
+                sort_col = col
+                sort_dir = "asc"
+            }
+            page = 1
+        }
+        let new_html = grid_html(page, q, estado, depto, sort_col, sort_dir).await.raw
         let patches = diff_html(last, new_html)
-        print("[ws] diff done, sending")
         ws.send(LiveFrame { html: new_html, patches: patches })?
-        print("[ws] sent")
         last = new_html
     }
 }
