@@ -250,6 +250,33 @@ fn toggle_id(csv: Str, id: Int) -> Str {
     }
 }
 
+// String-keyed set membership + toggle (Slice 6 — collapsed group keys like
+// "depto-1" / "estado-active"; keys never contain a comma).
+fn str_in(csv: Str, key: Str) -> Bool {
+    let hay = "," + csv + ","
+    let needle = ",{key},"
+    return hay.contains(needle)
+}
+
+fn toggle_str(csv: Str, key: Str) -> Str {
+    if (str_in(csv, key)) {
+        let out = ""
+        for p in csv.split(",") {
+            if (p != key and p != "") {
+                out = match out == "" {
+                    true => p,
+                    false => out + "," + p,
+                }
+            }
+        }
+        return out
+    }
+    return match csv == "" {
+        true => key,
+        false => csv + ",{key}",
+    }
+}
+
 // Count the ids in a comma-joined set (Slice 5, row selection).
 fn csv_count(csv: Str) -> Int {
     if (csv == "") {
@@ -475,11 +502,80 @@ fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provi
     </div>""")
 }
 
-fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, total: Int, total_pages: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, confirm_ids: Str) -> Html {
+// One "Agrupar por" pill (Slice 6). Highlighted when it's the active grouping.
+fn group_pill(label: Str, val: Str, event: Str, group_by: Str) -> Str {
+    let cls = match val == group_by {
+        true => "pill pill-active",
+        false => "pill",
+    }
+    return """<button class="{cls}" data-flv-click="{event}">{flv(label)}</button>"""
+}
+
+// One group section (Slice 6) — a header row (expand/collapse toggle + label +
+// count) spanning the table, followed by the member rows when expanded.
+fn group_section(key: Str, label: Str, members: List<Empleado>, collapsed: Str, deptos: List<Departamento>, sel: Str) -> Str {
+    let n = members.len()
+    let open = not str_in(collapsed, key)
+    let arrow = match open {
+        true => "▾",
+        false => "▸",
+    }
+    let head = """<tr class="grp-row"><td colspan="8" class="grp-cell"><button class="grp-toggle" data-flv-click="toggle_group" data-flv-value-key="{key}"><span class="tree-arrow">{arrow}</span> <strong>{flv(label)}</strong> <span class="grp-count">{n}</span></button></td></tr>"""
+    let rows = match open {
+        true => h_join(members.map(fn(e) => grid_row(e, deptos, sel))),
+        false => "",
+    }
+    return head + rows
+}
+
+// The grouped tbody (Slice 6) — buckets the (already filtered) rows by the
+// chosen dimension. Grouping shows every matching row (no pagination), each
+// section collapsible.
+fn grouped_body(rows: List<Empleado>, deptos: List<Departamento>, group_by: Str, collapsed: Str, sel: Str) -> Html {
+    if (group_by == "estado") {
+        let act = rows.filter(fn(e) => e.activo == true)
+        let ina = rows.filter(fn(e) => e.activo == false)
+        let s1 = match act.len() > 0 {
+            true => group_section("estado-active", "Activos", act, collapsed, deptos, sel),
+            false => "",
+        }
+        let s2 = match ina.len() > 0 {
+            true => group_section("estado-inactive", "Inactivos", ina, collapsed, deptos, sel),
+            false => "",
+        }
+        return html(s1 + s2)
+    }
+    // Default: group by departamento (one section per depto + "sin departamento").
+    let out = ""
+    for d in deptos {
+        let members = rows.filter(fn(e) => e.departamento_id == d.id)
+        if (members.len() > 0) {
+            out = out + group_section("depto-{d.id}", d.nombre, members, collapsed, deptos, sel)
+        }
+    }
+    let sin = rows.filter(fn(e) => e.departamento_id == 0)
+    if (sin.len() > 0) {
+        out = out + group_section("depto-0", "Sin departamento", sin, collapsed, deptos, sel)
+    }
+    return html(out)
+}
+
+fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, total: Int, total_pages: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, confirm_ids: Str, group_by: Str, grp_collapsed: Str) -> Html {
     let body: Html = match rows.len() == 0 {
         true => html("""<tr><td colspan="8" class="grid-empty">No hay empleados que coincidan con la búsqueda.</td></tr>"""),
-        false => html(h_join(rows.map(fn(e) => grid_row(e, deptos, sel)))),
+        false => match group_by == "" {
+            true => html(h_join(rows.map(fn(e) => grid_row(e, deptos, sel)))),
+            false => grouped_body(rows, deptos, group_by, grp_collapsed, sel),
+        },
     }
+    // "Agrupar por" control.
+    let grp_none = group_pill("Sin agrupar", "", "group_none", group_by)
+    let grp_depto = group_pill("Departamento", "depto", "group_depto", group_by)
+    let grp_estado = group_pill("Estado", "estado", "group_estado", group_by)
+    let group_bar = """<div class="grid-filters grid-group">
+      <span class="filter-label">Agrupar por:</span>
+      {grp_none}{grp_depto}{grp_estado}
+    </div>"""
     // Select-all checkbox reflects the ids ON THIS PAGE.
     let page_ids = ids_csv(rows)
     let all_checked = match all_in(sel, page_ids) {
@@ -522,6 +618,14 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
         false => """<button class="pg-btn" disabled>›</button>""",
     }
     let nums = page_buttons(page, total_pages)
+    // Footer: pager in flat mode, a plain count when grouped.
+    let foot: Str = match group_by == "" {
+        true => """<div class="grid-foot">
+          <span class="grid-info">Página {page} de {total_pages}</span>
+          <div class="pager">{prev_btn}{nums}{next_btn}</div>
+        </div>""",
+        false => """<div class="grid-foot"><span class="grid-info">{total} registro(s) agrupado(s)</span></div>""",
+    }
     // Sortable headers.
     let th_id = sort_th("ID", "id", "col-id", sort_col, sort_dir)
     let th_nombre = sort_th("Nombre", "nombre", "", sort_col, sort_dir)
@@ -560,6 +664,7 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
         {depto_todos}
         {depto_pills}
       </div>
+      {group_bar}
       {sel_bar}
       <div class="grid-card">
         <div class="grid-scroll">
@@ -581,14 +686,7 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
             </tbody>
           </table>
         </div>
-        <div class="grid-foot">
-          <span class="grid-info">Página {page} de {total_pages}</span>
-          <div class="pager">
-            {prev_btn}
-            {nums}
-            {next_btn}
-          </div>
-        </div>
+        {foot}
       </div>
       {modal}
     </div>""")
@@ -613,7 +711,7 @@ fn grid_error(msg: Str) -> Html {
 // on the SAME filtered builder so the pager reflects the filters. Sort is a
 // dynamic `.order_by(col, ascending)`. Any DB failure renders the error panel.
 
-async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, confirm_ids: Str) -> Html {
+async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, confirm_ids: Str, group_by: Str, grp_collapsed: Str) -> Html {
     let conn = match db.connect(db_url()).await {
         Ok(c) => c,
         Err(e) => return grid_error(e),
@@ -655,15 +753,23 @@ async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, so
         "estado" => filtered.order_by(fn(e) => e.activo, ascending: asc),
         _ => filtered.order_by(fn(e) => e.id, ascending: asc),
     }
-    let rows: List<Empleado> = match ordered.limit(PAGE_SIZE).offset(offset).all(conn).await {
-        Ok(rs) => rs,
-        Err(e) => return grid_error(e),
+    // Grouped mode shows every matching row (no pagination); flat mode
+    // fetches just the current page.
+    let rows: List<Empleado> = match group_by == "" {
+        true => match ordered.limit(PAGE_SIZE).offset(offset).all(conn).await {
+            Ok(rs) => rs,
+            Err(e) => return grid_error(e),
+        },
+        false => match ordered.all(conn).await {
+            Ok(rs) => rs,
+            Err(e) => return grid_error(e),
+        },
     }
     let deptos: List<Departamento> = match Departamento.where(fn(d) => d.id > 0).order_by(fn(d) => d.nombre).all(conn).await {
         Ok(ds) => ds,
         Err(e) => return grid_error(e),
     }
-    return render_grid(rows, deptos, p, total, total_pages, q, estado, depto, sort_col, sort_dir, sel, confirm_ids)
+    return render_grid(rows, deptos, p, total, total_pages, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed)
 }
 
 // The form screen (alta/edición) — queries the departamentos + the ubicaciones
@@ -953,7 +1059,7 @@ async fn empleados_page(cookie: Str?) -> Response {
         Ok(u) => u,
         Err(_) => return redirect_to("/login"),
     }
-    let grid = grid_html(1, "", "all", 0, "id", "asc", "", "").await
+    let grid = grid_html(1, "", "all", 0, "id", "asc", "", "", "", "").await
     let live = live_embed("/live/empleados", "empleados-live", grid)
     return html_response(page_layout("Empleados", "empleados", user.name, live))
 }
@@ -1028,7 +1134,10 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
     // Selection state (Slice 5) — selected row ids + ids pending delete-confirm.
     let sel = ""
     let confirm_ids = ""
-    let last = grid_html(page, q, estado, depto, sort_col, sort_dir, sel, confirm_ids).await.raw
+    // Grouping state (Slice 6) — active dimension + collapsed group keys.
+    let group_by = ""
+    let grp_collapsed = ""
+    let last = grid_html(page, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed).await.raw
     loop {
         let frame = ws.recv()?
         let ev = frame.event
@@ -1253,10 +1362,23 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
                 },
             }
         }
+        // --- column grouping (Slice 6) ---
+        if (ev == "group_none") {
+            group_by = ""
+        }
+        if (ev == "group_depto") {
+            group_by = "depto"
+        }
+        if (ev == "group_estado") {
+            group_by = "estado"
+        }
+        if (ev == "toggle_group") {
+            grp_collapsed = toggle_str(grp_collapsed, pget(frame.payload, "key", ""))
+        }
         let new_html = match mode {
             "form" => form_screen(edit_id, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_permisos, f_skills, f_activo, form_error).await.raw,
             "tree" => tree_screen(tree_exp_pais, tree_exp_prov).await.raw,
-            _ => grid_html(page, q, estado, depto, sort_col, sort_dir, sel, confirm_ids).await.raw,
+            _ => grid_html(page, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed).await.raw,
         }
         let patches = diff_html(last, new_html)
         ws.send(LiveFrame { html: new_html, patches: patches })?

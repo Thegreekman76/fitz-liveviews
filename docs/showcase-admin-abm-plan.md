@@ -200,7 +200,36 @@ Companion UI library from **8 basic components** to **~22-25**:
    quoting all existed). Components extracted: **Checkbox · CheckboxGroup
    (select-all) · Modal · ConfirmDialog · Toolbar (export) · Badge (selection
    count)**.
-6. **S6** — Column grouping + tree view polish.
+6. **S6 — DONE** ✅ (2026-07-22) Column grouping (SSR row-grouping, the
+   AG-Grid / Excel "group by" pattern — the drag-to-group polish waits for
+   client-side 11.7). A "Agrupar por" pill control (Sin agrupar / Departamento
+   / Estado) buckets the current filtered result set into collapsible sections,
+   each with a header (expand/collapse toggle + label + **count badge**) and its
+   member rows. Grouping shows every matching row (no pagination — the pager is
+   swapped for a total count); collapsed section keys (`"depto-1"` /
+   `"estado-active"`) live per-connection as a comma-joined set (`toggle_str` /
+   `str_in`, the string-keyed sibling of `toggle_id`). Verified run + binary
+   against local Postgres (group by depto/estado, collapse/expand a section,
+   back to flat). Showcase-only, **no lib change**, **no workarounds**.
+   Components extracted: **GroupPanel / RowGrouping · CountBadge**.
+
+### S7 (proposed) — Component completion pass
+
+S1-S6 cover the DataGrid + rich forms end-to-end. To round out the Companion
+UI inventory (~22-25), these remain — each SSR-viable, high-signal for the
+launch:
+
+- **Chart** (dashboard) — a pure-SVG/CSS bar chart of *empleados por
+  departamento* from ORM counts. No JS lib. High showcase value.
+- **Toast / Alert** — transient feedback after save/delete (dismissible now;
+  auto-dismiss would be a small client-runtime enhancement → lib).
+- **Breadcrumbs** — "Admin / Empleados" in the shell topbar. Cheap.
+- **GroupSelect (optgroup)** — a `<select>` with grouped options (e.g. permisos
+  by module, or "reporta a" by department).
+- **Multisort** — shift-click secondary sort (needs a client-runtime tweak to
+  forward the shift key → lib).
+- **Spinner** — loading indicator (lower priority; WS updates are ~instant).
+- **Menu (nested dropdown)** — nested sidebar sections.
 
 ## Expected Fitz core gaps (dogfooding)
 

@@ -469,6 +469,20 @@ fn shell_css() -> Str {
   .modal h3 \{ margin: 0 0 .5rem; \}
   .modal p \{ color: var(--muted); margin: 0 0 1.25rem; \}
   .modal-actions \{ display: flex; gap: .5rem; justify-content: flex-end; \}
+  /* Column grouping (Slice 6) */
+  .grid-group \{ align-items: center; \}
+  tr.grp-row \{ background: color-mix(in srgb, var(--primary) 8%, var(--surface)); \}
+  .grp-cell \{ padding: 0; \}
+  .grp-toggle \{
+    display: flex; align-items: center; gap: .5rem; width: 100%; text-align: left;
+    border: none; background: none; color: var(--text); cursor: pointer;
+    padding: .6rem .85rem; font-size: .9rem;
+  \}
+  .grp-toggle:hover \{ background: color-mix(in srgb, var(--primary) 6%, transparent); \}
+  .grp-count \{
+    background: var(--primary); color: #fff; border-radius: 999px;
+    padding: .05rem .55rem; font-size: .72rem; font-weight: 700;
+  \}
   .form-actions \{ display: flex; gap: .5rem; margin-top: .35rem; \}
   .form-error \{
     background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;
