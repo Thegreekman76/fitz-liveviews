@@ -23,6 +23,33 @@ fn stat_card(label: Str, value: Int, hint: Str, accent: Str) -> Str {
     </div>"""
 }
 
+// --- Chart (pure SVG/CSS bars — no JS) ------------------------------------
+//
+// A horizontal bar chart of empleados per departamento, scaled to the busiest
+// department. Data comes straight from the ORM; the bars are plain divs whose
+// width is a percentage, so it's responsive and needs zero client JS.
+
+fn bar_chart(deptos: List<Departamento>, all_emp: List<Empleado>) -> Str {
+    let max = 1
+    for d in deptos {
+        let c = all_emp.filter(fn(e) => e.departamento_id == d.id).len()
+        if (c > max) {
+            max = c
+        }
+    }
+    let bars = ""
+    for d in deptos {
+        let c = all_emp.filter(fn(e) => e.departamento_id == d.id).len()
+        let pct = (c * 100) / max
+        bars = bars + """<div class="chart-row">
+          <span class="chart-label">{flv(d.nombre)}</span>
+          <div class="chart-track"><div class="chart-bar" style="width: {pct}%"></div></div>
+          <span class="chart-val">{c}</span>
+        </div>"""
+    }
+    return bars
+}
+
 // --- Dashboard body (real DB counts) -------------------------------------
 
 async fn render_dashboard() -> Result<Html> {
@@ -33,12 +60,17 @@ async fn render_dashboard() -> Result<Html> {
     let total_emp = Empleado.where(fn(e) => e.id > 0).count(conn).await?
     let activos = Empleado.where(fn(e) => e.activo == true).count(conn).await?
     let inactivos = total_emp - activos
-    let deptos = Departamento.where(fn(d) => d.id > 0).count(conn).await?
+    let n_deptos = Departamento.where(fn(d) => d.id > 0).count(conn).await?
 
     let c1 = stat_card("Empleados", total_emp, "Total en el sistema", "blue")
     let c2 = stat_card("Activos", activos, "Con acceso habilitado", "green")
     let c3 = stat_card("Inactivos", inactivos, "Baja o suspendidos", "amber")
-    let c4 = stat_card("Departamentos", deptos, "Áreas de la organización", "violet")
+    let c4 = stat_card("Departamentos", n_deptos, "Áreas de la organización", "violet")
+
+    // Chart data: every department + every employee, counted in Fitz.
+    let deptos = Departamento.where(fn(d) => d.id > 0).order_by(fn(d) => d.nombre).all(conn).await?
+    let all_emp = Empleado.where(fn(e) => e.id > 0).all(conn).await?
+    let chart = bar_chart(deptos, all_emp)
 
     return Ok(html("""<div class="page-head">
       <h2>Dashboard</h2>
@@ -48,11 +80,8 @@ async fn render_dashboard() -> Result<Html> {
       {c1}{c2}{c3}{c4}
     </div>
     <div class="panel">
-      <h3>ABM de Empleados <span class="badge-soon">Slice 2</span></h3>
-      <p>La grilla de empleados — columnas, orden, filtros, búsqueda, paginación,
-      selección, export y formularios ricos — llega en los próximos slices. Este
-      slice deja el esqueleto: login, shell responsive, cambio de tema y este
-      dashboard, todo sobre PostgreSQL y dockerizado.</p>
+      <h3>Empleados por departamento</h3>
+      <div class="chart">{chart}</div>
     </div>"""))
 }
 

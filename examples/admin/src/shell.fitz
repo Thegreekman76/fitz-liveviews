@@ -75,6 +75,16 @@ fn render_topbar(title: Str, user_name: Str) -> Str {
     </header>"""
 }
 
+// Breadcrumbs (Slice 7) — "Admin / <screen>", the home crumb links to the
+// dashboard. Trivial today (two levels); ready to grow for nested screens.
+fn render_breadcrumbs(title: Str) -> Str {
+    return """<nav class="breadcrumbs" aria-label="Ruta">
+      <a href="/">Admin</a>
+      <span class="crumb-sep">/</span>
+      <span class="crumb-current">{flv(title)}</span>
+    </nav>"""
+}
+
 // First 1-2 letters for the avatar chip.
 fn initials(name: Str) -> Str {
     let t = name.trim()
@@ -92,6 +102,7 @@ fn initials(name: Str) -> Str {
 fn page_layout(title: Str, active: Str, user_name: Str, body: Html) -> Html {
     let sidebar = render_sidebar(active)
     let topbar = render_topbar(title, user_name)
+    let crumbs = render_breadcrumbs(title)
     let css = shell_css()
     let boot = theme_init_js()
     let script = interactive_js()
@@ -110,6 +121,7 @@ fn page_layout(title: Str, active: Str, user_name: Str, body: Html) -> Html {
     <div class="drawer-overlay" onclick="flvCloseDrawer()"></div>
     <div class="main-col">
       {topbar}
+      {crumbs}
       <main class="content">
         {body.raw}
       </main>
@@ -469,6 +481,28 @@ fn shell_css() -> Str {
   .modal h3 \{ margin: 0 0 .5rem; \}
   .modal p \{ color: var(--muted); margin: 0 0 1.25rem; \}
   .modal-actions \{ display: flex; gap: .5rem; justify-content: flex-end; \}
+  /* Breadcrumbs (Slice 7) */
+  .breadcrumbs \{
+    display: flex; align-items: center; gap: .5rem; font-size: .82rem;
+    padding: .5rem 1.5rem; color: var(--muted); border-bottom: 1px solid var(--border);
+  \}
+  .breadcrumbs a \{ color: var(--primary); text-decoration: none; \}
+  .breadcrumbs a:hover \{ text-decoration: underline; \}
+  .crumb-sep \{ opacity: .5; \}
+  .crumb-current \{ color: var(--text); font-weight: 600; \}
+  /* Toast / flash (Slice 7) — floats bottom-right, cleared on next action */
+  .toast \{
+    position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 60;
+    display: flex; align-items: center; gap: .75rem;
+    padding: .7rem 1rem; border-radius: 10px; color: #fff;
+    box-shadow: 0 10px 30px rgba(0,0,0,.25); font-size: .9rem;
+    animation: toast-in .2s ease;
+  \}
+  @keyframes toast-in \{ from \{ opacity: 0; transform: translateY(8px); \} to \{ opacity: 1; transform: none; \} \}
+  .toast-success \{ background: #16a34a; \}
+  .toast-error \{ background: #ef4444; \}
+  .toast-x \{ background: none; border: none; color: #fff; font-size: 1.15rem; cursor: pointer; line-height: 1; opacity: .85; \}
+  .toast-x:hover \{ opacity: 1; \}
   /* Column grouping (Slice 6) */
   .grid-group \{ align-items: center; \}
   tr.grp-row \{ background: color-mix(in srgb, var(--primary) 8%, var(--surface)); \}
@@ -483,6 +517,18 @@ fn shell_css() -> Str {
     background: var(--primary); color: #fff; border-radius: 999px;
     padding: .05rem .55rem; font-size: .72rem; font-weight: 700;
   \}
+  /* Dashboard bar chart (Slice 7) — pure CSS bars, no JS */
+  .chart \{ display: flex; flex-direction: column; gap: .6rem; margin-top: .5rem; \}
+  .chart-row \{ display: flex; align-items: center; gap: .75rem; \}
+  .chart-label \{ flex: 0 0 8.5rem; font-size: .85rem; text-align: right; color: var(--muted); \}
+  .chart-track \{ flex: 1; background: var(--surface-2, rgba(127,127,127,.12)); border-radius: 6px; height: 1.4rem; overflow: hidden; \}
+  .chart-bar \{
+    height: 100%; min-width: 2px; border-radius: 6px;
+    background: linear-gradient(90deg, var(--primary), color-mix(in srgb, var(--primary) 70%, #8b5cf6));
+    transition: width .3s ease;
+  \}
+  .chart-val \{ flex: 0 0 2rem; font-weight: 700; font-size: .85rem; \}
+  @media (max-width: 560px) \{ .chart-label \{ flex-basis: 5.5rem; \} \}
   .form-actions \{ display: flex; gap: .5rem; margin-top: .35rem; \}
   .form-error \{
     background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;

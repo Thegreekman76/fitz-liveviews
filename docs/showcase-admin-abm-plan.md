@@ -213,22 +213,36 @@ Companion UI library from **8 basic components** to **~22-25**:
    back to flat). Showcase-only, **no lib change**, **no workarounds**.
    Components extracted: **GroupPanel / RowGrouping · CountBadge**.
 
-### S7 (proposed) — Component completion pass
+### S7 — Component completion pass (in progress)
 
-S1-S6 cover the DataGrid + rich forms end-to-end. To round out the Companion
-UI inventory (~22-25), these remain — each SSR-viable, high-signal for the
-launch:
+S1-S6 cover the DataGrid + rich forms end-to-end. S7 rounds out the Companion
+UI inventory (~22-25) with the remaining SSR-viable components.
 
-- **Chart** (dashboard) — a pure-SVG/CSS bar chart of *empleados por
-  departamento* from ORM counts. No JS lib. High showcase value.
-- **Toast / Alert** — transient feedback after save/delete (dismissible now;
-  auto-dismiss would be a small client-runtime enhancement → lib).
-- **Breadcrumbs** — "Admin / Empleados" in the shell topbar. Cheap.
-- **GroupSelect (optgroup)** — a `<select>` with grouped options (e.g. permisos
-  by module, or "reporta a" by department).
+- **S7a — DONE** ✅ (2026-07-22) **Chart** on the dashboard: a pure-CSS bar
+  chart of *empleados por departamento*, scaled to the busiest department,
+  straight from ORM counts (counted in Fitz over one `.all(...)`). Zero JS,
+  responsive. Replaced the stale "Slice 2" placeholder panel. Verified run +
+  binary.
+- **S7b — DONE** ✅ (2026-07-22) **Toast / Alert**: a transient flash after a
+  save ("Empleado guardado") or delete ("N empleado(s) eliminado(s)"), floating
+  bottom-right, success/error variants. Flash lives for exactly one render —
+  cleared at the top of the WS loop so any next event (or the × button →
+  `dismiss_flash`) dismisses it. Verified run + binary (success on save/delete,
+  auto-clear on next event).
+- **S7c — DONE** ✅ (2026-07-22) **Breadcrumbs** in the shell: "Admin /
+  <screen>" under the topbar, home crumb links to the dashboard. Verified run +
+  binary. Showcase-only.
+
+All of S7a-c are **no core gap, no workarounds, no lib change**. Components
+extracted: **Chart / BarChart · Toast / Alert · Breadcrumbs**.
+
+Still open (SSR-viable, lower priority):
+
+- **GroupSelect (optgroup)** — a `<select>` with grouped options (e.g. "reporta
+  a" by department; needs a `reporta_a` column → small schema add).
 - **Multisort** — shift-click secondary sort (needs a client-runtime tweak to
   forward the shift key → lib).
-- **Spinner** — loading indicator (lower priority; WS updates are ~instant).
+- **Spinner** — loading indicator (WS updates are ~instant, so low value).
 - **Menu (nested dropdown)** — nested sidebar sections.
 
 ## Expected Fitz core gaps (dogfooding)

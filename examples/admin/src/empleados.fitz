@@ -560,7 +560,7 @@ fn grouped_body(rows: List<Empleado>, deptos: List<Departamento>, group_by: Str,
     return html(out)
 }
 
-fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, total: Int, total_pages: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, confirm_ids: Str, group_by: Str, grp_collapsed: Str) -> Html {
+fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, total: Int, total_pages: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, confirm_ids: Str, group_by: Str, grp_collapsed: Str, flash: Str, flash_kind: Str) -> Html {
     let body: Html = match rows.len() == 0 {
         true => html("""<tr><td colspan="8" class="grid-empty">No hay empleados que coincidan con la búsqueda.</td></tr>"""),
         false => match group_by == "" {
@@ -594,6 +594,14 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
     }
     // Export link — respects the active filters (not the selection).
     let export_href = "/empleados/export.csv?q={url_enc(q)}&estado={estado}&depto={depto}"
+    // Toast — a transient flash message after a save / delete (Slice 7).
+    let toast: Str = match flash == "" {
+        true => "",
+        false => """<div class="toast toast-{flash_kind}">
+          <span>{flv(flash)}</span>
+          <button class="toast-x" data-flv-click="dismiss_flash">×</button>
+        </div>""",
+    }
     // Confirm dialog — shown while `confirm_ids` is pending.
     let n_del = csv_count(confirm_ids)
     let modal: Str = match n_del > 0 {
@@ -688,6 +696,7 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
         </div>
         {foot}
       </div>
+      {toast}
       {modal}
     </div>""")
 }
@@ -711,7 +720,7 @@ fn grid_error(msg: Str) -> Html {
 // on the SAME filtered builder so the pager reflects the filters. Sort is a
 // dynamic `.order_by(col, ascending)`. Any DB failure renders the error panel.
 
-async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, confirm_ids: Str, group_by: Str, grp_collapsed: Str) -> Html {
+async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, confirm_ids: Str, group_by: Str, grp_collapsed: Str, flash: Str, flash_kind: Str) -> Html {
     let conn = match db.connect(db_url()).await {
         Ok(c) => c,
         Err(e) => return grid_error(e),
@@ -769,7 +778,7 @@ async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, so
         Ok(ds) => ds,
         Err(e) => return grid_error(e),
     }
-    return render_grid(rows, deptos, p, total, total_pages, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed)
+    return render_grid(rows, deptos, p, total, total_pages, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed, flash, flash_kind)
 }
 
 // The form screen (alta/edición) — queries the departamentos + the ubicaciones
@@ -1059,7 +1068,7 @@ async fn empleados_page(cookie: Str?) -> Response {
         Ok(u) => u,
         Err(_) => return redirect_to("/login"),
     }
-    let grid = grid_html(1, "", "all", 0, "id", "asc", "", "", "", "").await
+    let grid = grid_html(1, "", "all", 0, "id", "asc", "", "", "", "", "", "").await
     let live = live_embed("/live/empleados", "empleados-live", grid)
     return html_response(page_layout("Empleados", "empleados", user.name, live))
 }
@@ -1137,10 +1146,16 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
     // Grouping state (Slice 6) — active dimension + collapsed group keys.
     let group_by = ""
     let grp_collapsed = ""
-    let last = grid_html(page, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed).await.raw
+    // Flash message (Slice 7) — a transient toast shown after a save / delete.
+    let flash = ""
+    let flash_kind = ""
+    let last = grid_html(page, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed, flash, flash_kind).await.raw
     loop {
         let frame = ws.recv()?
         let ev = frame.event
+        // A flash lives for exactly one render: any next event clears it.
+        flash = ""
+        flash_kind = ""
         // --- grid navigation / filters / sort ---
         if (ev == "page_next") {
             page = page + 1
@@ -1298,6 +1313,8 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
                                         mode = "grid"
                                         form_error = ""
                                         page = 1
+                                        flash = "Empleado guardado"
+                                        flash_kind = "success"
                                     },
                                     Err(er) => {
                                         form_error = er
@@ -1352,13 +1369,17 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
         }
         if (ev == "confirm_delete") {
             match delete_ids(confirm_ids).await {
-                Ok(_) => {
+                Ok(n_deleted) => {
                     sel = ""
                     confirm_ids = ""
                     page = 1
+                    flash = "{n_deleted} empleado(s) eliminado(s)"
+                    flash_kind = "success"
                 },
-                Err(_) => {
+                Err(e) => {
                     confirm_ids = ""
+                    flash = "Error al eliminar: {e}"
+                    flash_kind = "error"
                 },
             }
         }
@@ -1378,7 +1399,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
         let new_html = match mode {
             "form" => form_screen(edit_id, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_permisos, f_skills, f_activo, form_error).await.raw,
             "tree" => tree_screen(tree_exp_pais, tree_exp_prov).await.raw,
-            _ => grid_html(page, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed).await.raw,
+            _ => grid_html(page, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed, flash, flash_kind).await.raw,
         }
         let patches = diff_html(last, new_html)
         ws.send(LiveFrame { html: new_html, patches: patches })?
