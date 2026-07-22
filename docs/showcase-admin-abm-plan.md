@@ -311,9 +311,22 @@ one schema migration for the new columns.
     (step forward/back preserving input, Finalizar on last step saves, edit
     still shows tabs). Components: ProgressBar · ExpansionPanel · Divider ·
     Spinner · Stepper.
-- **S8c — TODO** **nested Menu** (sidebar collapsible group), **Tooltip** (CSS
-  hints on actions), **Rating** (a `nivel` 1-5 star field on the employee →
-  schema column + star widget + shown in the expand-row detail).
+- **S8c — DONE** ✅ (2026-07-22) Shell + form polish:
+  - **nested Menu** — the sidebar's "Organización" group is a native
+    `<details>` (zero JS) holding Empleados + Departamentos, auto-open when one
+    of them is the active screen.
+  - **Tooltip** — CSS-only `[data-tooltip]::after` on the grid action buttons
+    (Ver detalle / Editar / Eliminar).
+  - **Rating** — a `nivel` 0-5 star field (new column). Star **input** via
+    radios + the `row-reverse` / `input:checked ~ label` CSS trick (no JS),
+    on the Datos tab; read-only ★★★☆☆ **display** in the expand-row detail.
+  - Verified run + binary: nested menu open state, tooltips, rating widget +
+    save (`nivel`), edit prefill (radio checked), detail stars. **No core gap.**
+    Components: nested Menu · Tooltip · Rating.
+
+**S8 complete** — the Companion UI inventory is now essentially full (the
+remaining Vuetify items — virtual tables, media — are out of scope for an admin
+panel). Next: **S9 (i18n)**.
 
 ### S9 (planned) — Internationalization (i18n)
 

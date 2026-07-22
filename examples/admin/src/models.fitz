@@ -49,6 +49,7 @@
     reporta_a: Int = 0
     fecha_ingreso: Str = ""
     notas: Str = ""
+    nivel: Int = 0
     activo: Bool = true
     @db_default created_at: Str = ""
 }

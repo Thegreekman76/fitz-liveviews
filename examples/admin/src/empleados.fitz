@@ -147,7 +147,7 @@ fn grid_row(e: Empleado, deptos: List<Departamento>, sel: Str, expanded: Str) ->
         false => "▸",
     }
     return html("""<tr class="{tr_cls}">
-      <td data-label="" class="col-exp"><button class="btn-icon btn-exp" title="Detalle" data-flv-click="toggle_row" data-flv-value-id="{e.id}">{chevron}</button></td>
+      <td data-label="" class="col-exp"><button class="btn-icon btn-exp" data-tooltip="Ver detalle" data-flv-click="toggle_row" data-flv-value-id="{e.id}">{chevron}</button></td>
       <td data-label="" class="col-sel"><input type="checkbox" class="row-sel" data-flv-click="toggle_sel" data-flv-value-id="{e.id}"{checked} /></td>
       <td data-label="ID" class="col-id">{e.id}</td>
       <td data-label="Nombre"><strong>{flv(e.nombre)}</strong></td>
@@ -156,8 +156,8 @@ fn grid_row(e: Empleado, deptos: List<Departamento>, sel: Str, expanded: Str) ->
       <td data-label="Departamento">{flv(depto)}</td>
       <td data-label="Estado">{estado}</td>
       <td data-label="Acciones" class="col-actions">
-        <button class="btn-icon" title="Editar" data-flv-click="edit_empleado" data-flv-value-id="{e.id}">✎</button>
-        <button class="btn-icon btn-danger" title="Eliminar" data-flv-click="ask_delete_one" data-flv-value-id="{e.id}">🗑</button>
+        <button class="btn-icon" data-tooltip="Editar" data-flv-click="edit_empleado" data-flv-value-id="{e.id}">✎</button>
+        <button class="btn-icon btn-danger" data-tooltip="Eliminar" data-flv-click="ask_delete_one" data-flv-value-id="{e.id}">🗑</button>
       </td>
     </tr>""")
 }
@@ -505,7 +505,35 @@ fn stepper_bar(f_tab: Str) -> Str {
     return """<div class="stepper">{s1}<div class="step-line"></div>{s2}<div class="step-line"></div>{s3}</div>"""
 }
 
-fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provincias: List<Provincia>, ciudades: List<Ciudad>, permisos: List<Permiso>, skills: List<Skill>, colegas: List<Empleado>, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_pais: Int, f_provincia: Int, f_ciudad: Int, f_reporta: Int, f_fecha: Str, f_notas: Str, f_permisos: Str, f_skills: Str, f_activo: Bool, f_tab: Str, error: Str) -> Html {
+// Rating (Slice 8c) — a 0-5 star input via radios (no JS). The radios are
+// emitted 5→1 so a `flex-direction: row-reverse` container + the
+// `input:checked ~ label` CSS fills the chosen star and every one to its left.
+fn rating_input(selected: Int) -> Str {
+    let out = ""
+    for n in 1..6 {
+        let val = 6 - n
+        let checked = match val == selected {
+            true => " checked",
+            false => "",
+        }
+        out = out + """<input type="radio" id="nivel-{val}" name="nivel" value="{val}"{checked} /><label for="nivel-{val}" data-tooltip="{val}">★</label>"""
+    }
+    return out
+}
+
+// Read-only star display (Slice 8c) — filled/empty stars for the expand-row.
+fn stars_display(n: Int) -> Str {
+    let out = ""
+    for i in 1..6 {
+        out = out + match i <= n {
+            true => "★",
+            false => "☆",
+        }
+    }
+    return out
+}
+
+fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provincias: List<Provincia>, ciudades: List<Ciudad>, permisos: List<Permiso>, skills: List<Skill>, colegas: List<Empleado>, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_pais: Int, f_provincia: Int, f_ciudad: Int, f_reporta: Int, f_fecha: Str, f_notas: Str, f_nivel: Int, f_permisos: Str, f_skills: Str, f_activo: Bool, f_tab: Str, error: Str) -> Html {
     let title = match edit_id == 0 {
         true => "Nuevo empleado",
         false => "Editar empleado",
@@ -526,6 +554,7 @@ fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provi
         true => "",
         false => " checked",
     }
+    let rating = rating_input(f_nivel)
     let banner = match error == "" {
         true => "",
         false => """<div class="form-error">{flv(error)}</div>""",
@@ -598,11 +627,17 @@ fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provi
                 <input name="fecha_ingreso" type="date" value="{flv(f_fecha)}" />
               </div>
             </div>
-            <div class="form-row">
-              <label>Estado</label>
-              <div class="radio-group">
-                <label class="radio"><input type="radio" name="activo" value="true"{est_a} /> Activo</label>
-                <label class="radio"><input type="radio" name="activo" value="false"{est_i} /> Inactivo</label>
+            <div class="form-grid-2">
+              <div class="form-row">
+                <label>Estado</label>
+                <div class="radio-group">
+                  <label class="radio"><input type="radio" name="activo" value="true"{est_a} /> Activo</label>
+                  <label class="radio"><input type="radio" name="activo" value="false"{est_i} /> Inactivo</label>
+                </div>
+              </div>
+              <div class="form-row">
+                <label>Desempeño</label>
+                <div class="rating">{rating}</div>
               </div>
             </div>
             <div class="form-row">
@@ -948,10 +983,12 @@ async fn row_detail(e: Empleado, deptos: List<Departamento>) -> Str {
     let ubi = ubi_label(e.ciudad_id).await
     let perms = permisos_labels(e.id).await
     let sks = skills_labels(e.id).await
+    let stars = stars_display(e.nivel)
     return """<tr class="detail-row"><td colspan="9" class="detail-cell">
       <div class="detail-panel">
         <div class="detail-item"><span class="detail-k">Departamento</span><span class="detail-v">{flv(depto)}</span></div>
         <div class="detail-item"><span class="detail-k">Ubicación</span><span class="detail-v">{flv(ubi)}</span></div>
+        <div class="detail-item"><span class="detail-k">Desempeño</span><span class="detail-v stars-ro">{stars}</span></div>
         <div class="detail-item"><span class="detail-k">Permisos</span><span class="detail-v chips">{perms}</span></div>
         <div class="detail-item"><span class="detail-k">Skills</span><span class="detail-v chips">{sks}</span></div>
       </div>
@@ -1060,7 +1097,7 @@ async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, so
 // The form screen (alta/edición) — queries the departamentos + the ubicaciones
 // options (cascade: provincias only for the picked país, ciudades only for the
 // picked provincia), then renders the form fragment. Same root id as the grid.
-async fn form_screen(edit_id: Int, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_pais: Int, f_provincia: Int, f_ciudad: Int, f_reporta: Int, f_fecha: Str, f_notas: Str, f_permisos: Str, f_skills: Str, f_activo: Bool, f_tab: Str, error: Str) -> Html {
+async fn form_screen(edit_id: Int, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_pais: Int, f_provincia: Int, f_ciudad: Int, f_reporta: Int, f_fecha: Str, f_notas: Str, f_nivel: Int, f_permisos: Str, f_skills: Str, f_activo: Bool, f_tab: Str, error: Str) -> Html {
     let conn = match db.connect(db_url()).await {
         Ok(c) => c,
         Err(e) => return grid_error(e),
@@ -1101,7 +1138,7 @@ async fn form_screen(edit_id: Int, f_nombre: Str, f_email: Str, f_cargo: Str, f_
         Ok(ss) => ss,
         Err(e) => return grid_error(e),
     }
-    return form_html(edit_id, deptos, paises, provincias, ciudades, permisos, skills, colegas, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_reporta, f_fecha, f_notas, f_permisos, f_skills, f_activo, f_tab, error)
+    return form_html(edit_id, deptos, paises, provincias, ciudades, permisos, skills, colegas, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_reporta, f_fecha, f_notas, f_nivel, f_permisos, f_skills, f_activo, f_tab, error)
 }
 
 // The tree screen (Slice 4e) — the ubicaciones hierarchy as an expandable
@@ -1146,13 +1183,13 @@ async fn load_empleado(id: Int) -> Result<Empleado> {
 
 // Persist the form: INSERT when `edit_id == 0`, UPDATE otherwise. Returns the
 // number of affected/created rows-ish (1) or an `Err` with the DB message.
-async fn save_empleado_db(edit_id: Int, nombre: Str, email: Str, cargo: Str, depto: Int, ciudad: Int, reporta: Int, fecha: Str, notas: Str, activo: Bool) -> Result<Int> {
+async fn save_empleado_db(edit_id: Int, nombre: Str, email: Str, cargo: Str, depto: Int, ciudad: Int, reporta: Int, fecha: Str, notas: Str, nivel: Int, activo: Bool) -> Result<Int> {
     let conn = db.connect(db_url()).await?
     if (edit_id == 0) {
-        let created = Empleado.insert(conn, Empleado { nombre: nombre, email: email, cargo: cargo, departamento_id: depto, ciudad_id: ciudad, reporta_a: reporta, fecha_ingreso: fecha, notas: notas, activo: activo }).await?
+        let created = Empleado.insert(conn, Empleado { nombre: nombre, email: email, cargo: cargo, departamento_id: depto, ciudad_id: ciudad, reporta_a: reporta, fecha_ingreso: fecha, notas: notas, nivel: nivel, activo: activo }).await?
         return Ok(created.id)
     }
-    let _ = Empleado.where(fn(e) => e.id == edit_id).update(conn, { "nombre": nombre, "email": email, "cargo": cargo, "departamento_id": depto, "ciudad_id": ciudad, "reporta_a": reporta, "fecha_ingreso": fecha, "notas": notas, "activo": activo }).await?
+    let _ = Empleado.where(fn(e) => e.id == edit_id).update(conn, { "nombre": nombre, "email": email, "cargo": cargo, "departamento_id": depto, "ciudad_id": ciudad, "reporta_a": reporta, "fecha_ingreso": fecha, "notas": notas, "nivel": nivel, "activo": activo }).await?
     return Ok(edit_id)
 }
 
@@ -1418,6 +1455,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
     let f_reporta = 0
     let f_fecha = ""
     let f_notas = ""
+    let f_nivel = 0
     let f_permisos = ""
     let f_skills = ""
     let f_activo = true
@@ -1507,6 +1545,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             f_reporta = 0
             f_fecha = ""
             f_notas = ""
+            f_nivel = 0
             f_permisos = ""
             f_skills = ""
             f_activo = true
@@ -1531,6 +1570,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
                     f_reporta = e.reporta_a
                     f_fecha = e.fecha_ingreso
                     f_notas = e.notas
+                    f_nivel = e.nivel
                     f_permisos = load_permisos_csv(e.id).await
                     f_skills = load_skills_csv(e.id).await
                     form_error = ""
@@ -1553,6 +1593,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             f_reporta = pget_int(frame.payload, "reporta_a", f_reporta)
             f_fecha = pget(frame.payload, "fecha_ingreso", f_fecha)
             f_notas = pget(frame.payload, "notas", f_notas)
+            f_nivel = pget_int(frame.payload, "nivel", f_nivel)
             f_depto = pget_int(frame.payload, "departamento_id", f_depto)
             f_activo = pget(frame.payload, "activo", "true") == "true"
             f_permisos = pget(frame.payload, "permisos", f_permisos)
@@ -1568,6 +1609,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             f_reporta = pget_int(frame.payload, "reporta_a", f_reporta)
             f_fecha = pget(frame.payload, "fecha_ingreso", f_fecha)
             f_notas = pget(frame.payload, "notas", f_notas)
+            f_nivel = pget_int(frame.payload, "nivel", f_nivel)
             f_depto = pget_int(frame.payload, "departamento_id", f_depto)
             f_activo = pget(frame.payload, "activo", "true") == "true"
             f_permisos = pget(frame.payload, "permisos", f_permisos)
@@ -1583,6 +1625,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             f_reporta = pget_int(frame.payload, "reporta_a", f_reporta)
             f_fecha = pget(frame.payload, "fecha_ingreso", f_fecha)
             f_notas = pget(frame.payload, "notas", f_notas)
+            f_nivel = pget_int(frame.payload, "nivel", f_nivel)
             f_depto = pget_int(frame.payload, "departamento_id", f_depto)
             f_activo = pget(frame.payload, "activo", "true") == "true"
             f_permisos = pget(frame.payload, "permisos", f_permisos)
@@ -1605,6 +1648,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             f_reporta = pget_int(frame.payload, "reporta_a", f_reporta)
             f_fecha = pget(frame.payload, "fecha_ingreso", f_fecha)
             f_notas = pget(frame.payload, "notas", f_notas)
+            f_nivel = pget_int(frame.payload, "nivel", f_nivel)
             f_depto = pget_int(frame.payload, "departamento_id", f_depto)
             f_activo = pget(frame.payload, "activo", "true") == "true"
             f_permisos = pget(frame.payload, "permisos", f_permisos)
@@ -1623,13 +1667,14 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             f_reporta = pget_int(frame.payload, "reporta_a", 0)
             f_fecha = pget(frame.payload, "fecha_ingreso", "")
             f_notas = pget(frame.payload, "notas", "")
+            f_nivel = pget_int(frame.payload, "nivel", 0)
             f_activo = pget(frame.payload, "activo", "true") == "true"
             f_permisos = pget(frame.payload, "permisos", f_permisos)
             f_skills = pget(frame.payload, "skills", f_skills)
             if (f_nombre == "" or f_email == "") {
                 form_error = "Nombre y email son obligatorios."
             } else {
-                match save_empleado_db(edit_id, f_nombre, f_email, f_cargo, f_depto, f_ciudad, f_reporta, f_fecha, f_notas, f_activo).await {
+                match save_empleado_db(edit_id, f_nombre, f_email, f_cargo, f_depto, f_ciudad, f_reporta, f_fecha, f_notas, f_nivel, f_activo).await {
                     Ok(saved_id) => {
                         match sync_permisos(saved_id, f_permisos).await {
                             Ok(_) => {
@@ -1726,7 +1771,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             expanded = toggle_id(expanded, pget_int(frame.payload, "id", 0))
         }
         let new_html = match mode {
-            "form" => form_screen(edit_id, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_reporta, f_fecha, f_notas, f_permisos, f_skills, f_activo, f_tab, form_error).await.raw,
+            "form" => form_screen(edit_id, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_reporta, f_fecha, f_notas, f_nivel, f_permisos, f_skills, f_activo, f_tab, form_error).await.raw,
             "tree" => tree_screen(tree_exp_pais, tree_exp_prov).await.raw,
             _ => grid_html(page, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed, flash, flash_kind, expanded).await.raw,
         }

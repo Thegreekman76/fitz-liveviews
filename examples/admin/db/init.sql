@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS empleados (
     reporta_a        bigint NOT NULL DEFAULT 0,
     fecha_ingreso    text NOT NULL DEFAULT '',
     notas            text NOT NULL DEFAULT '',
+    nivel            bigint NOT NULL DEFAULT 0,
     activo           boolean NOT NULL DEFAULT true,
     created_at       timestamptz NOT NULL DEFAULT NOW()
 );
@@ -54,6 +55,8 @@ ALTER TABLE empleados ADD COLUMN IF NOT EXISTS ciudad_id bigint NOT NULL DEFAULT
 ALTER TABLE empleados ADD COLUMN IF NOT EXISTS reporta_a bigint NOT NULL DEFAULT 0;
 ALTER TABLE empleados ADD COLUMN IF NOT EXISTS fecha_ingreso text NOT NULL DEFAULT '';
 ALTER TABLE empleados ADD COLUMN IF NOT EXISTS notas text NOT NULL DEFAULT '';
+-- Slice 8c: performance rating 0-5 (0 = sin calificar), for the star widget.
+ALTER TABLE empleados ADD COLUMN IF NOT EXISTS nivel bigint NOT NULL DEFAULT 0;
 
 CREATE INDEX IF NOT EXISTS idx_empleados_depto ON empleados(departamento_id);
 
