@@ -71,6 +71,9 @@ fn t(locale: Str, key: Str) -> Str {
         "topbar.logout" => pick(locale, "Salir", "Log out"),
         "topbar.theme" => pick(locale, "Cambiar tema", "Toggle theme"),
         "topbar.lang" => pick(locale, "Cambiar idioma", "Change language"),
+        "theme.light" => pick(locale, "☀️ Claro", "☀️ Light"),
+        "theme.dark" => pick(locale, "🌙 Oscuro", "🌙 Dark"),
+        "theme.auto" => pick(locale, "🖥️ Auto", "🖥️ Auto"),
         // Login
         "login.title" => pick(locale, "Ingresar", "Sign in"),
         "login.subtitle" => pick(locale, "Panel de administración", "Admin panel"),
@@ -78,6 +81,8 @@ fn t(locale: Str, key: Str) -> Str {
         "login.password" => pick(locale, "Contraseña", "Password"),
         "login.submit" => pick(locale, "Ingresar", "Sign in"),
         "login.error" => pick(locale, "Email o contraseña incorrectos.", "Wrong email or password."),
+        "login.err.submit" => pick(locale, "Error al ingresar", "Sign-in error"),
+        "login.err.network" => pick(locale, "Error de red", "Network error"),
         // Dashboard
         "dash.title" => pick(locale, "Dashboard", "Dashboard"),
         "dash.subtitle" => pick(locale, "Resumen de personal y accesos.", "People and access overview."),

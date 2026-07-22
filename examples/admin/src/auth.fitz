@@ -30,12 +30,13 @@ async fn find_by_email(email: Str) -> Result<User> {
     return User.where(fn(u) => u.email == email).first(conn).await
 }
 
-fn login_failed() -> Response {
+fn login_failed(locale: Str) -> Response {
+    let msg = t(locale, "login.error")
     return Response {
         status: 401,
         content_type: "application/json",
         headers: {},
-        body: """\{"error": "Credenciales inválidas"\}""",
+        body: """\{"error": "{msg}"\}""",
     }
 }
 
@@ -45,7 +46,7 @@ fn login_failed() -> Response {
 @get("/login")
 fn login_page(cookie: Str?) -> Response {
     let loc = locale_from_cookie(cookie)
-    let js = login_js()
+    let js = login_js(loc)
     let sub = t(loc, "login.subtitle")
     let l_email = t(loc, "login.email")
     let l_pass = t(loc, "login.password")
@@ -75,22 +76,26 @@ fn login_page(cookie: Str?) -> Response {
 
 // --- POST /login — validate, sign JWT, set cookie ------------------------
 
+@header(name="cookie")
 @post("/login")
-async fn login_submit(creds: Credentials) -> Response {
+async fn login_submit(creds: Credentials, cookie: Str?) -> Response {
+    let loc = locale_from_cookie(cookie)
     let user: User = match find_by_email(creds.email).await {
         Ok(u) => u,
-        Err(_) => return login_failed(),
+        Err(_) => return login_failed(loc),
     }
     if (not hash.verify(creds.password, user.password_hash)) {
-        return login_failed()
+        return login_failed(loc)
     }
     let claims = { "email": user.email, "role": user.role }
     let token = jwt.encode(claims, jwt_secret())
-    let cookie = session_cookie_name() + "=" + token + "; HttpOnly; Path=/; SameSite=Lax; Max-Age=86400"
+    // NOTE: not `cookie` — that name is the Str? param; a local `let cookie`
+    // makes the codegen infer this String as Option<String> (scoping finding).
+    let set_cookie = session_cookie_name() + "=" + token + "; HttpOnly; Path=/; SameSite=Lax; Max-Age=86400"
     return Response {
         status: 200,
         content_type: "application/json",
-        headers: { "Set-Cookie": cookie },
+        headers: { "Set-Cookie": set_cookie },
         body: """\{"ok": true\}""",
     }
 }
@@ -132,7 +137,9 @@ fn logout() -> Response {
 
 // --- Login page client script (fetch + JSON) -----------------------------
 
-fn login_js() -> Str {
+fn login_js(locale: Str) -> Str {
+    let err_submit = t(locale, "login.err.submit")
+    let err_network = t(locale, "login.err.network")
     return """
   (function () \{
     var f = document.getElementById('login-form');
@@ -150,9 +157,9 @@ fn login_js() -> Str {
       \}).then(function (r) \{
         if (r.ok) \{ window.location = '/'; return; \}
         return r.json().then(function (j) \{
-          fail((j && j.error) ? j.error : 'Error al ingresar');
+          fail((j && j.error) ? j.error : '{err_submit}');
         \});
-      \}).catch(function () \{ fail('Error de red'); \});
+      \}).catch(function () \{ fail('{err_network}'); \});
     \});
   \})();
   """

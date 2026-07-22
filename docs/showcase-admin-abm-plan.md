@@ -367,9 +367,23 @@ hard-coding a language.
   that first event and re-renders its diff baseline. (Earlier finding: a local
   `let t` clobbering an imported `t` — both logged for a Fitz-core fix in
   `d:\fitz`.)
-- **Residual i18n (minor)**: the theme-toggle JS labels (🖥️ Auto / ☀️ Claro /
-  🌙 Oscuro) and the login-error JS string live in client `<script>` strings, so
-  they'd need the locale passed into the JS — left as a small follow-up.
+- **S9c — DONE** ✅ (2026-07-22) i18n residuals — the client-`<script>` strings.
+  The theme-toggle labels (☀️ Claro/Light · 🌙 Oscuro/Dark · 🖥️ Auto) are now
+  injected into `interactive_js(locale)`; the login-error strings ('Error al
+  ingresar'/'Sign-in error', 'Error de red'/'Network error') into
+  `login_js(locale)`; and the 401 body from `login_failed(locale)` is localized
+  (login_submit reads the lang cookie). **i18n is now complete.** Verified run +
+  binary in both languages. **Second codegen finding (same scoping root)**: a
+  local `let cookie = <String>` shadowing the `cookie: Str?` param made the
+  codegen infer it as `Option<String>` → `fitz build` failed with E0308 (checker
+  passed — another checker/codegen mismatch). Renamed the local to `set_cookie`;
+  logged alongside the `let t` finding for the Fitz-core fix.
+
+**S9 (i18n) complete** — every screen + every client-`<script>` string localized
+ES/EN. Next per the author's order: **fix the core limitations in `d:\fitz`**
+(the two scoping bugs + `@ws` handshake access), then revisit the ABM to drop the
+`__flv_init` workaround / local renames once the core is fixed, then the
+Companion UI adoption package.
 
 ## Expected Fitz core gaps (dogfooding)
 

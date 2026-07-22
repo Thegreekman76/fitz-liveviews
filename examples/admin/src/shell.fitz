@@ -90,7 +90,7 @@ fn render_topbar(title: Str, user_name: Str, locale: Str) -> Str {
       <h1 class="page-title">{flv(title)}</h1>
       <div class="topbar-spacer"></div>
       <a class="icon-btn lang-btn" href="/lang/{next_lang}" data-tooltip="{flv(lang_lbl)}" aria-label="{flv(lang_lbl)}">🌐 {cur_flag}</a>
-      <button id="theme-btn" class="theme-btn" onclick="flvCycleTheme()" aria-label="{flv(theme_lbl)}">🖥️ Auto</button>
+      <button id="theme-btn" class="theme-btn" onclick="flvCycleTheme()" aria-label="{flv(theme_lbl)}">{t(locale, "theme.auto")}</button>
       <div class="user-chip" title="{flv(user_name)}">
         <span class="user-avatar">{flv(initials(user_name))}</span>
         <span class="user-name nav-label">{flv(user_name)}</span>
@@ -130,7 +130,7 @@ fn page_layout(title: Str, active: Str, user_name: Str, body: Html, locale: Str)
     let crumbs = render_breadcrumbs(title, locale)
     let css = shell_css()
     let boot = theme_init_js()
-    let script = interactive_js()
+    let script = interactive_js(locale)
     return html("""<!doctype html>
 <html lang="{locale}" data-theme="auto">
 <head>
@@ -767,10 +767,13 @@ fn theme_init_js() -> Str {
 // Body script — theme cycling + sidebar/drawer toggle. Per-browser, no WS.
 // ---------------------------------------------------------------------------
 
-fn interactive_js() -> Str {
+fn interactive_js(locale: Str) -> Str {
+    let l_light = t(locale, "theme.light")
+    let l_dark = t(locale, "theme.dark")
+    let l_auto = t(locale, "theme.auto")
     return """
   (function () \{
-    var LABELS = \{ light: '☀️ Claro', dark: '🌙 Oscuro', auto: '🖥️ Auto' \};
+    var LABELS = \{ light: '{l_light}', dark: '{l_dark}', auto: '{l_auto}' \};
     function current() \{ return localStorage.getItem('flv-admin-theme') || 'auto'; \}
     function paintBtn() \{
       var b = document.getElementById('theme-btn');
