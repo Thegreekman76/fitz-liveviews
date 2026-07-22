@@ -405,6 +405,14 @@ fn shell_css() -> Str {
   .form-row input:focus, .form-row select:focus \{ outline: none; border-color: var(--primary); \}
   .form-grid-3 \{ display: grid; grid-template-columns: repeat(3, 1fr); gap: .9rem; \}
   @media (max-width: 560px) \{ .form-grid-3 \{ grid-template-columns: 1fr; \} \}
+  /* Group-checkbox (permisos por módulo). */
+  .perm-groups \{ display: flex; flex-direction: column; gap: .6rem; \}
+  .perm-group \{ border: 1px solid var(--border); border-radius: 8px; padding: .5rem .75rem .65rem; margin: 0; \}
+  .perm-group legend \{ font-size: .75rem; font-weight: 700; color: var(--primary); padding: 0 .35rem; text-transform: uppercase; letter-spacing: .03em; \}
+  .perm-checks \{ display: grid; grid-template-columns: repeat(2, 1fr); gap: .3rem .9rem; \}
+  @media (max-width: 560px) \{ .perm-checks \{ grid-template-columns: 1fr; \} \}
+  .perm-check \{ display: flex; align-items: center; gap: .45rem; font-size: .85rem; cursor: pointer; \}
+  .perm-check input \{ width: auto; margin: 0; accent-color: var(--primary); \}
   .form-actions \{ display: flex; gap: .5rem; margin-top: .35rem; \}
   .form-error \{
     background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;

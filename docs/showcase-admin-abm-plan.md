@@ -169,7 +169,8 @@ Companion UI library from **8 basic components** to **~22-25**:
      client runtime (v0.7.0). Verified run + binary. Also surfaced a Fitz
      core gap (checker doesn't flag an ORM query on an un-imported `@table`
      type, and the runtime hangs instead of erroring) — noted for a core fix.
-   - **S4c/d/e** — group-checkbox (permisos) · multiselect (skills) · tree.
+   - **S4c — DONE** ✅ (2026-07-22, lib v0.8.0) Group-checkbox de permisos: un `<fieldset>` por módulo (nuevas tablas `permisos` + `empleado_permisos`), save sincroniza la selección, edit pre-marca. **Dogfood → lib**: serialización de checkbox-groups (comma-joined) en el runtime (v0.8.0). Verificado run + binario.
+   - **S4d/e** — multiselect (skills) · tree view.
 5. **S5** — Selection + multi-delete + confirm + export.
 6. **S6** — Column grouping + tree view polish.
 

@@ -295,6 +295,26 @@ let LIVE_CLIENT_JS: Str = """(function() \{
       \}
     \}
   \}
+  // Serialize every named field of a form into the payload. Checkboxes only
+  // contribute when checked; several checkboxes sharing a `name` (a checkbox
+  // group) are joined comma-separated so the server sees the whole selection
+  // (an all-unchecked group still yields an empty string). Radios contribute
+  // the checked value. Everything else contributes its `value`.
+  function serializeForm(form, payload) \{
+    for (const el of form.elements) \{
+      if (!el.name) continue;
+      if (el.type === 'checkbox') \{
+        const cur = payload[el.name];
+        if (el.checked) payload[el.name] = (cur !== undefined && cur !== '') ? cur + ',' + el.value : el.value;
+        else if (cur === undefined) payload[el.name] = '';
+      \} else if (el.type === 'radio') \{
+        if (el.checked) payload[el.name] = el.value;
+        else if (payload[el.name] === undefined) payload[el.name] = '';
+      \} else \{
+        payload[el.name] = el.value;
+      \}
+    \}
+  \}
   document.body.addEventListener('click', function(e) \{
     const t = e.target.closest('[data-flv-click]');
     if (t && ws.readyState === WebSocket.OPEN) \{
@@ -311,9 +331,7 @@ let LIVE_CLIENT_JS: Str = """(function() \{
       const payload = \{\};
       collectValues(form, payload);
       enrichWithComponentContext(form, payload);
-      for (const el of form.elements) \{
-        if (el.name) payload[el.name] = el.value;
-      \}
+      serializeForm(form, payload);
       ws.send(JSON.stringify(\{ event: form.dataset.flvSubmit, payload: payload, html: '', patches: [] \}));
       for (const el of form.elements) \{
         if (el.hasAttribute('data-flv-clear')) \{
@@ -329,12 +347,8 @@ let LIVE_CLIENT_JS: Str = """(function() \{
       collectValues(t, payload);
       enrichWithComponentContext(t, payload);
       const changeForm = t.closest('form');
-      if (changeForm) \{
-        for (const el of changeForm.elements) \{
-          if (el.name) payload[el.name] = (el.type === 'checkbox') ? (el.checked ? el.value : '') : el.value;
-        \}
-      \}
-      if (t.name) payload[t.name] = t.value;
+      if (changeForm) serializeForm(changeForm, payload);
+      if (t.name && t.type !== 'checkbox') payload[t.name] = t.value;
       payload['value'] = (t.type === 'checkbox') ? (t.checked ? t.value : '') : t.value;
       ws.send(JSON.stringify(\{ event: t.dataset.flvChange, payload: payload, html: '', patches: [] \}));
     \}
@@ -466,6 +480,17 @@ fn live_layout_includes_change_handler() {
   assert(full.raw.contains("addEventListener('change'"))
   assert(full.raw.contains("data-flv-change"))
   assert(full.raw.contains("flvChange"))
+}
+
+@test
+fn live_layout_serializes_checkbox_groups() {
+  // v0.8.0 — form serialization joins several checkboxes sharing a `name`
+  // (a checkbox group) comma-separated, and only when checked, so the server
+  // receives the whole selection. Shared by submit + change.
+  let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
+  assert(full.raw.contains("function serializeForm"))
+  assert(full.raw.contains("el.type === 'checkbox'"))
+  assert(full.raw.contains("el.checked"))
 }
 
 @test

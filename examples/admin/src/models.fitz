@@ -69,3 +69,18 @@
     provincia_id: Int = 0
     nombre: Str = ""
 }
+
+// Permisos — grouped by module, rendered as a group-checkbox in the employee
+// form (Slice 4c). An employee's selection lives in `empleado_permisos`.
+@table("permisos") type Permiso {
+    @primary id: Int = 0
+    modulo: Str = ""
+    accion: Str = ""
+    nombre: Str = ""
+}
+
+@table("empleado_permisos") type EmpleadoPermiso {
+    @primary id: Int = 0
+    empleado_id: Int = 0
+    permiso_id: Int = 0
+}

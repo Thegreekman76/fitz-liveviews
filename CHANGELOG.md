@@ -5,6 +5,29 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.8.0] — 2026-07-22 — checkbox-group serialization + Admin ABM Slice 4c (permisos)
+
+**Minor bump** — the client form serialization now understands checkbox
+groups, unlocking the group-checkbox component.
+
+### Changed — form serialization (`serializeForm`)
+
+- `data-flv-submit` and `data-flv-change` now serialize form fields through a
+  shared `serializeForm` helper: several checkboxes sharing a `name` (a
+  checkbox group) are joined **comma-separated** and only when checked, so
+  the server receives the whole selection (an all-unchecked group yields an
+  empty string). Radios contribute the checked value. A single checkbox
+  reports its `checked` state instead of always sending its `value`.
+
+### Showcase (Admin ABM — `examples/admin`)
+
+- **Slice 4c — group-checkbox (permisos)**: the employee form now has a
+  permissions picker rendered as a `<fieldset>` per module, one checkbox per
+  permiso (new `permisos` table + `empleado_permisos` join). Save syncs the
+  selection (delete + insert); edit pre-checks the current permisos. Uses
+  `str.split` + `str.to_int` to parse the comma-joined ids. Verified
+  end-to-end on the native binary + local Postgres.
+
 ## [v0.7.0] — 2026-07-22 — `change` events + Admin ABM Slice 4 (rich edit form + cascade)
 
 **Minor bump** — one new client capability plus the flagship showcase's

@@ -71,6 +71,24 @@ CREATE TABLE IF NOT EXISTS ciudades (
 CREATE INDEX IF NOT EXISTS idx_provincias_pais ON provincias(pais_id);
 CREATE INDEX IF NOT EXISTS idx_ciudades_provincia ON ciudades(provincia_id);
 
+-- Permisos — grouped by module. Feed the group-checkbox in the employee form
+-- (Slice 4c): a fieldset per module, one checkbox per permiso. The employee's
+-- selection lives in the `empleado_permisos` join table.
+CREATE TABLE IF NOT EXISTS permisos (
+    id      bigserial PRIMARY KEY,
+    modulo  text NOT NULL,
+    accion  text NOT NULL,
+    nombre  text NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS empleado_permisos (
+    id          bigserial PRIMARY KEY,
+    empleado_id bigint NOT NULL DEFAULT 0,
+    permiso_id  bigint NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_emp_perm_empleado ON empleado_permisos(empleado_id);
+
 -- --- Seed ------------------------------------------------------------------
 
 -- Demo admin. Password: admin1234 (Argon2id hash generated with the Fitz
@@ -140,6 +158,20 @@ SELECT (SELECT id FROM provincias WHERE nombre = v.provincia), v.nombre FROM (VA
     ('Canelones',    'Las Piedras')
 ) AS v(provincia, nombre)
 WHERE NOT EXISTS (SELECT 1 FROM ciudades);
+
+-- Demo permisos — grouped by module. Seeded only when empty.
+INSERT INTO permisos (modulo, accion, nombre)
+SELECT modulo, accion, nombre FROM (VALUES
+    ('Empleados',     'ver',      'Ver empleados'),
+    ('Empleados',     'crear',    'Crear empleados'),
+    ('Empleados',     'editar',   'Editar empleados'),
+    ('Empleados',     'eliminar', 'Eliminar empleados'),
+    ('Departamentos', 'ver',      'Ver departamentos'),
+    ('Departamentos', 'gestionar','Gestionar departamentos'),
+    ('Reportes',      'ver',      'Ver reportes'),
+    ('Reportes',      'exportar', 'Exportar reportes')
+) AS v(modulo, accion, nombre)
+WHERE NOT EXISTS (SELECT 1 FROM permisos);
 
 -- --- Grants ----------------------------------------------------------------
 -- In Docker init.sql runs as the app role (POSTGRES_USER=fitz), which owns

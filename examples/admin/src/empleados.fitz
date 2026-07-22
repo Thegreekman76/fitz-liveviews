@@ -21,7 +21,7 @@
 // filters; dynamic `.order_by(col, ascending)`), not an in-memory slice.
 
 from config import db_url
-from models import Empleado, Departamento, User, Pais, Provincia, Ciudad
+from models import Empleado, Departamento, User, Pais, Provincia, Ciudad, Permiso, EmpleadoPermiso
 from session import user_from_cookie
 from shell import page_layout, redirect_to
 from fitz_liveviews import Html, html, flv, h_join, html_response, live_embed, LiveFrame, diff_html
@@ -184,11 +184,46 @@ fn ciudad_options(items: List<Ciudad>, selected: Int) -> Str {
     return """<option value="0">— Ciudad —</option>""" + h_join(items.map(fn(c) => html(option_tag(c.id, c.nombre, selected))))
 }
 
+// Group-checkbox (Slice 4c) — the set of checked permiso ids is kept as a
+// comma-joined string (e.g. "1,3,5"); membership is a substring check against
+// `,<csv>,` so we don't parse it on every render.
+fn id_checked(csv: Str, id: Int) -> Bool {
+    let hay = "," + csv + ","
+    let needle = ",{id},"
+    return hay.contains(needle)
+}
+
+// Renders the permisos as a fieldset per module (the list must be ordered by
+// `modulo`), one checkbox per permiso, pre-checked from `checked_csv`. All
+// checkboxes share `name="permisos"` so the client joins them comma-separated.
+fn permisos_html(permisos: List<Permiso>, checked_csv: Str) -> Str {
+    let out = ""
+    let cur_mod = ""
+    for p in permisos {
+        if (p.modulo != cur_mod) {
+            if (cur_mod != "") {
+                out = out + "</div></fieldset>"
+            }
+            out = out + """<fieldset class="perm-group"><legend>{flv(p.modulo)}</legend><div class="perm-checks">"""
+            cur_mod = p.modulo
+        }
+        let checked = match id_checked(checked_csv, p.id) {
+            true => "checked",
+            false => "",
+        }
+        out = out + """<label class="perm-check"><input type="checkbox" name="permisos" value="{p.id}" {checked} /> {flv(p.nombre)}</label>"""
+    }
+    if (cur_mod != "") {
+        out = out + "</div></fieldset>"
+    }
+    return out
+}
+
 // The whole create/edit form as a fragment (same root id so it patches over
 // the grid). `edit_id` 0 = alta; > 0 = edición. `error` non-empty renders a
 // validation/DB banner. The país/provincia/ciudad selects are a cascade: each
 // `change` re-queries the dependent options server-side (Slice 4b).
-fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provincias: List<Provincia>, ciudades: List<Ciudad>, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_pais: Int, f_provincia: Int, f_ciudad: Int, f_activo: Bool, error: Str) -> Html {
+fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provincias: List<Provincia>, ciudades: List<Ciudad>, permisos: List<Permiso>, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_pais: Int, f_provincia: Int, f_ciudad: Int, f_permisos: Str, f_activo: Bool, error: Str) -> Html {
     let title = match edit_id == 0 {
         true => "Nuevo empleado",
         false => "Editar empleado",
@@ -197,6 +232,7 @@ fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provi
     let pais_opts = pais_options(paises, f_pais)
     let prov_opts = provincia_options(provincias, f_provincia)
     let ciu_opts = ciudad_options(ciudades, f_ciudad)
+    let perm_html = permisos_html(permisos, f_permisos)
     let act_a = match f_activo {
         true => """<option value="true" selected>Activo</option>""",
         false => """<option value="true">Activo</option>""",
@@ -247,6 +283,10 @@ fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provi
               <label>Ciudad</label>
               <select name="ciudad_id" data-flv-change="cascade_ciudad">{ciu_opts}</select>
             </div>
+          </div>
+          <div class="form-row">
+            <label>Permisos</label>
+            <div class="perm-groups">{perm_html}</div>
           </div>
           <div class="form-row">
             <label>Estado</label>
@@ -417,7 +457,7 @@ async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, so
 // The form screen (alta/edición) — queries the departamentos + the ubicaciones
 // options (cascade: provincias only for the picked país, ciudades only for the
 // picked provincia), then renders the form fragment. Same root id as the grid.
-async fn form_screen(edit_id: Int, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_pais: Int, f_provincia: Int, f_ciudad: Int, f_activo: Bool, error: Str) -> Html {
+async fn form_screen(edit_id: Int, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_pais: Int, f_provincia: Int, f_ciudad: Int, f_permisos: Str, f_activo: Bool, error: Str) -> Html {
     let conn = match db.connect(db_url()).await {
         Ok(c) => c,
         Err(e) => return grid_error(e),
@@ -444,7 +484,11 @@ async fn form_screen(edit_id: Int, f_nombre: Str, f_email: Str, f_cargo: Str, f_
         },
         false => [],
     }
-    return form_html(edit_id, deptos, paises, provincias, ciudades, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_activo, error)
+    let permisos: List<Permiso> = match Permiso.where(fn(p) => p.id > 0).order_by(fn(p) => p.modulo).order_by(fn(p) => p.id).all(conn).await {
+        Ok(ps) => ps,
+        Err(e) => return grid_error(e),
+    }
+    return form_html(edit_id, deptos, paises, provincias, ciudades, permisos, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_permisos, f_activo, error)
 }
 
 // Load one empleado by id (for the edit form). `Err` if not found / DB error.
@@ -461,7 +505,8 @@ async fn save_empleado_db(edit_id: Int, nombre: Str, email: Str, cargo: Str, dep
         let created = Empleado.insert(conn, Empleado { nombre: nombre, email: email, cargo: cargo, departamento_id: depto, ciudad_id: ciudad, activo: activo }).await?
         return Ok(created.id)
     }
-    return Empleado.where(fn(e) => e.id == edit_id).update(conn, { "nombre": nombre, "email": email, "cargo": cargo, "departamento_id": depto, "ciudad_id": ciudad, "activo": activo }).await
+    let _ = Empleado.where(fn(e) => e.id == edit_id).update(conn, { "nombre": nombre, "email": email, "cargo": cargo, "departamento_id": depto, "ciudad_id": ciudad, "activo": activo }).await?
+    return Ok(edit_id)
 }
 
 // Derive the país + provincia from a ciudad_id (for the edit form's cascade
@@ -483,6 +528,50 @@ async fn ubi_from_ciudad(ciudad_id: Int) -> Provincia {
         Ok(p) => p,
         Err(_) => Provincia { id: 0, pais_id: 0, nombre: "" },
     }
+}
+
+// Load the employee's current permiso ids as a comma-joined string (for the
+// edit form's pre-checked boxes). Empty on no permisos / DB error.
+async fn load_permisos_csv(empleado_id: Int) -> Str {
+    if (empleado_id == 0) {
+        return ""
+    }
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => return "",
+    }
+    let eps = match EmpleadoPermiso.where(fn(ep) => ep.empleado_id == empleado_id).all(conn).await {
+        Ok(x) => x,
+        Err(_) => return "",
+    }
+    let out = ""
+    for ep in eps {
+        out = match out == "" {
+            true => "{ep.permiso_id}",
+            false => out + ",{ep.permiso_id}",
+        }
+    }
+    return out
+}
+
+// Sync the employee's permisos: delete the current set, insert the checked
+// ones (parsed from the comma-joined `csv`). Runs after the employee row is
+// saved (so a new employee already has its id).
+async fn sync_permisos(empleado_id: Int, csv: Str) -> Result<Null> {
+    let conn = db.connect(db_url()).await?
+    let _ = EmpleadoPermiso.where(fn(ep) => ep.empleado_id == empleado_id).delete(conn).await?
+    if (csv != "") {
+        for s in csv.split(",") {
+            let pid = match s.to_int() {
+                Ok(n) => n,
+                Err(_) => 0,
+            }
+            if (pid > 0) {
+                let _ = EmpleadoPermiso.insert(conn, EmpleadoPermiso { empleado_id: empleado_id, permiso_id: pid }).await?
+            }
+        }
+    }
+    return Ok(null)
 }
 
 // ---------------------------------------------------------------------------
@@ -528,6 +617,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
     let f_pais = 0
     let f_provincia = 0
     let f_ciudad = 0
+    let f_permisos = ""
     let f_activo = true
     let form_error = ""
     let last = grid_html(page, q, estado, depto, sort_col, sort_dir).await.raw
@@ -593,6 +683,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             f_pais = 0
             f_provincia = 0
             f_ciudad = 0
+            f_permisos = ""
             f_activo = true
             form_error = ""
         }
@@ -611,6 +702,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
                     f_ciudad = e.ciudad_id
                     f_provincia = prov.id
                     f_pais = prov.pais_id
+                    f_permisos = load_permisos_csv(e.id).await
                     form_error = ""
                     mode = "form"
                 },
@@ -629,6 +721,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             f_cargo = pget(frame.payload, "cargo", f_cargo)
             f_depto = pget_int(frame.payload, "departamento_id", f_depto)
             f_activo = pget(frame.payload, "activo", "true") == "true"
+            f_permisos = pget(frame.payload, "permisos", f_permisos)
             f_pais = pget_int(frame.payload, "value", 0)
             f_provincia = 0
             f_ciudad = 0
@@ -639,6 +732,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             f_cargo = pget(frame.payload, "cargo", f_cargo)
             f_depto = pget_int(frame.payload, "departamento_id", f_depto)
             f_activo = pget(frame.payload, "activo", "true") == "true"
+            f_permisos = pget(frame.payload, "permisos", f_permisos)
             f_pais = pget_int(frame.payload, "pais_id", f_pais)
             f_provincia = pget_int(frame.payload, "value", 0)
             f_ciudad = 0
@@ -649,6 +743,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             f_cargo = pget(frame.payload, "cargo", f_cargo)
             f_depto = pget_int(frame.payload, "departamento_id", f_depto)
             f_activo = pget(frame.payload, "activo", "true") == "true"
+            f_permisos = pget(frame.payload, "permisos", f_permisos)
             f_pais = pget_int(frame.payload, "pais_id", f_pais)
             f_provincia = pget_int(frame.payload, "provincia_id", f_provincia)
             f_ciudad = pget_int(frame.payload, "value", 0)
@@ -667,14 +762,22 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             f_provincia = pget_int(frame.payload, "provincia_id", 0)
             f_ciudad = pget_int(frame.payload, "ciudad_id", 0)
             f_activo = pget(frame.payload, "activo", "true") == "true"
+            f_permisos = pget(frame.payload, "permisos", f_permisos)
             if (f_nombre == "" or f_email == "") {
                 form_error = "Nombre y email son obligatorios."
             } else {
                 match save_empleado_db(edit_id, f_nombre, f_email, f_cargo, f_depto, f_ciudad, f_activo).await {
-                    Ok(_) => {
-                        mode = "grid"
-                        form_error = ""
-                        page = 1
+                    Ok(saved_id) => {
+                        match sync_permisos(saved_id, f_permisos).await {
+                            Ok(_) => {
+                                mode = "grid"
+                                form_error = ""
+                                page = 1
+                            },
+                            Err(er) => {
+                                form_error = er
+                            },
+                        }
                     },
                     Err(er) => {
                         form_error = er
@@ -683,7 +786,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             }
         }
         let new_html = match mode {
-            "form" => form_screen(edit_id, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_activo, form_error).await.raw,
+            "form" => form_screen(edit_id, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_permisos, f_activo, form_error).await.raw,
             _ => grid_html(page, q, estado, depto, sort_col, sort_dir).await.raw,
         }
         let patches = diff_html(last, new_html)
