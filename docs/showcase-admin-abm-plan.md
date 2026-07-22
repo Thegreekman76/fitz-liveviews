@@ -295,11 +295,37 @@ one schema migration for the new columns.
     switch preserving typed input, edit prefill (date/notas/radio/reporta_a),
     save round-trip. **No core gap, no workarounds.** Components: Tabs ·
     DatePicker · Textarea · Radio · GroupSelect.
-- **S8b — TODO** the remaining catalog items: **ProgressBar / Spinner**
-  (dashboard), **nested Menu** (sidebar), **Divider**, **Tooltip** (CSS hints),
-  **Rating** (a `nivel` star field), **ExpansionPanel** (generic collapsible).
-  Stepper is the same family as Tabs (covered) — revisit only if a multi-step
-  onboarding flow appears.
+- **S8b — DONE** ✅ (2026-07-22) Dashboard analytics + **Stepper**:
+  - **ProgressBar** — labeled % bars (Activos / Inactivos over total) on the
+    dashboard, scaled ratios straight from ORM counts.
+  - **ExpansionPanel** — native `<details>`/`<summary>` (zero JS) wrapping the
+    bar chart; the dashboard is SSR-only so native collapse is perfect.
+  - **Divider** (`<hr class="divider">`) + **Spinner** (CSS keyframes, shown as
+    a small "en vivo" indicator in the dashboard header).
+  - **Stepper** — the "alta" form is now a guided 3-step **onboarding** wizard
+    (Datos → Organización → Accesos) with a numbered step indicator (past steps
+    marked done, current active), contextual **← Atrás / Siguiente → /
+    Finalizar** nav, while **edición keeps the free Tabs**. Both reuse the same
+    panels + `f_tab` state + `form_tab` event; the nav buttons use
+    `data-flv-form` so stepping never loses typed input. Verified run + binary
+    (step forward/back preserving input, Finalizar on last step saves, edit
+    still shows tabs). Components: ProgressBar · ExpansionPanel · Divider ·
+    Spinner · Stepper.
+- **S8c — TODO** **nested Menu** (sidebar collapsible group), **Tooltip** (CSS
+  hints on actions), **Rating** (a `nivel` 1-5 star field on the employee →
+  schema column + star widget + shown in the expand-row detail).
+
+### S9 (planned) — Internationalization (i18n)
+
+After the component set is complete, **internationalize the whole ABM and every
+component** (author directive, 2026-07-22): every user-facing string routed
+through a translation layer, **ES + EN** at minimum, language switch in the
+topbar (persisted like the theme). This doubles as the reusable **i18n pattern
+for the Companion UI library** — the components ship translation-ready, not with
+hard-coded Spanish. Scope: labels, buttons, placeholders, table headers, tab/
+step names, toasts, validation messages, chart/detail labels, breadcrumbs,
+`title`/`aria-label`. Server-side dictionary + a `t(key)` helper; the active
+locale lives in the session (cookie), same mechanism as auth.
 
 ## Expected Fitz core gaps (dogfooding)
 

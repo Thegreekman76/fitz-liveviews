@@ -50,6 +50,19 @@ fn bar_chart(deptos: List<Departamento>, all_emp: List<Empleado>) -> Str {
     return bars
 }
 
+// --- ProgressBar (Slice 8b) — a labeled % bar ----------------------------
+
+fn progress_bar(label: Str, value: Int, max: Int, accent: Str) -> Str {
+    let pct = match max <= 0 {
+        true => 0,
+        false => (value * 100) / max,
+    }
+    return """<div class="pbar-row">
+      <div class="pbar-head"><span>{flv(label)}</span><span class="pbar-val">{value}/{max} · {pct}%</span></div>
+      <div class="pbar-track"><div class="pbar-fill {accent}" style="width: {pct}%"></div></div>
+    </div>"""
+}
+
 // --- Dashboard body (real DB counts) -------------------------------------
 
 async fn render_dashboard() -> Result<Html> {
@@ -72,16 +85,25 @@ async fn render_dashboard() -> Result<Html> {
     let all_emp = Empleado.where(fn(e) => e.id > 0).all(conn).await?
     let chart = bar_chart(deptos, all_emp)
 
+    // ProgressBars — headline ratios.
+    let pb_act = progress_bar("Activos", activos, total_emp, "green")
+    let pb_ina = progress_bar("Inactivos", inactivos, total_emp, "amber")
+
     return Ok(html("""<div class="page-head">
-      <h2>Dashboard</h2>
+      <h2>Dashboard <span class="live-dot"><span class="spinner"></span> en vivo</span></h2>
       <p>Resumen de personal y accesos.</p>
     </div>
     <div class="stat-grid">
       {c1}{c2}{c3}{c4}
     </div>
     <div class="panel">
-      <h3>Empleados por departamento</h3>
-      <div class="chart">{chart}</div>
+      <h3>Ocupación</h3>
+      <div class="pbars">{pb_act}{pb_ina}</div>
+      <hr class="divider" />
+      <details class="exp-panel" open>
+        <summary>Empleados por departamento</summary>
+        <div class="chart">{chart}</div>
+      </details>
     </div>"""))
 }
 

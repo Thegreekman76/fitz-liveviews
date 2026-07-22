@@ -472,6 +472,39 @@ fn tab_panel_cls(val: Str, f_tab: Str) -> Str {
     }
 }
 
+// Stepper (Slice 8b) — the "alta" form is a guided 3-step onboarding wizard
+// (Datos → Organización → Accesos) reusing the same panels + `f_tab` state as
+// the edit tabs. `step_order` gives each step a number so the indicator can
+// mark past steps done, the current active, the rest pending.
+fn step_order(val: Str) -> Int {
+    return match val {
+        "datos" => 1,
+        "org" => 2,
+        "accesos" => 3,
+        _ => 1,
+    }
+}
+
+fn step_dot(num: Str, label: Str, val: Str, f_tab: Str) -> Str {
+    let ov = step_order(val)
+    let cur = step_order(f_tab)
+    let cls = match ov < cur {
+        true => "step step-done",
+        false => match ov == cur {
+            true => "step step-active",
+            false => "step",
+        },
+    }
+    return """<div class="{cls}"><span class="step-num">{num}</span><span class="step-label">{flv(label)}</span></div>"""
+}
+
+fn stepper_bar(f_tab: Str) -> Str {
+    let s1 = step_dot("1", "Datos", "datos", f_tab)
+    let s2 = step_dot("2", "Organización", "org", f_tab)
+    let s3 = step_dot("3", "Accesos", "accesos", f_tab)
+    return """<div class="stepper">{s1}<div class="step-line"></div>{s2}<div class="step-line"></div>{s3}</div>"""
+}
+
 fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provincias: List<Provincia>, ciudades: List<Ciudad>, permisos: List<Permiso>, skills: List<Skill>, colegas: List<Empleado>, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_pais: Int, f_provincia: Int, f_ciudad: Int, f_reporta: Int, f_fecha: Str, f_notas: Str, f_permisos: Str, f_skills: Str, f_activo: Bool, f_tab: Str, error: Str) -> Html {
     let title = match edit_id == 0 {
         true => "Nuevo empleado",
@@ -497,11 +530,44 @@ fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provi
         true => "",
         false => """<div class="form-error">{flv(error)}</div>""",
     }
-    // Tab nav + panel classes.
+    // Nav — alta is a guided Stepper (onboarding); edición uses free Tabs.
+    let is_stepper = edit_id == 0
     let tabs = tab_btn("Datos", "datos", f_tab) + tab_btn("Organización", "org", f_tab) + tab_btn("Accesos", "accesos", f_tab)
+    let header_nav = match is_stepper {
+        true => stepper_bar(f_tab),
+        false => """<div class="tab-nav">{tabs}</div>""",
+    }
     let p_datos = tab_panel_cls("datos", f_tab)
     let p_org = tab_panel_cls("org", f_tab)
     let p_accesos = tab_panel_cls("accesos", f_tab)
+    // Stepper nav buttons (contextual): Back / Next / Finalizar.
+    let prev_val = match f_tab {
+        "org" => "datos",
+        "accesos" => "org",
+        _ => "",
+    }
+    let next_val = match f_tab {
+        "datos" => "org",
+        "org" => "accesos",
+        _ => "",
+    }
+    let back_btn = match prev_val == "" {
+        true => "",
+        false => """<button type="button" class="btn-clear" data-flv-form data-flv-click="form_tab" data-flv-value-tab="{prev_val}">← Atrás</button>""",
+    }
+    let next_btn = match next_val == "" {
+        true => "",
+        false => """<button type="button" class="btn-primary" data-flv-form data-flv-click="form_tab" data-flv-value-tab="{next_val}">Siguiente →</button>""",
+    }
+    let save_last = match f_tab == "accesos" {
+        true => """<button class="btn-primary" type="submit">Finalizar</button>""",
+        false => "",
+    }
+    let cancel_btn = """<button class="btn-clear" type="button" data-flv-click="cancel_form">Cancelar</button>"""
+    let footer_nav = match is_stepper {
+        true => """<div class="form-actions">{cancel_btn}{back_btn}{next_btn}{save_last}</div>""",
+        false => """<div class="form-actions"><button class="btn-primary" type="submit">Guardar</button>{cancel_btn}</div>""",
+    }
     return html("""<div id="empleados-live" class="grid-wrap">
       <div class="page-head">
         <h2>{flv(title)}</h2>
@@ -511,7 +577,7 @@ fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provi
         {banner}
         <form class="abm-form" data-flv-submit="save_empleado">
           <input type="hidden" name="id" value="{edit_id}" />
-          <div class="tab-nav">{tabs}</div>
+          {header_nav}
 
           <div class="{p_datos}">
             <div class="form-row">
@@ -583,10 +649,7 @@ fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provi
             </div>
           </div>
 
-          <div class="form-actions">
-            <button class="btn-primary" type="submit">Guardar</button>
-            <button class="btn-clear" type="button" data-flv-click="cancel_form">Cancelar</button>
-          </div>
+          {footer_nav}
         </form>
       </div>
     </div>""")

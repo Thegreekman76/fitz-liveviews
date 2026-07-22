@@ -431,6 +431,22 @@ fn shell_css() -> Str {
   .tab-btn.tab-on \{ color: var(--primary); border-bottom-color: var(--primary); \}
   .tab-panel \{ display: none; flex-direction: column; gap: .9rem; \}
   .tab-panel.tab-active \{ display: flex; \}
+  /* Stepper (Slice 8b) — guided onboarding for the "alta" form */
+  .stepper \{ display: flex; align-items: center; gap: .4rem; margin-bottom: .5rem; \}
+  .step \{ display: flex; align-items: center; gap: .45rem; opacity: .55; \}
+  .step-num \{
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 1.6rem; height: 1.6rem; border-radius: 50%; font-size: .8rem; font-weight: 700;
+    background: var(--surface-2, rgba(127,127,127,.15)); color: var(--muted);
+    border: 1px solid var(--border);
+  \}
+  .step-label \{ font-size: .82rem; font-weight: 600; \}
+  .step-line \{ flex: 1; height: 1px; background: var(--border); \}
+  .step.step-active \{ opacity: 1; \}
+  .step.step-active .step-num \{ background: var(--primary); color: #fff; border-color: var(--primary); \}
+  .step.step-done \{ opacity: 1; \}
+  .step.step-done .step-num \{ background: color-mix(in srgb, var(--primary) 18%, transparent); color: var(--primary); border-color: var(--primary); \}
+  @media (max-width: 560px) \{ .step-label \{ display: none; \} \}
   /* Radio group (Slice 8) */
   .radio-group \{ display: flex; gap: 1.25rem; padding: .2rem 0; \}
   .radio \{ display: inline-flex; align-items: center; gap: .4rem; cursor: pointer; font-size: .9rem; \}
@@ -567,6 +583,33 @@ fn shell_css() -> Str {
   \}
   .chart-val \{ flex: 0 0 2rem; font-weight: 700; font-size: .85rem; \}
   @media (max-width: 560px) \{ .chart-label \{ flex-basis: 5.5rem; \} \}
+  /* ProgressBar (Slice 8b) */
+  .pbars \{ display: flex; flex-direction: column; gap: .8rem; \}
+  .pbar-head \{ display: flex; justify-content: space-between; font-size: .82rem; margin-bottom: .3rem; \}
+  .pbar-val \{ color: var(--muted); font-weight: 600; \}
+  .pbar-track \{ background: var(--surface-2, rgba(127,127,127,.12)); border-radius: 999px; height: .7rem; overflow: hidden; \}
+  .pbar-fill \{ height: 100%; border-radius: 999px; transition: width .3s ease; \}
+  .pbar-fill.green \{ background: #16a34a; \}
+  .pbar-fill.amber \{ background: #f59e0b; \}
+  .pbar-fill.blue \{ background: var(--primary); \}
+  /* Divider (Slice 8b) */
+  .divider \{ border: none; border-top: 1px solid var(--border); margin: 1rem 0; \}
+  /* ExpansionPanel (Slice 8b) — native <details>, zero JS */
+  .exp-panel > summary \{
+    cursor: pointer; font-weight: 700; font-size: .92rem; padding: .3rem 0;
+    list-style: none; display: flex; align-items: center; gap: .5rem;
+  \}
+  .exp-panel > summary::before \{ content: "▸"; color: var(--muted); transition: transform .15s; \}
+  .exp-panel[open] > summary::before \{ transform: rotate(90deg); \}
+  .exp-panel > summary::-webkit-details-marker \{ display: none; \}
+  /* Spinner (Slice 8b) */
+  .spinner \{
+    display: inline-block; width: .8rem; height: .8rem; border-radius: 50%;
+    border: 2px solid color-mix(in srgb, var(--primary) 30%, transparent);
+    border-top-color: var(--primary); animation: spin .7s linear infinite;
+  \}
+  @keyframes spin \{ to \{ transform: rotate(360deg); \} \}
+  .live-dot \{ display: inline-flex; align-items: center; gap: .35rem; font-size: .7rem; color: var(--muted); font-weight: 600; vertical-align: middle; margin-left: .5rem; \}
   .form-actions \{ display: flex; gap: .5rem; margin-top: .35rem; \}
   .form-error \{
     background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;
