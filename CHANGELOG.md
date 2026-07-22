@@ -5,6 +5,35 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.7.0] — 2026-07-22 — `change` events + Admin ABM Slice 4 (rich edit form + cascade)
+
+**Minor bump** — one new client capability plus the flagship showcase's
+Slice 4 (create/edit form with a cascade select).
+
+### Added — `data-flv-change` events
+
+- The client runtime now wires the native **`change`** event: put
+  `data-flv-change="event_name"` on an `<input>`/`<select>` and it fires a
+  WS event carrying the element's value (`payload.value`, plus the element's
+  `name`). When the changed element is inside a `<form>`, every named field
+  is serialized into the payload too, so a re-render never wipes text the
+  user already typed (checkboxes report `checked`). Enables cascade selects,
+  live toggles, and onchange filters — the missing peer of `data-flv-click`
+  and `data-flv-submit`.
+
+### Showcase (Admin ABM — `examples/admin`)
+
+- **Slice 4a — create/edit form**: a "Nuevo" button + per-row edit action
+  open a form *inside the same LiveView as the grid* (it patches over the
+  grid, the shell stays put). Inputs + selects, save via `Empleado.insert` /
+  `.where(id).update`, server-side validation, cancel. `str.to_int()`
+  parses the select ids from the payload.
+- **Slice 4b — cascade select**: a país → provincia → ciudad hierarchy
+  (new `paises`/`provincias`/`ciudades` tables + `ciudad_id` on `empleados`).
+  Each `change` re-queries the dependent options server-side; typed fields
+  are preserved across the re-render. Verified end-to-end on the native
+  binary + local Postgres. Requires **Fitz ≥ v0.27.0** (`str.to_int`).
+
 ## [v0.6.0] — 2026-07-22 — `live_embed` + Admin ABM Slice 2 (live DataGrid)
 
 **Minor bump** — one NEW public API plus the flagship showcase's Slice 2.

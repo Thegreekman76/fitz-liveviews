@@ -322,6 +322,23 @@ let LIVE_CLIENT_JS: Str = """(function() \{
       \}
     \}
   \});
+  document.body.addEventListener('change', function(e) \{
+    const t = e.target.closest('[data-flv-change]');
+    if (t && ws.readyState === WebSocket.OPEN) \{
+      const payload = \{\};
+      collectValues(t, payload);
+      enrichWithComponentContext(t, payload);
+      const changeForm = t.closest('form');
+      if (changeForm) \{
+        for (const el of changeForm.elements) \{
+          if (el.name) payload[el.name] = (el.type === 'checkbox') ? (el.checked ? el.value : '') : el.value;
+        \}
+      \}
+      if (t.name) payload[t.name] = t.value;
+      payload['value'] = (t.type === 'checkbox') ? (t.checked ? t.value : '') : t.value;
+      ws.send(JSON.stringify(\{ event: t.dataset.flvChange, payload: payload, html: '', patches: [] \}));
+    \}
+  \});
 \})();"""
 
 
@@ -438,6 +455,17 @@ fn live_layout_includes_form_submit_handler() {
   assert(full.raw.contains("data-flv-submit"))
   assert(full.raw.contains("preventDefault"))
   assert(full.raw.contains("form.elements"))
+}
+
+@test
+fn live_layout_includes_change_handler() {
+  // v0.7.0 — client JS handles `data-flv-change` on inputs/selects (fires
+  // on the native `change` event, carrying the element's value in the
+  // payload). Enables cascade selects, toggles, and live filters.
+  let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
+  assert(full.raw.contains("addEventListener('change'"))
+  assert(full.raw.contains("data-flv-change"))
+  assert(full.raw.contains("flvChange"))
 }
 
 @test

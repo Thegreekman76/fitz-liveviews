@@ -39,11 +39,37 @@ CREATE TABLE IF NOT EXISTS empleados (
     email            text NOT NULL DEFAULT '',
     cargo            text NOT NULL DEFAULT '',
     departamento_id  bigint NOT NULL DEFAULT 0,
+    ciudad_id        bigint NOT NULL DEFAULT 0,
     activo           boolean NOT NULL DEFAULT true,
     created_at       timestamptz NOT NULL DEFAULT NOW()
 );
 
+-- Existing databases (created before Slice 4b) get the new column too.
+ALTER TABLE empleados ADD COLUMN IF NOT EXISTS ciudad_id bigint NOT NULL DEFAULT 0;
+
 CREATE INDEX IF NOT EXISTS idx_empleados_depto ON empleados(departamento_id);
+
+-- Ubicaciones — a país → provincia → ciudad hierarchy that feeds the
+-- cascade select in the employee form (Slice 4b).
+CREATE TABLE IF NOT EXISTS paises (
+    id      bigserial PRIMARY KEY,
+    nombre  text NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS provincias (
+    id      bigserial PRIMARY KEY,
+    pais_id bigint NOT NULL DEFAULT 0,
+    nombre  text NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ciudades (
+    id           bigserial PRIMARY KEY,
+    provincia_id bigint NOT NULL DEFAULT 0,
+    nombre       text NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_provincias_pais ON provincias(pais_id);
+CREATE INDEX IF NOT EXISTS idx_ciudades_provincia ON ciudades(provincia_id);
 
 -- --- Seed ------------------------------------------------------------------
 
@@ -85,3 +111,40 @@ SELECT nombre, email, cargo, departamento_id, activo FROM (VALUES
     ('Ken Thompson',      'ken@fitz.dev',      'Operador',      4, false)
 ) AS v(nombre, email, cargo, departamento_id, activo)
 WHERE NOT EXISTS (SELECT 1 FROM empleados);
+
+-- Demo ubicaciones — país → provincia → ciudad. Seeded only when empty;
+-- FKs resolved by name so the ids don't have to be hard-coded.
+INSERT INTO paises (nombre)
+SELECT nombre FROM (VALUES ('Argentina'), ('Uruguay')) AS v(nombre)
+WHERE NOT EXISTS (SELECT 1 FROM paises);
+
+INSERT INTO provincias (pais_id, nombre)
+SELECT (SELECT id FROM paises WHERE nombre = v.pais), v.nombre FROM (VALUES
+    ('Argentina', 'Buenos Aires'),
+    ('Argentina', 'Córdoba'),
+    ('Argentina', 'Santa Fe'),
+    ('Uruguay',   'Montevideo'),
+    ('Uruguay',   'Canelones')
+) AS v(pais, nombre)
+WHERE NOT EXISTS (SELECT 1 FROM provincias);
+
+INSERT INTO ciudades (provincia_id, nombre)
+SELECT (SELECT id FROM provincias WHERE nombre = v.provincia), v.nombre FROM (VALUES
+    ('Buenos Aires', 'La Plata'),
+    ('Buenos Aires', 'Mar del Plata'),
+    ('Córdoba',      'Córdoba Capital'),
+    ('Córdoba',      'Villa Carlos Paz'),
+    ('Santa Fe',     'Rosario'),
+    ('Santa Fe',     'Santa Fe Capital'),
+    ('Montevideo',   'Montevideo'),
+    ('Canelones',    'Las Piedras')
+) AS v(provincia, nombre)
+WHERE NOT EXISTS (SELECT 1 FROM ciudades);
+
+-- --- Grants ----------------------------------------------------------------
+-- In Docker init.sql runs as the app role (POSTGRES_USER=fitz), which owns
+-- every table, so these are a no-op. When bootstrapping a LOCAL Postgres as a
+-- superuser (e.g. `postgres`), they make sure the app's `fitz` role can
+-- read/write the tables it doesn't own.
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO fitz;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO fitz;

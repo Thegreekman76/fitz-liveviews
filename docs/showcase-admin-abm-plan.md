@@ -158,6 +158,18 @@ Companion UI library from **8 basic components** to **~22-25**:
    v0.27.0.
 4. **S4** — Alta/edición forms with the rich components (cascade,
    group-checkbox, multiselect, tree).
+   - **S4a — DONE** ✅ (2026-07-22) Create/edit form *inside the grid's
+     LiveView* (patches over it): inputs + selects, save via `Empleado.insert`
+     / `.where(id).update`, server-side validation, cancel. Row edit action +
+     "Nuevo" button. Verified run + binary.
+   - **S4b — DONE** ✅ (2026-07-22, lib v0.7.0) Cascade select
+     (país → provincia → ciudad; new ubicaciones tables + `ciudad_id`). Each
+     `change` re-queries the dependent options server-side; typed fields
+     preserved. **Dogfood → lib**: added the `data-flv-change` event to the
+     client runtime (v0.7.0). Verified run + binary. Also surfaced a Fitz
+     core gap (checker doesn't flag an ORM query on an un-imported `@table`
+     type, and the runtime hangs instead of erroring) — noted for a core fix.
+   - **S4c/d/e** — group-checkbox (permisos) · multiselect (skills) · tree.
 5. **S5** — Selection + multi-delete + confirm + export.
 6. **S6** — Column grouping + tree view polish.
 

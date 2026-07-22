@@ -45,6 +45,27 @@
     email: Str = ""
     cargo: Str = ""
     departamento_id: Int = 0
+    ciudad_id: Int = 0
     activo: Bool = true
     @db_default created_at: Str = ""
+}
+
+// Ubicaciones — a país → provincia → ciudad hierarchy (Slice 4b). Feeds the
+// cascade select in the employee form: picking a país narrows the provincia
+// options, picking a provincia narrows the ciudad options.
+@table("paises") type Pais {
+    @primary id: Int = 0
+    nombre: Str = ""
+}
+
+@table("provincias") type Provincia {
+    @primary id: Int = 0
+    pais_id: Int = 0
+    nombre: Str = ""
+}
+
+@table("ciudades") type Ciudad {
+    @primary id: Int = 0
+    provincia_id: Int = 0
+    nombre: Str = ""
 }

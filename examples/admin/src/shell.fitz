@@ -403,6 +403,8 @@ fn shell_css() -> Str {
     border-radius: 8px; padding: .55rem .75rem; font-size: .9rem; width: 100%;
   \}
   .form-row input:focus, .form-row select:focus \{ outline: none; border-color: var(--primary); \}
+  .form-grid-3 \{ display: grid; grid-template-columns: repeat(3, 1fr); gap: .9rem; \}
+  @media (max-width: 560px) \{ .form-grid-3 \{ grid-template-columns: 1fr; \} \}
   .form-actions \{ display: flex; gap: .5rem; margin-top: .35rem; \}
   .form-error \{
     background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;

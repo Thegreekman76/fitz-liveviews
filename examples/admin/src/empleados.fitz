@@ -21,7 +21,7 @@
 // filters; dynamic `.order_by(col, ascending)`), not an in-memory slice.
 
 from config import db_url
-from models import Empleado, Departamento, User
+from models import Empleado, Departamento, User, Pais, Provincia, Ciudad
 from session import user_from_cookie
 from shell import page_layout, redirect_to
 from fitz_liveviews import Html, html, flv, h_join, html_response, live_embed, LiveFrame, diff_html
@@ -161,15 +161,42 @@ fn depto_options(deptos: List<Departamento>, selected_id: Int) -> Str {
     return head + opts
 }
 
+// A single `<option>` with the `selected` attribute when it matches.
+fn option_tag(id: Int, label: Str, selected: Int) -> Str {
+    return match id == selected {
+        true => """<option value="{id}" selected>{flv(label)}</option>""",
+        false => """<option value="{id}">{flv(label)}</option>""",
+    }
+}
+
+// `<option>` tags for the cascade selects (país/provincia/ciudad). Each list
+// item exposes `.id` + `.nombre`; the ones are different nominal types so we
+// render them inline. A placeholder head (`value="0"`) sits on top.
+fn pais_options(items: List<Pais>, selected: Int) -> Str {
+    return """<option value="0">— País —</option>""" + h_join(items.map(fn(p) => html(option_tag(p.id, p.nombre, selected))))
+}
+
+fn provincia_options(items: List<Provincia>, selected: Int) -> Str {
+    return """<option value="0">— Provincia —</option>""" + h_join(items.map(fn(p) => html(option_tag(p.id, p.nombre, selected))))
+}
+
+fn ciudad_options(items: List<Ciudad>, selected: Int) -> Str {
+    return """<option value="0">— Ciudad —</option>""" + h_join(items.map(fn(c) => html(option_tag(c.id, c.nombre, selected))))
+}
+
 // The whole create/edit form as a fragment (same root id so it patches over
 // the grid). `edit_id` 0 = alta; > 0 = edición. `error` non-empty renders a
-// validation/DB banner.
-fn form_html(edit_id: Int, deptos: List<Departamento>, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_activo: Bool, error: Str) -> Html {
+// validation/DB banner. The país/provincia/ciudad selects are a cascade: each
+// `change` re-queries the dependent options server-side (Slice 4b).
+fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provincias: List<Provincia>, ciudades: List<Ciudad>, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_pais: Int, f_provincia: Int, f_ciudad: Int, f_activo: Bool, error: Str) -> Html {
     let title = match edit_id == 0 {
         true => "Nuevo empleado",
         false => "Editar empleado",
     }
     let opts = depto_options(deptos, f_depto)
+    let pais_opts = pais_options(paises, f_pais)
+    let prov_opts = provincia_options(provincias, f_provincia)
+    let ciu_opts = ciudad_options(ciudades, f_ciudad)
     let act_a = match f_activo {
         true => """<option value="true" selected>Activo</option>""",
         false => """<option value="true">Activo</option>""",
@@ -206,6 +233,20 @@ fn form_html(edit_id: Int, deptos: List<Departamento>, f_nombre: Str, f_email: S
           <div class="form-row">
             <label>Departamento</label>
             <select name="departamento_id">{opts}</select>
+          </div>
+          <div class="form-grid-3">
+            <div class="form-row">
+              <label>País</label>
+              <select name="pais_id" data-flv-change="cascade_pais">{pais_opts}</select>
+            </div>
+            <div class="form-row">
+              <label>Provincia</label>
+              <select name="provincia_id" data-flv-change="cascade_provincia">{prov_opts}</select>
+            </div>
+            <div class="form-row">
+              <label>Ciudad</label>
+              <select name="ciudad_id" data-flv-change="cascade_ciudad">{ciu_opts}</select>
+            </div>
           </div>
           <div class="form-row">
             <label>Estado</label>
@@ -373,9 +414,10 @@ async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, so
     return render_grid(rows, deptos, p, total, total_pages, q, estado, depto, sort_col, sort_dir)
 }
 
-// The form screen (alta/edición) — queries the departamentos for the select,
-// then renders the form fragment. Same root id as the grid, so it patches over.
-async fn form_screen(edit_id: Int, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_activo: Bool, error: Str) -> Html {
+// The form screen (alta/edición) — queries the departamentos + the ubicaciones
+// options (cascade: provincias only for the picked país, ciudades only for the
+// picked provincia), then renders the form fragment. Same root id as the grid.
+async fn form_screen(edit_id: Int, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_pais: Int, f_provincia: Int, f_ciudad: Int, f_activo: Bool, error: Str) -> Html {
     let conn = match db.connect(db_url()).await {
         Ok(c) => c,
         Err(e) => return grid_error(e),
@@ -384,7 +426,25 @@ async fn form_screen(edit_id: Int, f_nombre: Str, f_email: Str, f_cargo: Str, f_
         Ok(ds) => ds,
         Err(e) => return grid_error(e),
     }
-    return form_html(edit_id, deptos, f_nombre, f_email, f_cargo, f_depto, f_activo, error)
+    let paises: List<Pais> = match Pais.where(fn(p) => p.id > 0).order_by(fn(p) => p.nombre).all(conn).await {
+        Ok(ps) => ps,
+        Err(e) => return grid_error(e),
+    }
+    let provincias: List<Provincia> = match f_pais > 0 {
+        true => match Provincia.where(fn(p) => p.pais_id == f_pais).order_by(fn(p) => p.nombre).all(conn).await {
+            Ok(ps) => ps,
+            Err(e) => return grid_error(e),
+        },
+        false => [],
+    }
+    let ciudades: List<Ciudad> = match f_provincia > 0 {
+        true => match Ciudad.where(fn(c) => c.provincia_id == f_provincia).order_by(fn(c) => c.nombre).all(conn).await {
+            Ok(cs) => cs,
+            Err(e) => return grid_error(e),
+        },
+        false => [],
+    }
+    return form_html(edit_id, deptos, paises, provincias, ciudades, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_activo, error)
 }
 
 // Load one empleado by id (for the edit form). `Err` if not found / DB error.
@@ -395,13 +455,34 @@ async fn load_empleado(id: Int) -> Result<Empleado> {
 
 // Persist the form: INSERT when `edit_id == 0`, UPDATE otherwise. Returns the
 // number of affected/created rows-ish (1) or an `Err` with the DB message.
-async fn save_empleado_db(edit_id: Int, nombre: Str, email: Str, cargo: Str, depto: Int, activo: Bool) -> Result<Int> {
+async fn save_empleado_db(edit_id: Int, nombre: Str, email: Str, cargo: Str, depto: Int, ciudad: Int, activo: Bool) -> Result<Int> {
     let conn = db.connect(db_url()).await?
     if (edit_id == 0) {
-        let created = Empleado.insert(conn, Empleado { nombre: nombre, email: email, cargo: cargo, departamento_id: depto, activo: activo }).await?
+        let created = Empleado.insert(conn, Empleado { nombre: nombre, email: email, cargo: cargo, departamento_id: depto, ciudad_id: ciudad, activo: activo }).await?
         return Ok(created.id)
     }
-    return Empleado.where(fn(e) => e.id == edit_id).update(conn, { "nombre": nombre, "email": email, "cargo": cargo, "departamento_id": depto, "activo": activo }).await
+    return Empleado.where(fn(e) => e.id == edit_id).update(conn, { "nombre": nombre, "email": email, "cargo": cargo, "departamento_id": depto, "ciudad_id": ciudad, "activo": activo }).await
+}
+
+// Derive the país + provincia from a ciudad_id (for the edit form's cascade
+// prefill). Returns (0, 0) when there's no ciudad. Best-effort — a missing row
+// just leaves the upstream select on its placeholder.
+async fn ubi_from_ciudad(ciudad_id: Int) -> Provincia {
+    if (ciudad_id == 0) {
+        return Provincia { id: 0, pais_id: 0, nombre: "" }
+    }
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(_) => return Provincia { id: 0, pais_id: 0, nombre: "" },
+    }
+    let ciu = match Ciudad.where(fn(c) => c.id == ciudad_id).first(conn).await {
+        Ok(c) => c,
+        Err(_) => return Provincia { id: 0, pais_id: 0, nombre: "" },
+    }
+    return match Provincia.where(fn(p) => p.id == ciu.provincia_id).first(conn).await {
+        Ok(p) => p,
+        Err(_) => Provincia { id: 0, pais_id: 0, nombre: "" },
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -444,6 +525,9 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
     let f_email = ""
     let f_cargo = ""
     let f_depto = 0
+    let f_pais = 0
+    let f_provincia = 0
+    let f_ciudad = 0
     let f_activo = true
     let form_error = ""
     let last = grid_html(page, q, estado, depto, sort_col, sort_dir).await.raw
@@ -506,6 +590,9 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             f_email = ""
             f_cargo = ""
             f_depto = 0
+            f_pais = 0
+            f_provincia = 0
+            f_ciudad = 0
             f_activo = true
             form_error = ""
         }
@@ -519,6 +606,11 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
                     f_cargo = e.cargo
                     f_depto = e.departamento_id
                     f_activo = e.activo
+                    // Derive the cascade (país/provincia) from the stored ciudad.
+                    let prov = ubi_from_ciudad(e.ciudad_id).await
+                    f_ciudad = e.ciudad_id
+                    f_provincia = prov.id
+                    f_pais = prov.pais_id
                     form_error = ""
                     mode = "form"
                 },
@@ -527,6 +619,39 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
                     mode = "grid"
                 },
             }
+        }
+        // Cascade selects: each change re-queries the dependent options. The
+        // change carries the whole form, so we sync the typed fields first (so
+        // a re-render doesn't wipe them), then apply the reset rule.
+        if (ev == "cascade_pais") {
+            f_nombre = pget(frame.payload, "nombre", f_nombre)
+            f_email = pget(frame.payload, "email", f_email)
+            f_cargo = pget(frame.payload, "cargo", f_cargo)
+            f_depto = pget_int(frame.payload, "departamento_id", f_depto)
+            f_activo = pget(frame.payload, "activo", "true") == "true"
+            f_pais = pget_int(frame.payload, "value", 0)
+            f_provincia = 0
+            f_ciudad = 0
+        }
+        if (ev == "cascade_provincia") {
+            f_nombre = pget(frame.payload, "nombre", f_nombre)
+            f_email = pget(frame.payload, "email", f_email)
+            f_cargo = pget(frame.payload, "cargo", f_cargo)
+            f_depto = pget_int(frame.payload, "departamento_id", f_depto)
+            f_activo = pget(frame.payload, "activo", "true") == "true"
+            f_pais = pget_int(frame.payload, "pais_id", f_pais)
+            f_provincia = pget_int(frame.payload, "value", 0)
+            f_ciudad = 0
+        }
+        if (ev == "cascade_ciudad") {
+            f_nombre = pget(frame.payload, "nombre", f_nombre)
+            f_email = pget(frame.payload, "email", f_email)
+            f_cargo = pget(frame.payload, "cargo", f_cargo)
+            f_depto = pget_int(frame.payload, "departamento_id", f_depto)
+            f_activo = pget(frame.payload, "activo", "true") == "true"
+            f_pais = pget_int(frame.payload, "pais_id", f_pais)
+            f_provincia = pget_int(frame.payload, "provincia_id", f_provincia)
+            f_ciudad = pget_int(frame.payload, "value", 0)
         }
         if (ev == "cancel_form") {
             mode = "grid"
@@ -538,11 +663,14 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             f_email = pget(frame.payload, "email", "")
             f_cargo = pget(frame.payload, "cargo", "")
             f_depto = pget_int(frame.payload, "departamento_id", 0)
+            f_pais = pget_int(frame.payload, "pais_id", 0)
+            f_provincia = pget_int(frame.payload, "provincia_id", 0)
+            f_ciudad = pget_int(frame.payload, "ciudad_id", 0)
             f_activo = pget(frame.payload, "activo", "true") == "true"
             if (f_nombre == "" or f_email == "") {
                 form_error = "Nombre y email son obligatorios."
             } else {
-                match save_empleado_db(edit_id, f_nombre, f_email, f_cargo, f_depto, f_activo).await {
+                match save_empleado_db(edit_id, f_nombre, f_email, f_cargo, f_depto, f_ciudad, f_activo).await {
                     Ok(_) => {
                         mode = "grid"
                         form_error = ""
@@ -555,7 +683,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>) {
             }
         }
         let new_html = match mode {
-            "form" => form_screen(edit_id, f_nombre, f_email, f_cargo, f_depto, f_activo, form_error).await.raw,
+            "form" => form_screen(edit_id, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_activo, form_error).await.raw,
             _ => grid_html(page, q, estado, depto, sort_col, sort_dir).await.raw,
         }
         let patches = diff_html(last, new_html)
