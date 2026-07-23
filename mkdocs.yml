@@ -54,6 +54,7 @@ nav:
       - C2 — Events, payloads & forms: course/c2-events-payloads-forms.md
       - C3 — Composing UI: course/c3-composing-ui.md
       - C4 — Persistent & multi-user: course/c4-persistent-multiuser.md
+      - C5 — LiveComponents: course/c5-livecomponents.md
   - Examples:
       - Counter (Phase 2): examples/counter.md
       - Chat (Phase 3a + 3b): examples/chat.md

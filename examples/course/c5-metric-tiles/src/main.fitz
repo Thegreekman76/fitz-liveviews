@@ -1,0 +1,45 @@
+from fitz_liveviews import Html, html, flv, h_join, live_layout, html_response, LiveFrame, diff_html, component, dispatch_component_events, flv_register
+from Tile import Tile, Tile_render, Tile_bump, Tile_reset
+
+type TileCfg {
+  id: Str
+  label: Str
+}
+
+fn tiles() -> List<TileCfg> {
+  return [
+    TileCfg { id: "downloads", label: "Downloads" },
+    TileCfg { id: "signups", label: "Signups" },
+    TileCfg { id: "errors", label: "Errors" },
+  ]
+}
+
+fn render_tile(cfg: TileCfg) -> Html {
+  let inner = component("Tile", cfg.id)
+  return html("""<article class="tile"><h3>{flv(cfg.label)}</h3>{inner.raw}</article>""")
+}
+
+fn render() -> Html {
+  let cards = h_join(tiles().map(fn(c) => render_tile(c)))
+  return html("""<div id="app"><h1>Metrics</h1><div class="grid">{cards}</div></div>""")
+}
+
+@get("/")
+fn page() -> Response {
+  return html_response(live_layout("/live", "app", render()))
+}
+
+@ws("/live")
+async fn socket(ws: WsConn<LiveFrame>) {
+  let last = render().raw
+  loop {
+    let frame = ws.recv()?
+    let _ = dispatch_component_events(frame)
+    let new_html = render().raw
+    ws.send(LiveFrame { html: new_html, patches: diff_html(last, new_html) })?
+    last = new_html
+  }
+}
+
+@server(3000)
+fn main() => 0

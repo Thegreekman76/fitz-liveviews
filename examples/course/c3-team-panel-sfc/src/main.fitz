@@ -1,4 +1,4 @@
-from fitz_liveviews import html_response, live_layout, LiveFrame, diff_html, component, dispatch_component_events, flv_register
+from fitz_liveviews import Html, html_response, live_layout, LiveFrame, diff_html, component, dispatch_component_events, flv_register
 from TeamPanel import TeamPanel, TeamPanel_render, TeamPanel_toggle
 
 @get("/")

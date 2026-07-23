@@ -145,8 +145,8 @@ between them becomes obvious.
 
 ## What's next
 
-You can persist and share state. **C5 — LiveComponents** goes the other
-direction: reusable components with their *own* per-instance state
+You can persist and share state. **[C5 — LiveComponents](c5-livecomponents.md)**
+goes the other direction: reusable components with their *own* per-instance state
 (`@live_component`), the pattern behind the kanban card editor and the dashboard
 tiles — exactly the in-memory UI state the SFC form is built for. The
 [kanban](../examples/kanban.md) and [dashboard](../examples/dashboard.md)

@@ -1,0 +1,17 @@
+// Course C5 — one Tile definition, many independent instances.
+//
+// Each `component("Tile", "<id>")` in main.fitz gets its OWN copy of this
+// state, keyed by the instance id. Bumping one tile never touches another.
+
+component Tile {
+  state { count: Int = 0 }
+  event bump() { count = count + 1 }
+  event reset() { count = 0 }
+  <template>
+    <div class="tile-body">
+      <span class="tile-count">{count}</span>
+      <button data-flv-click="bump">+1</button>
+      <button data-flv-click="reset">reset</button>
+    </div>
+  </template>
+}

@@ -1,0 +1,11 @@
+[package]
+name = "c5-metric-tiles"
+version = "0.0.1"
+edition = "2026"
+description = "Course C5 — LiveComponents: one Tile definition, many independent instances"
+
+[bin]
+main = "src/main.fitz"
+
+[dependencies]
+fitz_liveviews = { path = "../../.." }
