@@ -1,0 +1,11 @@
+[package]
+name = "gallery-example"
+version = "0.0.1"
+edition = "2026"
+description = "Fitz LiveViews — interactive component gallery (no DB, in-memory)"
+
+[bin]
+main = "src/main.fitz"
+
+[dependencies]
+fitz_liveviews = { path = "../.." }

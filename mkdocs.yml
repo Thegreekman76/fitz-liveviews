@@ -54,6 +54,7 @@ nav:
       - Kanban (Phase 4 showcase): examples/kanban.md
       - Dashboard (Phase 4 showcase): examples/dashboard.md
       - Admin ABM (flagship): examples/admin.md
+      - Component gallery: examples/gallery.md
   - Roadmap: https://github.com/Thegreekman76/fitz-liveviews/blob/main/ROADMAP.md
 
 markdown_extensions:

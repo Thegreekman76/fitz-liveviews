@@ -1,0 +1,398 @@
+// Fitz LiveViews — interactive component gallery.
+//
+// A single live page that renders the Companion UI components in isolation,
+// with no database and no auth — just in-memory per-connection state in the
+// `@ws` loop. It's the runnable companion to `docs/ui-components.md` and the
+// seed for the future playground.
+//
+// Run:    fitz run                        (interpreter)
+// Build:  fitz build && ./target/release/gallery-example   (native binary)
+//
+// Both serve bit-for-bit the same page at http://127.0.0.1:3000/.
+
+from fitz_liveviews import Html, html, flv, html_response, live_layout, live_embed, LiveFrame, diff_html
+
+// ---------------------------------------------------------------------------
+// Small helpers for each component (the same patterns as the Admin ABM)
+// ---------------------------------------------------------------------------
+
+fn tab_btn(label: Str, val: Str, cur: Str) -> Str {
+    let cls = match val == cur {
+        true => "tab-btn tab-on",
+        false => "tab-btn",
+    }
+    return """<button class="{cls}" data-flv-click="tab" data-flv-value-tab="{val}">{flv(label)}</button>"""
+}
+
+fn badge(label: Str, kind: Str) -> Str {
+    return """<span class="badge badge-{kind}">{flv(label)}</span>"""
+}
+
+fn chip(label: Str) -> Str {
+    return """<span class="chip">{flv(label)}</span>"""
+}
+
+fn progress_bar(label: Str, value: Int, max: Int, accent: Str) -> Str {
+    let pct = match max <= 0 {
+        true => 0,
+        false => (value * 100) / max,
+    }
+    return """<div class="pbar-row"><div class="pbar-head"><span>{flv(label)}</span><span>{pct}%</span></div>
+      <div class="pbar-track"><div class="pbar-fill {accent}" style="width: {pct}%"></div></div></div>"""
+}
+
+// Star rating input via radios + the row-reverse CSS trick (no JS).
+fn rating_input(selected: Int) -> Str {
+    let out = ""
+    for n in 1..6 {
+        let val = 6 - n
+        let checked = match val == selected {
+            true => " checked",
+            false => "",
+        }
+        out = out + """<input type="radio" id="star-{val}" name="rating" value="{val}"{checked} data-flv-click="set_rating" data-flv-value-n="{val}" /><label for="star-{val}">★</label>"""
+    }
+    return out
+}
+
+// ---------------------------------------------------------------------------
+// The three tab panels
+// ---------------------------------------------------------------------------
+
+fn panel_controls(count: Int, rating: Int) -> Str {
+    let badges = badge("Activo", "ok") + badge("Inactivo", "off") + badge("Pendiente", "warn")
+    let chips = chip("Rust") + chip("SQL") + chip("Docker") + chip("Fitz")
+    let pbars = progress_bar("Cobertura", 80, 100, "green") + progress_bar("Uso", 35, 100, "amber")
+    let stars = rating_input(rating)
+    return """<section class="card">
+      <h3>Botones y contador</h3>
+      <p class="muted">Un contador reactivo — cada click re-renderiza sobre el WebSocket.</p>
+      <div class="row">
+        <button class="btn btn-primary" data-flv-click="inc">+1</button>
+        <button class="btn" data-flv-click="dec">−1</button>
+        <button class="btn btn-ghost" data-flv-click="reset_count">Reset</button>
+        <span class="count-val">{count}</span>
+      </div>
+    </section>
+    <section class="card">
+      <h3>Badges, chips, tooltip</h3>
+      <div class="row">{badges}</div>
+      <div class="row chips">{chips}</div>
+      <div class="row">
+        <button class="btn btn-icon" data-tooltip="Soy un tooltip CSS">?</button>
+        <span class="muted">← hover sobre el botón</span>
+      </div>
+    </section>
+    <section class="card">
+      <h3>Rating</h3>
+      <div class="rating">{stars}</div>
+      <p class="muted">Seleccionado: {rating} ★</p>
+    </section>
+    <section class="card">
+      <h3>ProgressBar y Spinner</h3>
+      <div class="pbars">{pbars}</div>
+      <hr class="divider" />
+      <div class="row"><span class="spinner"></span> <span class="muted">cargando…</span></div>
+    </section>"""
+}
+
+fn panel_feedback(modal: Bool, flash: Str, step: Int) -> Str {
+    let step_label = match step {
+        1 => "Paso 1 — Datos",
+        2 => "Paso 2 — Opciones",
+        _ => "Paso 3 — Confirmar",
+    }
+    let s1 = match step >= 1 {
+        true => "on",
+        false => "",
+    }
+    let s2 = match step >= 2 {
+        true => "on",
+        false => "",
+    }
+    let s3 = match step >= 3 {
+        true => "on",
+        false => "",
+    }
+    let back = match step > 1 {
+        true => """<button class="btn" data-flv-click="step_prev">← Atrás</button>""",
+        false => "",
+    }
+    let next = match step < 3 {
+        true => """<button class="btn btn-primary" data-flv-click="step_next">Siguiente →</button>""",
+        false => """<button class="btn btn-primary" data-flv-click="step_next">Finalizar</button>""",
+    }
+    return """<section class="card">
+      <h3>Modal / ConfirmDialog</h3>
+      <button class="btn btn-danger" data-flv-click="open_modal">Eliminar algo…</button>
+    </section>
+    <section class="card">
+      <h3>Toast</h3>
+      <button class="btn btn-primary" data-flv-click="show_toast">Mostrar toast</button>
+    </section>
+    <section class="card">
+      <h3>ExpansionPanel (native details, cero JS)</h3>
+      <details class="exp-panel"><summary>Ver más</summary>
+        <p class="muted">Contenido colapsable con &lt;details&gt;/&lt;summary&gt; — no necesita el servidor ni JS.</p>
+      </details>
+    </section>
+    <section class="card">
+      <h3>Stepper</h3>
+      <div class="stepper">
+        <span class="step {s1}">1</span><span class="step-line"></span>
+        <span class="step {s2}">2</span><span class="step-line"></span>
+        <span class="step {s3}">3</span>
+      </div>
+      <p><strong>{step_label}</strong></p>
+      <div class="row">{back}{next}</div>
+    </section>"""
+}
+
+fn panel_form(form_result: Str) -> Str {
+    let result = match form_result == "" {
+        true => "",
+        false => """<div class="result">{flv(form_result)}</div>""",
+    }
+    return """<section class="card">
+      <h3>Formulario — inputs, select, radio, checkbox, textarea</h3>
+      <form class="form" data-flv-submit="submit_form">
+        <div class="form-row"><label>Nombre</label>
+          <input name="nombre" placeholder="Nombre y apellido" autocomplete="off" /></div>
+        <div class="form-row"><label>Rol</label>
+          <select name="rol"><option value="dev">Dev</option><option value="qa">QA</option><option value="pm">PM</option></select></div>
+        <div class="form-row"><label>Estado</label>
+          <div class="radio-group">
+            <label class="radio"><input type="radio" name="activo" value="true" checked /> Activo</label>
+            <label class="radio"><input type="radio" name="activo" value="false" /> Inactivo</label>
+          </div></div>
+        <div class="form-row"><label>Skills</label>
+          <div class="checks">
+            <label class="check"><input type="checkbox" name="skills" value="rust" /> Rust</label>
+            <label class="check"><input type="checkbox" name="skills" value="sql" /> SQL</label>
+            <label class="check"><input type="checkbox" name="skills" value="docker" /> Docker</label>
+          </div></div>
+        <div class="form-row"><label>Notas</label>
+          <textarea name="notas" rows="2" placeholder="Notas…"></textarea></div>
+        <button class="btn btn-primary" type="submit">Enviar</button>
+      </form>
+      {result}
+    </section>"""
+}
+
+// ---------------------------------------------------------------------------
+// The gallery root — the element that gets diff-patched
+// ---------------------------------------------------------------------------
+
+fn render_gallery(tab: Str, count: Int, rating: Int, modal: Bool, flash: Str, step: Int, form_result: Str) -> Html {
+    let tabs = tab_btn("Controles", "controles", tab) + tab_btn("Feedback", "feedback", tab) + tab_btn("Formulario", "form", tab)
+    let body2 = match tab {
+        "feedback" => panel_feedback(modal, flash, step),
+        "form" => panel_form(form_result),
+        _ => panel_controls(count, rating),
+    }
+    let toast = match flash == "" {
+        true => "",
+        false => """<div class="toast"><span>{flv(flash)}</span><button class="toast-x" data-flv-click="dismiss_toast">×</button></div>""",
+    }
+    let modal_html = match modal {
+        true => """<div class="modal-overlay"><div class="modal">
+          <h3>Confirmar</h3><p class="muted">¿Seguro que querés eliminar esto? No se puede deshacer.</p>
+          <div class="modal-actions">
+            <button class="btn" data-flv-click="cancel_modal">Cancelar</button>
+            <button class="btn btn-danger" data-flv-click="confirm_modal">Eliminar</button>
+          </div></div></div>""",
+        false => "",
+    }
+    return html("""<div id="gallery-root" class="gallery">
+      <header class="gallery-head">
+        <h1>🧰 Fitz LiveViews — component gallery</h1>
+        <p class="muted">Componentes en vivo sobre WebSocket. Estado in-memory por conexión.</p>
+      </header>
+      <div class="tab-nav">{tabs}</div>
+      <div class="grid">{body2}</div>
+      {toast}
+      {modal_html}
+    </div>""")
+}
+
+// ---------------------------------------------------------------------------
+// HTTP + WS
+// ---------------------------------------------------------------------------
+
+fn initial() -> Html {
+    let css = gallery_css()
+    let root = render_gallery("controles", 0, 3, false, "", 1, "")
+    return html("""<style>{css}</style>{root.raw}""")
+}
+
+@get("/")
+fn home() -> Response {
+    return html_response(live_layout("/live/gallery", "gallery-root", initial()))
+}
+
+@ws("/live/gallery")
+async fn gallery_socket(ws: WsConn<LiveFrame>) {
+    let tab = "controles"
+    let count = 0
+    let rating = 3
+    let modal = false
+    let flash = ""
+    let step = 1
+    let form_result = ""
+    let last = render_gallery(tab, count, rating, modal, flash, step, form_result).raw
+    loop {
+        let frame = ws.recv()?
+        let ev = frame.event
+        // A toast lives for one render: any next event clears it.
+        flash = ""
+        if (ev == "tab") {
+            tab = pget(frame.payload, "tab", tab)
+        }
+        if (ev == "inc") {
+            count = count + 1
+        }
+        if (ev == "dec") {
+            count = count - 1
+        }
+        if (ev == "reset_count") {
+            count = 0
+        }
+        if (ev == "set_rating") {
+            rating = pget_int(frame.payload, "n", rating)
+        }
+        if (ev == "open_modal") {
+            modal = true
+        }
+        if (ev == "cancel_modal") {
+            modal = false
+        }
+        if (ev == "confirm_modal") {
+            modal = false
+            flash = "Eliminado."
+            tab = "feedback"
+        }
+        if (ev == "show_toast") {
+            flash = "¡Hola! Soy un toast."
+            tab = "feedback"
+        }
+        if (ev == "dismiss_toast") {
+            flash = ""
+        }
+        if (ev == "step_next") {
+            step = match step < 3 {
+                true => step + 1,
+                false => 1,
+            }
+        }
+        if (ev == "step_prev") {
+            if (step > 1) {
+                step = step - 1
+            }
+        }
+        if (ev == "submit_form") {
+            let nombre = pget(frame.payload, "nombre", "")
+            let rol = pget(frame.payload, "rol", "")
+            let activo = pget(frame.payload, "activo", "true")
+            let skills = pget(frame.payload, "skills", "")
+            let notas = pget(frame.payload, "notas", "")
+            form_result = "nombre={nombre} · rol={rol} · activo={activo} · skills=[{skills}] · notas={notas}"
+        }
+        let new_html = render_gallery(tab, count, rating, modal, flash, step, form_result).raw
+        let patches = diff_html(last, new_html)
+        ws.send(LiveFrame { html: new_html, patches: patches })?
+        last = new_html
+    }
+}
+
+// Read a string / int from the event payload (Map<Str, Str>).
+fn pget(p: Map<Str, Str>, key: Str, dflt: Str) -> Str {
+    return match p.get(key) {
+        Ok(v) => v,
+        Err(_) => dflt,
+    }
+}
+
+fn pget_int(p: Map<Str, Str>, key: Str, dflt: Int) -> Int {
+    return match p.get(key) {
+        Ok(v) => match v.to_int() {
+            Ok(n) => n,
+            Err(_) => dflt,
+        },
+        Err(_) => dflt,
+    }
+}
+
+@server(3000)
+fn main() => 0
+
+print("[ready] component gallery — http://127.0.0.1:3000/")
+
+// ---------------------------------------------------------------------------
+// Styles (compact — the point is the components, not a design system)
+// ---------------------------------------------------------------------------
+
+fn gallery_css() -> Str {
+    return """
+  :root \{ --bg:#f6f7f9; --surface:#fff; --border:#e3e6ea; --text:#1e293b; --muted:#64748b; --primary:#3b82f6; \}
+  * \{ box-sizing: border-box; \}
+  body \{ margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; \}
+  .gallery \{ max-width: 980px; margin: 0 auto; padding: 1.5rem 1rem 4rem; \}
+  .gallery-head h1 \{ margin: 0 0 .25rem; font-size: 1.4rem; \}
+  .muted \{ color: var(--muted); font-size: .88rem; \}
+  .tab-nav \{ display:flex; gap:.25rem; border-bottom:1px solid var(--border); margin:1rem 0; \}
+  .tab-btn \{ border:none; background:none; color:var(--muted); cursor:pointer; padding:.55rem .95rem; font-size:.9rem; font-weight:600; border-bottom:2px solid transparent; margin-bottom:-1px; \}
+  .tab-btn:hover \{ color:var(--text); \}
+  .tab-btn.tab-on \{ color:var(--primary); border-bottom-color:var(--primary); \}
+  .grid \{ display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:1rem; \}
+  .card \{ background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1rem 1.1rem; \}
+  .card h3 \{ margin:0 0 .5rem; font-size:1rem; \}
+  .row \{ display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin:.4rem 0; \}
+  .row.chips \{ gap:.35rem; \}
+  .btn \{ border:1px solid var(--border); background:var(--surface); color:var(--text); border-radius:8px; padding:.45rem .85rem; font-size:.88rem; cursor:pointer; \}
+  .btn:hover \{ border-color:var(--primary); \}
+  .btn-primary \{ background:var(--primary); color:#fff; border-color:var(--primary); \}
+  .btn-danger \{ background:#ef4444; color:#fff; border-color:#ef4444; \}
+  .btn-ghost \{ background:none; color:var(--muted); \}
+  .btn-icon \{ width:2rem; height:2rem; border-radius:50%; padding:0; position:relative; \}
+  .count-val \{ font-size:1.4rem; font-weight:700; margin-left:.5rem; \}
+  .badge \{ display:inline-flex; align-items:center; border-radius:999px; padding:.15rem .6rem; font-size:.75rem; font-weight:700; \}
+  .badge-ok \{ background:#dcfce7; color:#166534; \}
+  .badge-off \{ background:#f1f5f9; color:#475569; \}
+  .badge-warn \{ background:#fef3c7; color:#92400e; \}
+  .chip \{ display:inline-flex; background:color-mix(in srgb, var(--primary) 14%, transparent); color:var(--primary); border-radius:999px; padding:.1rem .6rem; font-size:.76rem; font-weight:600; \}
+  [data-tooltip] \{ position:relative; \}
+  [data-tooltip]::after \{ content:attr(data-tooltip); position:absolute; bottom:100%; left:50%; transform:translateX(-50%) translateY(-4px); white-space:nowrap; background:#1e293b; color:#fff; font-size:.72rem; padding:.25rem .5rem; border-radius:6px; opacity:0; pointer-events:none; transition:opacity .12s; \}
+  [data-tooltip]:hover::after \{ opacity:1; \}
+  .pbars \{ display:flex; flex-direction:column; gap:.7rem; \}
+  .pbar-head \{ display:flex; justify-content:space-between; font-size:.8rem; margin-bottom:.25rem; \}
+  .pbar-track \{ background:rgba(127,127,127,.12); border-radius:999px; height:.65rem; overflow:hidden; \}
+  .pbar-fill \{ height:100%; border-radius:999px; transition:width .3s; \}
+  .pbar-fill.green \{ background:#16a34a; \} .pbar-fill.amber \{ background:#f59e0b; \}
+  .divider \{ border:none; border-top:1px solid var(--border); margin:.8rem 0; \}
+  .spinner \{ display:inline-block; width:.9rem; height:.9rem; border-radius:50%; border:2px solid rgba(59,130,246,.3); border-top-color:var(--primary); animation:spin .7s linear infinite; \}
+  @keyframes spin \{ to \{ transform:rotate(360deg); \} \}
+  .rating \{ display:inline-flex; flex-direction:row-reverse; justify-content:flex-end; \}
+  .rating input \{ position:absolute; opacity:0; width:0; height:0; \}
+  .rating label \{ color:var(--border); cursor:pointer; font-size:1.5rem; padding:0 .05rem; \}
+  .rating input:checked ~ label \{ color:#f59e0b; \}
+  .rating label:hover, .rating label:hover ~ label \{ color:#fbbf24; \}
+  .exp-panel > summary \{ cursor:pointer; font-weight:600; \}
+  .stepper \{ display:flex; align-items:center; gap:.4rem; margin:.5rem 0; \}
+  .step \{ display:inline-flex; align-items:center; justify-content:center; width:1.7rem; height:1.7rem; border-radius:50%; background:rgba(127,127,127,.15); color:var(--muted); font-weight:700; font-size:.8rem; border:1px solid var(--border); \}
+  .step.on \{ background:var(--primary); color:#fff; border-color:var(--primary); \}
+  .step-line \{ flex:1; height:1px; background:var(--border); \}
+  .form \{ display:flex; flex-direction:column; gap:.7rem; \}
+  .form-row \{ display:flex; flex-direction:column; gap:.25rem; \}
+  .form-row label \{ font-size:.75rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; \}
+  .form-row input, .form-row select, .form-row textarea \{ border:1px solid var(--border); background:var(--surface); border-radius:8px; padding:.5rem .7rem; font-size:.9rem; font-family:inherit; \}
+  .radio-group, .checks \{ display:flex; gap:1rem; flex-wrap:wrap; \}
+  .radio, .check \{ display:inline-flex; align-items:center; gap:.35rem; font-size:.9rem; cursor:pointer; \}
+  .radio input, .check input \{ accent-color:var(--primary); \}
+  .result \{ margin-top:.75rem; background:#f1f5f9; border-radius:8px; padding:.6rem .8rem; font-size:.82rem; font-family:ui-monospace,monospace; word-break:break-all; \}
+  .toast \{ position:fixed; right:1.25rem; bottom:1.25rem; background:#16a34a; color:#fff; border-radius:10px; padding:.7rem 1rem; display:flex; align-items:center; gap:.75rem; box-shadow:0 10px 30px rgba(0,0,0,.25); \}
+  .toast-x \{ background:none; border:none; color:#fff; font-size:1.15rem; cursor:pointer; \}
+  .modal-overlay \{ position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:50; \}
+  .modal \{ background:var(--surface); border-radius:14px; padding:1.5rem; max-width:400px; width:90%; box-shadow:0 20px 50px rgba(0,0,0,.3); \}
+  .modal-actions \{ display:flex; gap:.5rem; justify-content:flex-end; margin-top:1.25rem; \}
+"""
+}

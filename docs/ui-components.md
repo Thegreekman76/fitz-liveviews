@@ -7,9 +7,14 @@ native binary from `fitz build`.
 
 These aren't a separate library you install — they're **patterns** built on
 the [HTML primitives](html.md) and the [LiveView core](live.md). This page is
-the reference; the **[Admin ABM example](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/admin)**
-is the full, runnable implementation of *every* component below (a People &
-Access back-office over PostgreSQL, dockerized, internationalized ES/EN).
+the reference. Two runnable companions:
+
+- the **[Component gallery](examples/gallery.md)** renders each component **on
+  its own** — no database, no auth — so you can lift a single pattern straight
+  into your project;
+- the **[Admin ABM example](examples/admin.md)** is the full implementation of
+  *every* component below working together (a People & Access back-office over
+  PostgreSQL, dockerized, internationalized ES/EN).
 
 !!! tip "The two rendering modes"
     - **SSR (static)** — rendered once on a `@get` page. Interactivity that is
