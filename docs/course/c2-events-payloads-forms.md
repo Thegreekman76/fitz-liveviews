@@ -163,8 +163,8 @@ You should be able to:
 
 ## What's next
 
-You can now wire any interaction: clicks with data, forms, live input. **C3 —
-Composing UI** is about *scale*: pulling repeated markup into render helpers,
+You can now wire any interaction: clicks with data, forms, live input. **[C3 —
+Composing UI](c3-composing-ui.md)** is about *scale*: pulling repeated markup into render helpers,
 reaching for the [component catalog](../ui-components.md) instead of hand-writing
 every control, and adding scoped styles. The [component gallery](../examples/gallery.md)
 is the reference — every control there is one of these three mechanisms with

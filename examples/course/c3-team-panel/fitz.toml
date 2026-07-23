@@ -1,0 +1,11 @@
+[package]
+name = "c3-team-panel"
+version = "0.0.1"
+edition = "2026"
+description = "Course C3 — composing UI from reusable render helpers"
+
+[bin]
+main = "src/main.fitz"
+
+[dependencies]
+fitz_liveviews = { path = "../../.." }

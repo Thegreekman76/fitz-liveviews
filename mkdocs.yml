@@ -52,6 +52,7 @@ nav:
       - Overview: course/index.md
       - C1 — Your first live component: course/c1-first-live-component.md
       - C2 — Events, payloads & forms: course/c2-events-payloads-forms.md
+      - C3 — Composing UI: course/c3-composing-ui.md
   - Examples:
       - Counter (Phase 2): examples/counter.md
       - Chat (Phase 3a + 3b): examples/chat.md

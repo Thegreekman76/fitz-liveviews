@@ -1,0 +1,105 @@
+// Course C3 — composing UI: a team panel from reusable render helpers.
+//
+// A `type Member`, a `stat_card` helper reused twice, a `badge` and a
+// `member_row` helper, and a scoped <style> block — assembled into one screen.
+// Click "toggle" on a row to flip that member's active status.
+//
+// Run:  fitz run   → http://127.0.0.1:3000/
+
+from fitz_liveviews import Html, html, flv, h_join, live_layout, html_response, LiveFrame, diff_html
+
+type Member {
+  name: Str
+  active: Bool
+}
+
+fn seed() -> List<Member> {
+  return [
+    Member { name: "Ada", active: true },
+    Member { name: "Grace", active: false },
+    Member { name: "Margaret", active: true },
+  ]
+}
+
+// A reusable stat card — used twice below with different props.
+fn stat_card(label: Str, value: Int) -> Html {
+  return html("""<div class="card">
+    <div class="stat-value">{value}</div>
+    <div class="stat-label">{flv(label)}</div>
+  </div>""")
+}
+
+fn badge(active: Bool) -> Html {
+  let cls = match active { true => "on", false => "off" }
+  let txt = match active { true => "active", false => "inactive" }
+  return html("""<span class="badge {cls}">{txt}</span>""")
+}
+
+fn member_row(m: Member) -> Html {
+  return html("""<li class="row">
+    <span>{flv(m.name)}</span>
+    {badge(m.active).raw}
+    <button data-flv-click="toggle" data-flv-value-name="{flv(m.name)}">toggle</button>
+  </li>""")
+}
+
+fn count_active(members: List<Member>) -> Int {
+  return members.filter(fn(m) => m.active).len()
+}
+
+fn render(members: List<Member>) -> Html {
+  let rows = members.map(fn(m) => member_row(m))
+  let cards = h_join([stat_card("Members", members.len()), stat_card("Active", count_active(members))])
+  return html("""<div id="app">
+  <style>
+    #app \{ font-family: system-ui; max-width: 32rem; \}
+    .cards \{ display: flex; gap: 1rem; \}
+    .card \{ border: 1px solid #ddd; border-radius: .5rem; padding: 1rem; flex: 1; \}
+    .stat-value \{ font-size: 2rem; font-weight: 700; \}
+    .stat-label \{ color: #666; \}
+    .row \{ display: flex; align-items: center; gap: .5rem; \}
+    .badge.on \{ color: green; \} .badge.off \{ color: #999; \}
+  </style>
+  <h1>Team</h1>
+  <div class="cards">{cards}</div>
+  <ul>{h_join(rows)}</ul>
+</div>""")
+}
+
+@get("/")
+fn page() -> Response {
+  return html_response(live_layout("/live", "app", render(seed())))
+}
+
+@ws("/live")
+async fn socket(ws: WsConn<LiveFrame>) {
+  let members = seed()
+  let last = render(members).raw
+  loop {
+    let frame = ws.recv()?
+    if (frame.event == "toggle") {
+      let target = get_or(frame.payload, "name", "")
+      members = members.map(fn(m) => flip_if(m, target))
+    }
+    let new_html = render(members).raw
+    ws.send(LiveFrame { html: new_html, patches: diff_html(last, new_html) })?
+    last = new_html
+  }
+}
+
+fn flip_if(m: Member, target: Str) -> Member {
+  return match m.name == target {
+    true => Member { name: m.name, active: not m.active },
+    false => m,
+  }
+}
+
+fn get_or(mp: Map<Str, Str>, key: Str, dflt: Str) -> Str {
+  return match mp.get(key) {
+    Ok(v) => v,
+    Err(_) => dflt,
+  }
+}
+
+@server(3000)
+fn main() => 0
