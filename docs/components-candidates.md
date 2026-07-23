@@ -1,5 +1,10 @@
 # Companion UI library — pattern catalog
 
+> **Realized**: this shortlist grew into the shipped
+> **[UI components catalog](ui-components.md)** — ~26 components extracted from
+> the [Admin ABM](examples/admin.md). This page stays as the historical
+> observation log; use the catalog for the current, user-facing reference.
+
 **Purpose**: living catalog of reusable component patterns emerging
 from the Phase 8 SFC migrations of the 4 canonical examples
 (counter/dashboard/chat/kanban). Direct input for Phase 9 (Companion

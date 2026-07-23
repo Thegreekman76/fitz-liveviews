@@ -362,10 +362,12 @@ Explicitly NOT supported (documented so you know what to avoid):
 
 - **No persistence.** Shared state is in memory. Persistent storage
   plugs into Fitz's ORM (Phase 4 territory).
-- **No fine-grained events.** `data-flv-click` and `data-flv-submit`
-  are the only two client-side event bindings. `data-flv-input`,
-  `data-flv-change`, `data-flv-keydown`, debouncing — all lands in
-  Phase 3c.
+- **Event bindings.** `data-flv-click`, `data-flv-submit` and
+  `data-flv-change` (v0.7.0 — fires on native `change`, used by cascade
+  selects) are the client-side bindings today. A click can also opt into
+  serializing its enclosing form with `data-flv-form` (v0.9.0), which is how
+  tabbed / stepped forms keep typed values across a re-render.
+  `data-flv-input`, `data-flv-keydown` and debouncing are still future.
 - **Race on newly-connected clients during broadcast.** If a client
   finishes its HTTP `GET` and then receives a broadcast patch that was
   diffed from an older server snapshot, the patches may not apply
@@ -387,6 +389,46 @@ Fitz core validation of the three decorators (`@live_component`,
 tile instances, and a dedicated guide.
 
 **Full walkthrough**: [`docs/components.md`](components.md).
+
+## Passing connection context to a `@ws` handler
+
+A live socket often needs per-connection context — the active locale, the
+tenant, a role. Two ways, depending on where the context lives:
+
+- **Headers / cookies** — read them at the handshake with `@header` (the WS
+  upgrade *is* an HTTP request). Requires **Fitz core v0.28.0+**:
+
+  ```fitz
+  @header(name="cookie")
+  @ws("/live/grid")
+  async fn socket(ws: WsConn<Msg>, cookie: Str?) {
+    let locale = locale_from_cookie(cookie)
+    // ... use `locale` for the whole connection ...
+  }
+  ```
+
+- **Query-string context** — bake it into the `ws_path` of `live_embed(...)`
+  (e.g. `"/live/grid?tenant=acme"`). On connect the client sends those query
+  params as a **`__flv_init`** event (lib v0.10.0), so the handler reads them
+  from the first event:
+
+  ```fitz
+  loop {
+    let frame = ws.recv()?
+    if (frame.event == "__flv_init") {
+      let tenant = pget(frame.payload, "tenant", "default")
+      // ... re-render the diff baseline for this tenant, then `continue` ...
+    }
+    // ... normal events ...
+  }
+  ```
+
+## Ready-made components
+
+For concrete, real-world UI components built on these primitives — DataGrid,
+tabbed/stepped forms, modal, toasts, tree, cascade selects, and more — see the
+**[UI components catalog](ui-components.md)** (runnable reference: the
+**[Admin ABM](examples/admin.md)**).
 
 A five-second preview:
 

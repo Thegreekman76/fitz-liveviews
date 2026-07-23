@@ -46,12 +46,14 @@ nav:
       - HTML primitives: html.md
       - LiveViews: live.md
       - LiveComponents: components.md
+      - UI components (catalog): ui-components.md
       - Deploy: deploy.md
   - Examples:
       - Counter (Phase 2): examples/counter.md
       - Chat (Phase 3a + 3b): examples/chat.md
       - Kanban (Phase 4 showcase): examples/kanban.md
       - Dashboard (Phase 4 showcase): examples/dashboard.md
+      - Admin ABM (flagship): examples/admin.md
   - Roadmap: https://github.com/Thegreekman76/fitz-liveviews/blob/main/ROADMAP.md
 
 markdown_extensions:

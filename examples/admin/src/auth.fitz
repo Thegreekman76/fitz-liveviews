@@ -89,8 +89,10 @@ async fn login_submit(creds: Credentials, cookie: Str?) -> Response {
     }
     let claims = { "email": user.email, "role": user.role }
     let token = jwt.encode(claims, jwt_secret())
-    // NOTE: not `cookie` — that name is the Str? param; a local `let cookie`
-    // makes the codegen infer this String as Option<String> (scoping finding).
+    // Named `set_cookie` (not `cookie`) for readability — it's the Set-Cookie
+    // header value, distinct from the `cookie: Str?` request param. (The old
+    // scoping/codegen bug that once forced this rename was fixed in Fitz core
+    // v0.28.0; a local `let cookie` would shadow the param correctly now.)
     let set_cookie = session_cookie_name() + "=" + token + "; HttpOnly; Path=/; SameSite=Lax; Max-Age=86400"
     return Response {
         status: 200,

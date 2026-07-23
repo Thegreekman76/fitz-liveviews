@@ -357,10 +357,14 @@ hard-coding a language.
   toast/validation messages. Login page + login_layout translated. Verified run
   + binary in both languages (dashboard, grid SSR + live WS re-renders, form
   tabs/stepper, tree, confirm/toast). **Core findings → documented, not worked
-  around** (author directive): a `@ws` handler **can't read the handshake** —
-  `@header` on `@ws` is rejected at runtime (checker passes → mismatch) and the
+  around** (author directive). **⚠️ SUPERSEDED by Fitz core v0.28.0** — the two
+  limitations below were fixed upstream; `@header` on `@ws` now works and the ABM
+  reads the locale from the handshake cookie (see the "Core fixes landed" entry
+  above). Kept as a historical log: a `@ws` handler **couldn't read the
+  handshake** —
+  `@header` on `@ws` was rejected at runtime (checker passes → mismatch) and the
   `@ws` path must be a plain `Str` literal (no query/path params). So the live
-  socket can't learn the locale the normal HTTP way. **Lib v0.10.0 (`__flv_init`)**
+  socket couldn't learn the locale the normal HTTP way. **Lib v0.10.0 (`__flv_init`)**
   solves it as a reusable feature: on connect the client sends the `ws_path`
   query params as a `__flv_init` event; the SSR bakes the locale into
   `live_embed("/live/empleados?lang={loc}", …)`; the `@ws` handler reads it from

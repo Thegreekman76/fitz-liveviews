@@ -253,6 +253,12 @@ framework:
   component (`metric_tile`), parent has **zero** branches. Every
   event is a component event.
 
+!!! tip "Ready-made component patterns"
+    For a catalog of concrete UI components — DataGrid, tabbed/stepped forms,
+    modal, toasts, tree, cascade selects, and more — with a snippet each, see the
+    **[UI components catalog](ui-components.md)**. Its full runnable reference is
+    the **[Admin ABM](examples/admin.md)** example.
+
 ## How the client walks up to find the component context
 
 Every click / submit inside a component instance needs to reach the
