@@ -72,10 +72,11 @@ button, no `fetch`.
 
 ---
 
-## The whole program
+## The whole program — string-helper form
 
-Here's the live name list using all three. It's a complete, runnable program —
-the [`examples/course/c2-name-list`](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/course/c2-name-list)
+Here's the live name list using all three mechanisms, in the string-helper
+style from C1. It's a complete, runnable program — the
+[`examples/course/c2-name-list`](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/course/c2-name-list)
 project:
 
 ```fitz
@@ -85,9 +86,44 @@ project:
 Run it (`cd examples/course/c2-name-list && fitz run`, or copy it into your own
 project) and open http://127.0.0.1:3000/. Add names, filter, remove a row.
 
+## The same program — SFC form
+
+As C1's "when to use each" table noted, anything stateful reads better as a
+single-file component. Here's the exact same name list as an SFC — the
+[`examples/course/c2-name-list-sfc`](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/course/c2-name-list-sfc)
+project. The component:
+
+```fitz
+--8<-- "course/c2-name-list-sfc/src/NoteList.fitzv"
+```
+
+Look at what disappeared: no `html("""...""")`, no `flv(...)`, no `h_join`, no
+`.raw`. The three event mechanisms are *identical* — `data-flv-submit="add"`,
+`data-flv-value-item="{it}"`, `data-flv-change="set_filter"` all work the same —
+but the markup is real `<template>` with `{#for}` and auto-escaped `{it}`, and
+each `event` handler reads `payload` directly instead of matching `frame.event`.
+
+The component still needs a small `main.fitz` to mount it:
+
+```fitz
+--8<-- "course/c2-name-list-sfc/src/main.fitz"
+```
+
+That `@ws` loop is generic — `dispatch_component_events(frame)` routes `add`,
+`remove`, and `set_filter` without you writing a single `if`. The one rough
+edge is the `from NoteList import ...` line, which lists each event handler by
+its generated name.
+
+!!! note "Comparison operators in `.fitzv` (v0.28.2)"
+    The `remove` handler uses `it != target` and the filter uses `filter == ""`.
+    Comparison operators (`==`, `!=`, `<=`, `>=`) inside `.fitzv` event bodies
+    and templates need **Fitz ≥ v0.28.2** — earlier builds only round-tripped
+    `==` sometimes and rejected `!=` outright. If you hit a parse error on a
+    comparison, update `fitz`.
+
 ---
 
-## Reading it
+## Reading it (string-helper form)
 
 A few things worth calling out:
 

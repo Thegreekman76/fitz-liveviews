@@ -225,7 +225,100 @@ config, no dependency array, no `fetch`.
 
 ---
 
-## 5. Build a native binary (optional)
+## 5. The same counter, the clean way: a single-file component
+
+The `render` function above works, but writing HTML as a `"""..."""` string —
+with `{state.count}` interpolation and, once you have user input, `flv(...)` to
+escape it — gets noisy fast. Fitz LiveViews has a second authoring style for
+exactly this: the **single-file component** (`.fitzv`), which reads like Vue or
+Svelte. Here's the whole counter as one:
+
+```fitz
+component Counter {
+  state { count: Int = 0 }
+
+  event increment() { count = count + 1 }
+  event decrement() { count = count - 1 }
+  event reset() { count = 0 }
+
+  <template>
+    <div id="counter-app">
+      <p>Count: {count}</p>
+      <button @click="increment">+1</button>
+      <button @click="decrement">-1</button>
+      <button @click="reset">Reset</button>
+    </div>
+  </template>
+}
+```
+
+Compare it to the string version. Same behavior, but:
+
+- **`state { ... }`** replaces the `type AppState` — the state fields live in the
+  component.
+- **`event increment() { count = count + 1 }`** replaces the whole `@ws`
+  event-ladder. Each handler mutates state directly; the framework re-renders and
+  diffs for you.
+- **`<template>`** is real markup, not a string. `{count}` interpolates (and
+  auto-escapes) with no `flv`, no `.raw`.
+- **`@click="increment"`** is the event binding — the same idea as
+  `data-flv-click`, just tidier.
+
+The component doesn't run on its own; a small `main.fitz` mounts it. That
+wiring is the boilerplate cost of the SFC style:
+
+```fitz
+from fitz_liveviews import html_response, live_layout, LiveFrame, diff_html, component, dispatch_component_events
+from Counter import Counter, Counter_render, Counter_increment, Counter_decrement, Counter_reset
+
+@get("/")
+fn page() -> Response {
+  return html_response(live_layout("/live/counter", "counter-app", component("Counter", "root")))
+}
+
+@ws("/live/counter")
+async fn socket(ws: WsConn<LiveFrame>) {
+  let last = component("Counter", "root").raw
+  loop {
+    let frame = ws.recv()?
+    let _ = dispatch_component_events(frame)          // routes the event to the component
+    let new_html = component("Counter", "root").raw
+    ws.send(LiveFrame { html: new_html, patches: diff_html(last, new_html) })?
+    last = new_html
+  }
+}
+
+@server(3000)
+fn main() => 0
+```
+
+Notice the `@ws` loop is now generic — `dispatch_component_events(frame)` handles
+*any* event the component declares, so you never touch this loop again as the
+component grows. (The `from Counter import ...` line has to list each event
+handler by its generated name; that's the one rough edge of the style today.)
+
+The complete SFC counter is the
+[`examples/counter`](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/counter)
+project — `Counter.fitzv` plus that `main.fitz`.
+
+### When to use each
+
+| | **String helpers** (`fn render(...) -> Html`) | **SFC** (`.fitzv` component) |
+|---|---|---|
+| Best for | small pure fragments, one-off pages, gluing things together | anything stateful or reused, real screens |
+| HTML | `"""..."""` strings, `flv` / `.raw` / `h_join` | real `<template>`, auto-escaped `{expr}` |
+| Events | your own `if frame.event == ...` ladder | `event name() { ... }` + `dispatch_component_events` |
+| Setup | one file, zero ceremony | component file + a `main.fitz` wiring |
+| Feels like | writing a handler | writing a Vue/Svelte component |
+
+They're **complementary**, not either/or. Real apps use SFCs for the stateful
+components and keep a few string helpers around for small formatting bits (a
+badge, a date). The rest of this course shows **both** side by side so you can
+pick per situation — this chapter's counter in each style is the template.
+
+---
+
+## 6. Build a native binary (optional)
 
 The same program compiles to a standalone binary:
 

@@ -1,0 +1,47 @@
+// Course C2 (SFC form) — the name list as a single-file component.
+//
+// Same behavior as examples/course/c2-name-list (the string-helper form),
+// written as a .fitzv: state fields, event handlers with `payload`, and a
+// <template> with {#for}, auto-escaped {expr}, and @/data-flv-* bindings.
+// No flv() / .raw / h_join / triple-quoted strings.
+
+component NoteList {
+  state {
+    names: List<Str> = ["Ada", "Grace", "Margaret"]
+    filter: Str = ""
+  }
+
+  event add() {
+    if (payload.has("item")) {
+      let n = payload["item"]
+      if (n != "") { names.push(n) }
+    }
+  }
+
+  event remove() {
+    if (payload.has("item")) {
+      let target = payload["item"]
+      names = names.filter(fn(it) => it != target)
+    }
+  }
+
+  event set_filter() {
+    if (payload.has("value")) { filter = payload["value"] }
+  }
+
+  <template>
+    <div id="app">
+      <form data-flv-submit="add">
+        <input name="item" placeholder="Add a name" data-flv-clear autocomplete="off" />
+        <button type="submit">Add</button>
+      </form>
+      <input name="q" placeholder="Filter" data-flv-change="set_filter" value="{filter}" />
+      <ul>
+        {#for it in names.filter(fn(x) => filter == "" or x.lower().contains(filter.lower()))}
+          <li>{it} <button data-flv-click="remove" data-flv-value-item="{it}">x</button></li>
+        {/for}
+      </ul>
+      <p>{names.len()} total</p>
+    </div>
+  </template>
+}

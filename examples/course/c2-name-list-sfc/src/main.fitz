@@ -1,0 +1,22 @@
+from fitz_liveviews import html_response, live_layout, LiveFrame, diff_html, component, dispatch_component_events, flv_register
+from NoteList import NoteList, NoteList_render, NoteList_add, NoteList_remove, NoteList_set_filter
+
+@get("/")
+fn page() -> Response {
+  return html_response(live_layout("/live", "app", component("NoteList", "main")))
+}
+
+@ws("/live")
+async fn socket(ws: WsConn<LiveFrame>) {
+  let last = component("NoteList", "main").raw
+  loop {
+    let frame = ws.recv()?
+    let _ = dispatch_component_events(frame)
+    let new_html = component("NoteList", "main").raw
+    ws.send(LiveFrame { html: new_html, patches: diff_html(last, new_html) })?
+    last = new_html
+  }
+}
+
+@server(3000)
+fn main() => 0

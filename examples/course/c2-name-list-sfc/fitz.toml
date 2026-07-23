@@ -1,0 +1,11 @@
+[package]
+name = "c2-name-list-sfc"
+version = "0.0.1"
+edition = "2026"
+description = "Course C2 (SFC form) — the name list as a single-file component"
+
+[bin]
+main = "src/main.fitz"
+
+[dependencies]
+fitz_liveviews = { path = "../../.." }
