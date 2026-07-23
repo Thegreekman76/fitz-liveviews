@@ -1,0 +1,87 @@
+// C4 — persistent, multi-user: a notes list on Postgres, synced with broadcast.
+from fitz_liveviews import Html, html, flv, h_join, live_layout, html_response, LiveFrame, diff_html
+
+@table("notes") type Note {
+  @primary id: Int = 0
+  content: Str = ""
+}
+
+fn db_url() -> Str => env_or("DATABASE_URL", "postgres://fitz:fitz@localhost:5432/fitz_course?sslmode=disable")
+
+// Shared across ALL connections: the last HTML we broadcast.
+let last_html: Str = ""
+
+async fn render() -> Html {
+  let conn = match db.connect(db_url()).await {
+    Ok(c) => c,
+    Err(e) => {
+      return html("""<div id="app"><p>DB error: {flv(e)}</p></div>""")
+    },
+  }
+  let notes = match Note.where(fn(n) => n.id > 0).all(conn).await {
+    Ok(ns) => ns,
+    Err(e) => {
+      return html("""<div id="app"><p>Query error: {flv(e)}</p></div>""")
+    },
+  }
+  let rows = notes.map(fn(n) => html("""<li>{flv(n.content)}
+    <button data-flv-click="remove" data-flv-value-id="{n.id}">x</button></li>"""))
+  return html("""<div id="app">
+  <h1>Shared notes</h1>
+  <form data-flv-submit="add">
+    <input name="content" placeholder="New note" data-flv-clear autocomplete="off" />
+    <button type="submit">Add</button>
+  </form>
+  <ul>{h_join(rows)}</ul>
+  <p>{notes.len()} notes — open a second tab, they stay in sync.</p>
+</div>""")
+}
+
+@get("/")
+async fn page() -> Response {
+  let initial = render().await
+  return html_response(live_layout("/live", "app", initial))
+}
+
+@ws("/live")
+async fn socket(ws: WsConn<LiveFrame>) {
+  loop {
+    let frame = ws.recv()?
+    let conn = match db.connect(db_url()).await {
+      Ok(c) => c,
+      Err(_) => {
+        return
+      },
+    }
+    if (frame.event == "add") {
+      let content = get_or(frame.payload, "content", "")
+      if (content != "") {
+        let _ = Note.insert(conn, Note { content: content }).await
+      }
+    }
+    if (frame.event == "remove") {
+      let id_str = get_or(frame.payload, "id", "0")
+      match id_str.to_int() {
+        Ok(n) => {
+          let _ = Note.where(fn(x) => x.id == n).delete(conn).await
+        },
+        Err(_) => {
+          let _ = 0
+        },
+      }
+    }
+    let new_html = render().await.raw
+    ws.broadcast(LiveFrame { html: new_html, patches: diff_html(last_html, new_html) })?
+    last_html = new_html
+  }
+}
+
+fn get_or(mp: Map<Str, Str>, key: Str, dflt: Str) -> Str {
+  return match mp.get(key) {
+    Ok(v) => v,
+    Err(_) => dflt,
+  }
+}
+
+@server(3000)
+fn main() => 0

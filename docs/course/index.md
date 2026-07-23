@@ -24,7 +24,7 @@ It's the companion to the [Fitz language course](https://thegreekman76.github.io
 | **C1** | [Your first live component](c1-first-live-component.md) | A real-time counter, from `fitz new` to a running page — every line explained | ✅ |
 | **C2** | [Events, payloads & forms](c2-events-payloads-forms.md) | A live name list: add with a form, remove a specific row, filter as you type — the three `data-flv-*` mechanisms | ✅ |
 | **C3** | [Composing UI](c3-composing-ui.md) | A team panel from reusable render helpers: a `type`, a reused `stat_card`, a `badge`, scoped styling | ✅ |
-| **C4** | Persistent & multi-user state | A DB-backed list, `ws.broadcast(...)`, two tabs staying in sync | 🚧 |
+| **C4** | [Persistent & multi-user state](c4-persistent-multiuser.md) | A Postgres-backed notes list, `ws.broadcast(...)`, two tabs in sync — and why this one is string-helper only | ✅ |
 | **C5** | LiveComponents | Reusable per-instance components (`@live_component`), the kanban card pattern | 🚧 |
 | **C6** | Ship it | `fitz build` → one binary, Docker, deploy — the Admin ABM as the blueprint | 🚧 |
 

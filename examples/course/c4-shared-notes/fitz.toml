@@ -1,0 +1,11 @@
+[package]
+name = "c4-shared-notes"
+version = "0.0.1"
+edition = "2026"
+description = "Course C4 — persistent multi-user notes on Postgres with broadcast"
+
+[bin]
+main = "src/main.fitz"
+
+[dependencies]
+fitz_liveviews = { path = "../../.." }

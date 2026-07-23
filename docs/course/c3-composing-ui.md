@@ -217,7 +217,8 @@ You should be able to:
 ## What's next
 
 You can compose a screen from typed helpers and style it. So far state has been
-in memory and per-connection. **C4 — Persistent & multi-user state** backs the
-list with Postgres and uses `ws.broadcast(...)` so two browsers stay in sync —
-the step from "a nice demo" to "a real app". The [chat example](../examples/chat.md)
-and the [Admin ABM](../examples/admin.md) are where this goes.
+in memory and per-connection. **[C4 — Persistent & multi-user state](c4-persistent-multiuser.md)**
+backs the list with Postgres and uses `ws.broadcast(...)` so two browsers stay
+in sync — the step from "a nice demo" to "a real app". The
+[chat example](../examples/chat.md) and the [Admin ABM](../examples/admin.md)
+are where this goes.
