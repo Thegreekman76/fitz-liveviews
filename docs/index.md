@@ -10,17 +10,25 @@
 
 ---
 
-## Status: Phase 3b — server-side diff engine 🎉
+## Status: Phase 4 — LiveComponents + a real app 🎉
 
-Everything you need to build a real-time UI now works end-to-end:
+Everything you need to build a real-time UI works end-to-end, and the library
+now has a flagship application to prove it:
 
-- **Phase 0** — Repo bootstrap
 - **Phase 1** — `Html` type and templating with XSS-safe `flv()` escape
-- **Phase 2** — LiveView core (`@get` + `@ws` + `live_layout`) with the counter example
-- **Phase 3a** — Forms via `data-flv-submit`, shared state, `ws.broadcast(...)` with the multi-user chat example
-- **Phase 3b** — HTML parser + tree diff engine + client walker → compact patches over the wire, DOM state preserved (input values, focus, cursor position)
+- **Phase 2** — LiveView core (`@get` + `@ws` + `live_layout`) — the counter
+- **Phase 3a/3b** — Forms via `data-flv-submit`, shared state, `ws.broadcast(...)`,
+  and the HTML parser + tree diff engine → compact patches over the wire, DOM
+  state preserved (input values, focus, cursor)
+- **Phase 4** — LiveComponents (`@live_component`, per-instance state) plus the
+  [kanban](examples/kanban.md) and [dashboard](examples/dashboard.md) showcases,
+  and the flagship [Admin ABM](examples/admin.md) — a full back-office over
+  Postgres with a [component catalog](ui-components.md) and a runnable
+  [component gallery](examples/gallery.md)
 
-See the [Roadmap](https://github.com/Thegreekman76/fitz-liveviews/blob/main/ROADMAP.md) for what is coming in Phase 3c, 4, 5, and 6.
+New to it? Start with **[the course](course/index.md)**. See the
+[Roadmap](https://github.com/Thegreekman76/fitz-liveviews/blob/main/ROADMAP.md)
+for what's next.
 
 ---
 
@@ -221,11 +229,13 @@ URL in **two** browser windows to see broadcast in action.
 
 ## Where to next
 
+- **[Learn Fitz LiveViews (course)](course/index.md)** 🎓 — the guided path from zero to a deployable app, one live component at a time
 - **[HTML primitives](html.md)** — how `Html`, `flv()`, `h_join`, and friends work
 - **[LiveViews](live.md)** — the pattern, the client runtime, the diff engine, and known limits
 - **[LiveComponents](components.md)** 🧩 — reusable server-rendered components with per-instance state
 - **[UI components catalog](ui-components.md)** 🧰 — DataGrid, forms (tabs/stepper), modal, toasts, tree, cascade selects… with a snippet each
 - **[Admin ABM example](examples/admin.md)** ⭐ — flagship back-office: the full runnable reference for every component
+- **[Component gallery](examples/gallery.md)** 🧰 — every component on its own, no DB, in-memory — the copy-paste source
 - **[Counter example](examples/counter.md)** — the "hello world"
 - **[Chat example](examples/chat.md)** — multi-user real-time with broadcast + patches
 - **[Kanban example](examples/kanban.md)** ⭐ — flagship showcase: shared state, `data-flv-value-*` payloads, and a compact 3-column responsive board with a per-card `@live_component("card_editor")`

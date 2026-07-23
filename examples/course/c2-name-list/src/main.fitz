@@ -1,0 +1,71 @@
+// Course C2 — events, payloads & forms: a live name list.
+//
+// Add a name with the form (data-flv-submit), remove one with a per-row
+// button that carries its value (data-flv-value-*), and filter the list live
+// as you type (data-flv-change). No JavaScript.
+//
+// Run:  fitz run   → http://127.0.0.1:3000/
+
+from fitz_liveviews import Html, html, flv, h_join, live_layout, html_response, LiveFrame, diff_html
+
+fn seed() -> List<Str> {
+  return ["Ada", "Grace", "Margaret"]
+}
+
+fn render(items: List<Str>, filter: Str) -> Html {
+  let shown = items.filter(fn(it) => filter == "" or it.lower().contains(filter.lower()))
+  let rows = shown.map(fn(it) => html("""<li>{flv(it)}
+    <button data-flv-click="remove" data-flv-value-item="{flv(it)}">x</button></li>"""))
+  let list_html = h_join(rows)
+  return html("""<div id="app">
+  <form data-flv-submit="add">
+    <input name="item" placeholder="Add a name" data-flv-clear autocomplete="off" />
+    <button type="submit">Add</button>
+  </form>
+  <input name="q" placeholder="Filter" data-flv-change="filter" value="{flv(filter)}" />
+  <ul>{list_html}</ul>
+  <p>{shown.len()} shown / {items.len()} total</p>
+</div>""")
+}
+
+@get("/")
+fn page() -> Response {
+  return html_response(live_layout("/live", "app", render(seed(), "")))
+}
+
+@ws("/live")
+async fn socket(ws: WsConn<LiveFrame>) {
+  let items = seed()
+  let filter = ""
+  let last = render(items, filter).raw
+  loop {
+    let frame = ws.recv()?
+    let ev = frame.event
+    if (ev == "add") {
+      let name = get_or(frame.payload, "item", "")
+      if (name != "") {
+        items.push(name)
+      }
+    }
+    if (ev == "remove") {
+      let target = get_or(frame.payload, "item", "")
+      items = items.filter(fn(it) => it != target)
+    }
+    if (ev == "filter") {
+      filter = get_or(frame.payload, "value", "")
+    }
+    let new_html = render(items, filter).raw
+    ws.send(LiveFrame { html: new_html, patches: diff_html(last, new_html) })?
+    last = new_html
+  }
+}
+
+fn get_or(m: Map<Str, Str>, key: Str, dflt: Str) -> Str {
+  return match m.get(key) {
+    Ok(v) => v,
+    Err(_) => dflt,
+  }
+}
+
+@server(3000)
+fn main() => 0

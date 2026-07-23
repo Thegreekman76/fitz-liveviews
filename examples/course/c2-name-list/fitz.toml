@@ -1,0 +1,11 @@
+[package]
+name = "c2-name-list"
+version = "0.0.1"
+edition = "2026"
+description = "Course C2 — events, payloads & forms: a live name list"
+
+[bin]
+main = "src/main.fitz"
+
+[dependencies]
+fitz_liveviews = { path = "../../.." }

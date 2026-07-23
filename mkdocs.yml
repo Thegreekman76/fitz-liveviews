@@ -48,6 +48,10 @@ nav:
       - LiveComponents: components.md
       - UI components (catalog): ui-components.md
       - Deploy: deploy.md
+  - Course:
+      - Overview: course/index.md
+      - C1 — Your first live component: course/c1-first-live-component.md
+      - C2 — Events, payloads & forms: course/c2-events-payloads-forms.md
   - Examples:
       - Counter (Phase 2): examples/counter.md
       - Chat (Phase 3a + 3b): examples/chat.md
