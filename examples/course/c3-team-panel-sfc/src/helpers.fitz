@@ -1,0 +1,27 @@
+from fitz_liveviews import Html, html, flv
+
+type Member {
+  name: Str
+  active: Bool
+}
+
+fn badge(active: Bool) -> Html {
+  let cls = match active { true => "on", false => "off" }
+  let txt = match active { true => "active", false => "inactive" }
+  return html("""<span class="badge {cls}">{txt}</span>""")
+}
+
+fn stat_card(label: Str, value: Int) -> Html {
+  return html("""<div class="card"><div class="stat-value">{value}</div><div class="stat-label">{flv(label)}</div></div>""")
+}
+
+fn count_active(members: List<Member>) -> Int {
+  return members.filter(fn(m) => m.active).len()
+}
+
+fn flip_if(m: Member, target: Str) -> Member {
+  return match m.name == target {
+    true => Member { name: m.name, active: not m.active },
+    false => m,
+  }
+}

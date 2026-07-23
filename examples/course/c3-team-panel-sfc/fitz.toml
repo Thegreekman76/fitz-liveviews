@@ -1,0 +1,11 @@
+[package]
+name = "c3-team-panel-sfc"
+version = "0.0.1"
+edition = "2026"
+description = "Course C3 (SFC form) — SFC component + pure helpers imported from a sibling .fitz"
+
+[bin]
+main = "src/main.fitz"
+
+[dependencies]
+fitz_liveviews = { path = "../../.." }

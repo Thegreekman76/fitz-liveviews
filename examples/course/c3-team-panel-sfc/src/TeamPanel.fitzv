@@ -1,0 +1,35 @@
+// Course C3 (SFC form) — the team panel as a single-file component.
+//
+// The component owns state + the toggle event + the main template. The pure
+// formatting helpers (badge, stat_card) and the domain logic (Member, flip_if,
+// count_active) live in a sibling helpers.fitz and are imported here — the
+// blessed split: SFC for the stateful shell, plain `fn -> Html` for reusable
+// fragments (a .fitzv file itself only holds `component` + `from ... import`).
+
+from helpers import Member, badge, stat_card, count_active, flip_if
+
+component TeamPanel {
+  state {
+    members: List<Member> = [Member { name: "Ada", active: true }, Member { name: "Grace", active: false }, Member { name: "Margaret", active: true }]
+  }
+
+  event toggle() {
+    if (payload.has("name")) {
+      let target = payload["name"]
+      members = members.map(fn(m) => flip_if(m, target))
+    }
+  }
+
+  <template>
+    <div id="app">
+      <h1>Team</h1>
+      <div class="cards">{stat_card("Members", members.len()).raw} {stat_card("Active", count_active(members)).raw}</div>
+      <ul>
+        {#for m in members}
+          <li class="row">{m.name} {badge(m.active).raw}
+            <button data-flv-click="toggle" data-flv-value-name="{m.name}">toggle</button></li>
+        {/for}
+      </ul>
+    </div>
+  </template>
+}

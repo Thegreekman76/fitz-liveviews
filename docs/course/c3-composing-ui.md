@@ -72,7 +72,7 @@ Now the compiler checks every `m.name` and `m.active`, and your helpers take a
 
 ---
 
-## The whole screen
+## The whole screen — string-helper form
 
 Here's a team panel: two stat cards (the `stat_card` helper **reused** with
 different props), a member list built from a `member_row` helper, a `badge`
@@ -87,6 +87,42 @@ project:
 Run it (`cd examples/course/c3-team-panel && fitz run`) and click **toggle** on
 any row — the badge flips and the "Active" stat card updates, because both are
 computed from the same `members` list on every render.
+
+## The same screen — SFC + helpers
+
+Composition is the case where the two styles work **together** best. A `.fitzv`
+file holds only `component` and `from ... import` — no top-level `fn` — so pure
+helpers stay in a sibling `.fitz` and get imported. That's not a limitation to
+route around; it's the clean split: the SFC owns state + events + the shell, and
+your reusable fragments stay plain `fn -> Html`.
+
+The helpers live on their own — the
+[`examples/course/c3-team-panel-sfc`](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/course/c3-team-panel-sfc)
+project's `helpers.fitz`:
+
+```fitz
+--8<-- "course/c3-team-panel-sfc/src/helpers.fitz"
+```
+
+And the component imports and uses them — `{stat_card(...).raw}`,
+`{badge(m.active).raw}` — inside a real `<template>` with `{#for}`:
+
+```fitz
+--8<-- "course/c3-team-panel-sfc/src/TeamPanel.fitzv"
+```
+
+Same helpers, same reuse (`stat_card` twice), same toggle — but the shell is a
+component with a `{#for}` loop instead of a `.map` + `h_join`, and the event is
+`event toggle()` reading `payload` instead of an `if frame.event` ladder. The
+markup lost its `html("""...""")` wrapper; the helpers kept theirs, because
+that's exactly what they're for.
+
+!!! tip "Why helpers live in `.fitz`, not in the `.fitzv`"
+    A helper written in classic `.fitz` is **portable**: the SSR emitter calls
+    it as-is, and it stays a normal Fitz function you can test on its own. Keeping
+    it out of the component file is the framework's deliberate design (the
+    `.fitzv` parser only accepts `component` and imports), and it keeps the three
+    files — `helpers.fitz`, the `.fitzv`, and `main.fitz` — each doing one job.
 
 ---
 
