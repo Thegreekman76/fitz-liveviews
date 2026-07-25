@@ -399,14 +399,8 @@ fn shell_css() -> Str {
     flex-wrap: wrap;
   \}
   .grid-info \{ font-size: .82rem; color: var(--muted); \}
-  .pager \{ display: flex; gap: .4rem; flex-wrap: wrap; \}
-  .pg-btn \{
-    border: 1px solid var(--border); background: var(--surface);
-    color: var(--text); border-radius: 8px; padding: .4rem .7rem;
-    cursor: pointer; font-size: .82rem; font-weight: 600;
-  \}
-  .pg-btn:hover:not(:disabled) \{ background: var(--surface-2); border-color: var(--primary); \}
-  .pg-btn:disabled \{ opacity: .45; cursor: default; \}
+  /* Pager styles (.pager / .pg-btn / .pg-num / .pg-active) moved to the
+     Pager.fitzv component's <style scoped> block. */
 
   /* Toolbar: search + estado filters (Slice 3) */
   .grid-toolbar \{
@@ -439,10 +433,6 @@ fn shell_css() -> Str {
   /* Departamento filter row. */
   .grid-deptos \{ align-items: center; margin-bottom: .85rem; \}
   .filter-label \{ font-size: .8rem; color: var(--muted); font-weight: 700; margin-right: .15rem; \}
-  /* Numbered page buttons. */
-  .pg-num \{ min-width: 2.1rem; text-align: center; \}
-  .pg-active \{ background: var(--primary); color: #fff; border-color: var(--primary); \}
-  .pg-active:hover \{ background: var(--primary); \}
   /* Row actions + "Nuevo" button. */
   .btn-nuevo \{ margin-left: auto; \}
   .col-actions \{ width: 1%; white-space: nowrap; text-align: right; \}

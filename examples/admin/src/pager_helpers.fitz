@@ -1,25 +1,17 @@
-// pager_helpers.fitz — the numbered-button loop for the Pager LiveComponent.
+// pager_helpers.fitz — the page-number list for the Pager LiveComponent.
 //
-// Lives in a sibling `.fitz` (not inline in Pager.fitzv) because the SSR
-// template `{#for n in 1..(total_pages + 1)}` lowers to `<range>.map(...)`,
-// and classic Fitz `Range` has no `.map` (only List does). The numbered
-// buttons are built with a classic `for` loop here and spliced into the
-// pager template via `{page_nums(page, total_pages)}`.
-//
-// The buttons fire `data-flv-click="goto_page"` with the target page number
-// in `data-flv-value-page`. The Pager component does NOT declare a
-// `goto_page` handler, so the event falls through to the parent's `@ws`
-// loop — the parent owns `page` (it's the grid's query cursor, not private
-// pager state).
+// `page_range(total_pages)` returns `[1, 2, ..., total_pages]` as a
+// `List<Int>` so the Pager template can loop the numbered buttons with
+// `{#for n in page_range(total_pages)}`. The SSR `{#for}` directive lowers
+// to `<iter>.map(...)`, and classic Fitz `Range` has no `.map` (only List
+// does) — so the range is materialised to a list here and the buttons
+// (with their scoped classes) live INSIDE the template, which lets
+// `<style scoped>` reach them.
 
-fn page_nums(page: Int, total_pages: Int) -> Str {
-    let out = ""
+fn page_range(total_pages: Int) -> List<Int> {
+    let out: List<Int> = []
     for n in 1..(total_pages + 1) {
-        let cls = match n == page {
-            true => "pg-btn pg-num pg-active",
-            false => "pg-btn pg-num",
-        }
-        out = out + """<button class="{cls}" data-flv-click="goto_page" data-flv-value-page="{n}">{n}</button>"""
+        out.push(n)
     }
     return out
 }

@@ -1,4 +1,5 @@
-// Pager.fitzv — pagination controls as a stateless presentational component.
+// Pager.fitzv — pagination controls as a stateless presentational component
+// with SCOPED styles (self-contained, drop-in reusable).
 //
 // Third slice of the Admin ABM LiveComponents refactor. Unlike ConfirmDialog
 // and Toast (which own private per-connection state), the pager is a
@@ -9,17 +10,23 @@
 // the generated render fn directly (NOT `component_with`), so there is no
 // per-connection store and no context wrapper.
 //
-// Because the component declares NO event handlers, every button event
+// The component declares NO event handlers, so every button event
 // (`page_prev` / `page_next` / `goto_page`) falls through to the parent's
 // loop (same fall-through contract ConfirmDialog uses for `confirm_delete`).
 // The parent mutates `page` and re-queries — the pager just displays it.
+//
+// Styles are `<style scoped>`: the numbered buttons are looped INSIDE the
+// template (over `page_range(total_pages)` — a `List<Int>`, because the SSR
+// `{#for}` needs `.map` which `Range` lacks), so every styled element carries
+// the component's scope suffix and the CSS is fully self-contained. The theme
+// CSS vars (--primary, --surface, ...) still cascade from the page root.
 //
 // This is the right architecture for pagination (React/Vue/Svelte all model
 // it as a controlled component): `page` is grid state, not widget state, so
 // forcing it into a stateful child would invert the ownership and cost a
 // `component_state` read-back plus a `reset` dispatch at every filter site.
 
-from pager_helpers import page_nums
+from pager_helpers import page_range
 
 component pager {
   state {
@@ -34,7 +41,13 @@ component pager {
       {#else}
         <button class="pg-btn" disabled>‹</button>
       {/if}
-      {page_nums(page, total_pages)}
+      {#for n in page_range(total_pages)}
+        {#if n == page}
+          <button class="pg-btn pg-num pg-active" data-flv-click="goto_page" data-flv-value-page="{n}">{n}</button>
+        {#else}
+          <button class="pg-btn pg-num" data-flv-click="goto_page" data-flv-value-page="{n}">{n}</button>
+        {/if}
+      {/for}
       {#if page < total_pages}
         <button class="pg-btn" data-flv-click="page_next">›</button>
       {#else}
@@ -42,4 +55,18 @@ component pager {
       {/if}
     </div>
   </template>
+
+  <style scoped>
+    .pager { display: flex; gap: .4rem; flex-wrap: wrap; }
+    .pg-btn {
+      border: 1px solid var(--border); background: var(--surface);
+      color: var(--text); border-radius: 8px; padding: .4rem .7rem;
+      cursor: pointer; font-size: .82rem; font-weight: 600;
+    }
+    .pg-btn:hover:not(:disabled) { background: var(--surface-2); border-color: var(--primary); }
+    .pg-btn:disabled { opacity: .45; cursor: default; }
+    .pg-num { min-width: 2.1rem; text-align: center; }
+    .pg-active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .pg-active:hover { background: var(--primary); }
+  </style>
 }
