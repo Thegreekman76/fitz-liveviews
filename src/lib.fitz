@@ -1616,6 +1616,44 @@ fn component(name: Str, id: Str) -> Html {
   return html("<div data-flv-component-name=\"{name}\" data-flv-value-instance_id=\"{id}\">{inner.raw}</div>")
 }
 
+// Per-instance init payload (v0.11.0) — like `component(name, id)`, but the
+// FIRST render of this instance seeds the state store with `initial` instead
+// of the registry-wide `initial_state`. Later renders ignore `initial` and
+// use whatever the store holds (events may have mutated it), exactly like
+// `component(...)`.
+//
+// This is the missing piece for two recurring patterns:
+//
+//   - Per-instance seed data — `component_with("MetricTile", tile.id,
+//     MetricTile { label: tile.label })` lets every instance start from its
+//     own domain data instead of one shared default.
+//
+//   - Per-connection instances — the Admin ABM pattern. A `@ws` handler
+//     mints a per-socket instance id (`let cid = Uuid.v4()`) and renders
+//     `component_with("confirm_dialog", cid, confirm_dialog { locale: locale })`
+//     so each connection owns an isolated instance seeded with
+//     connection-scoped data (the locale from the handshake cookie). The
+//     SSR first paint uses a shared placeholder id (e.g. "ssr") — events
+//     only travel over the socket, so nothing can mutate the placeholder
+//     instance before the live render takes over with the real id.
+//
+// Known limitation (documented, not enforced): per-connection instances are
+// never evicted from COMPONENT_STATE_STORE — there is no disconnect hook and
+// `Map` has no `remove` yet. Each connection leaks one small state entry per
+// component. Fine at showcase scale; an `flv_drop_instance(...)` cleanup API
+// is planned once Fitz core grows `Map.remove`.
+fn component_with(name: Str, id: Str, initial: Any) -> Html {
+  let key = flv_state_key(name, id)
+  let reg = COMPONENT_REGISTRY[name]
+  if (not COMPONENT_STATE_STORE.has(key)) {
+    COMPONENT_STATE_STORE[key] = initial
+  }
+  let state = COMPONENT_STATE_STORE[key]
+  let render_fn = reg.render_fn
+  let inner: Html = render_fn(state)
+  return html("<div data-flv-component-name=\"{name}\" data-flv-value-instance_id=\"{id}\">{inner.raw}</div>")
+}
+
 
 // -----------------------------------------------------------------------------
 // Dispatch
@@ -2209,4 +2247,45 @@ fn k2_set_component_state_overwrites_dispatched_state() {
   set_component_state("k2_overwrite", "inst", __P4Counter { count: 999 })
   let r = component("k2_overwrite", "inst")
   assert(r.raw.contains("Count: 999"))
+}
+
+@test
+fn cw_component_with_seeds_from_the_given_initial_not_the_registry_default() {
+  // v0.11.0 — per-instance init payload. The registry default is 0,
+  // but this instance starts at 42.
+  flv_register("cw_seed", __P4Counter { count: 0 }, __p4_counter_render,
+               { "increment": __p4_counter_increment })
+  let out = component_with("cw_seed", "conn-a", __P4Counter { count: 42 })
+  assert(out.raw.contains("Count: 42"))
+  // The wrapper carries the same component context attrs as component().
+  assert(out.raw.contains("data-flv-component-name=\"cw_seed\""))
+  assert(out.raw.contains("data-flv-value-instance_id=\"conn-a\""))
+}
+
+@test
+fn cw_component_with_ignores_initial_on_later_renders() {
+  // Once seeded, later renders keep the stored (possibly mutated)
+  // state — `initial` only matters on the FIRST render.
+  flv_register("cw_later", __P4Counter { count: 0 }, __p4_counter_render,
+               { "increment": __p4_counter_increment })
+  component_with("cw_later", "conn-b", __P4Counter { count: 5 })
+  dispatch_to("cw_later", "conn-b", "increment", { })
+  let again = component_with("cw_later", "conn-b", __P4Counter { count: 999 })
+  assert(again.raw.contains("Count: 6"))
+}
+
+@test
+fn cw_component_with_isolates_per_connection_instances() {
+  // The Admin ABM pattern: two sockets mint two instance ids and seed
+  // each with connection-scoped data. Events on one never touch the other,
+  // and plain component() reads the same store slot.
+  flv_register("cw_iso", __P4Counter { count: 0 }, __p4_counter_render,
+               { "increment": __p4_counter_increment })
+  component_with("cw_iso", "conn-1", __P4Counter { count: 10 })
+  component_with("cw_iso", "conn-2", __P4Counter { count: 20 })
+  dispatch_to("cw_iso", "conn-1", "increment", { })
+  let r1 = component("cw_iso", "conn-1")
+  let r2 = component("cw_iso", "conn-2")
+  assert(r1.raw.contains("Count: 11"))
+  assert(r2.raw.contains("Count: 20"))
 }

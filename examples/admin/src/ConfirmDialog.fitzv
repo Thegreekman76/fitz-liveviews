@@ -1,0 +1,68 @@
+// ConfirmDialog.fitzv — the delete-confirmation modal as a LiveComponent.
+//
+// First LiveComponent slice of the Admin ABM refactor. The dialog owns the
+// "which ids are pending deletion" UI state that used to live as the
+// `confirm_ids` local in the `@ws` loop of empleados.fitz.
+//
+// Per-connection scoping: the parent renders ONE instance per socket, keyed
+// by a uuid minted at connection start (`component_with("confirm_dialog",
+// cid, confirm_dialog { locale: locale })` — see empleados.fitz). Two admins
+// browsing the grid never share dialog state. The SSR first paint uses the
+// shared placeholder id "ssr"; it renders the closed dialog and can never be
+// mutated (events only travel over the socket).
+//
+// Event split (the canonical parent/component contract):
+//   - `ask`    — fired by the PARENT loop via `dispatch_to(...)` when a
+//                toolbar/row button outside the component asks for a delete.
+//                Payload carries `ids` (CSV) + `count` (display string).
+//   - `cancel` — fired from INSIDE the template; routed automatically by
+//                `dispatch_component_events(frame)` (the wrapper div carries
+//                the component context, the client runtime attaches it).
+//   - the Delete button fires `confirm_delete`, which this component does
+//     NOT declare: `dispatch_component_events` returns false for it and the
+//     parent loop handles it (it needs the DB + cross-cutting state), reading
+//     the pending ids with `component_state(...)` and closing the dialog with
+//     `dispatch_to(..., "cancel", {})` afterwards.
+
+from i18n import t, confirm_msg
+
+component confirm_dialog {
+  state {
+    open: Bool = false
+    ids: Str = ""
+    count_txt: Str = "0"
+    locale: Str = "es"
+  }
+
+  event ask() {
+    if (payload.has("ids")) {
+      ids = payload["ids"]
+    }
+    if (payload.has("count")) {
+      count_txt = payload["count"]
+    }
+    open = true
+  }
+
+  event cancel() {
+    open = false
+    ids = ""
+  }
+
+  <template>
+    <div class="confirm-dialog-slot">
+      {#if open}
+        <div class="modal-overlay">
+          <div class="modal">
+            <h3>{t(locale, "confirm.title")}</h3>
+            <p>{confirm_msg(locale, count_txt)}</p>
+            <div class="modal-actions">
+              <button class="btn-clear" data-flv-click="cancel">{t(locale, "confirm.cancel")}</button>
+              <button class="btn-danger" data-flv-click="confirm_delete">{t(locale, "confirm.delete")}</button>
+            </div>
+          </div>
+        </div>
+      {/if}
+    </div>
+  </template>
+}

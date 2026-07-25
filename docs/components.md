@@ -350,12 +350,62 @@ takes some `T` where `T` is the type declared by the matching
    your event carries a number (`card_id`, `count`, etc.), parse it
    with `Str.parse_int(...)` inside the handler.
 
+## Per-connection instances (`component_with`)
+
+The state store is process-global, keyed `"{name}:{instance_id}"` — so
+*who* shares an instance is entirely decided by the id you pass. Three
+scopes, one mechanism:
+
+- **Shared** — a fixed id (`component("Board", "main")`): every
+  connection reads and mutates the same state. Right for collaborative
+  views (the kanban, the dashboard tiles).
+- **Domain-keyed** — an id derived from data
+  (`component("row_toggle", "row-{row.id}")`): one instance per row,
+  still shared across connections.
+- **Per-connection** — an id minted per socket. Right for UI state
+  that must NOT leak between users: dialogs, selections, filters. The
+  Admin ABM's ConfirmDialog is the canonical example.
+
+The per-connection recipe (v0.11.0):
+
+```fitz
+@ws("/live/screen")
+async fn screen_socket(ws: WsConn<LiveFrame>, cookie: Str?) {
+    let locale = locale_from_cookie(cookie)
+    // One instance id per socket. `Uuid.v4()` returns a `Uuid`;
+    // instance ids are `Str`, so convert at the mint site.
+    let cid = Uuid.v4().to_str()
+    ...
+}
+```
+
+and in the render fn, seed the instance with connection-scoped data
+using **`component_with(name, id, initial)`** — like
+`component(name, id)`, but the FIRST render seeds the state store with
+`initial` instead of the registry-wide `initial_state` (later renders
+ignore it):
+
+```fitz
+let dlg = component_with("confirm_dialog", cid, confirm_dialog { locale: locale })
+```
+
+The SSR first paint (no socket yet) renders the component with a shared
+placeholder id — `component_with("confirm_dialog", "ssr", ...)` — which
+is safe because events only travel over the socket: nothing can mutate
+the placeholder instance, and the live render replaces it on the first
+event.
+
+Known limitation: per-connection instances are never evicted from the
+store (no disconnect hook, and `Map` has no `remove` in Fitz core yet).
+Each connection leaks one small state entry per component — fine at
+showcase scale; an `flv_drop_instance(...)` cleanup API is planned once
+core grows `Map.remove`.
+
 ## What the framework does not (yet) provide
 
-- **Per-instance init payload**. Every instance of a component starts
-  with the same `initial_state` you registered. If tile A should
-  start at 5 and tile B at 10, you either register two component
-  names or lazy-init via an event on first click.
+- ~~**Per-instance init payload.**~~ *Done in v0.11.0.*
+  `component_with(name, id, initial)` seeds an instance with its own
+  initial state — see "Per-connection instances" above.
 - **`dispatch_to_all(name, event, payload)`** for bulk actions across
   every registered instance. Today you loop by hand over instance
   ids you tracked yourself.

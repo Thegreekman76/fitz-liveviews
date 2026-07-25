@@ -233,6 +233,12 @@
     "description": "Embed a registered live component instance inside a parent template"
   },
 
+  "Live component instance with init payload (per-connection)": {
+    "prefix": "flvcompwith",
+    "body": ["{component_with(\"${1:component_name}\", ${2:cid}, ${3:component_name} { ${4:locale: locale} }).raw}"],
+    "description": "Embed a component instance seeding its FIRST render with per-instance state (v0.11.0) — pair with `let cid = Uuid.v4().to_str()` in the @ws handler for per-connection instances"
+  },
+
   "Dispatch component events at the top of an @ws loop": {
     "prefix": "dispatchcomp",
     "body": [

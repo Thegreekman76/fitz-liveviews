@@ -100,6 +100,16 @@ This is the pattern behind the two flagship showcases: the
 and the [kanban](../examples/kanban.md) (a `card_editor` per card). Both are this
 chapter, scaled up.
 
+!!! tip "Per-connection instances (v0.11.0)"
+    The instance id also decides *who shares* the state: a fixed id is shared
+    by every connection; an id minted per socket
+    (`let cid = Uuid.v4().to_str()`) gives each connection its own private
+    instance — right for dialogs, selections and filters that must not leak
+    between users. Seed connection-scoped data (like the locale) with
+    `component_with(name, cid, State { ... })`. Full recipe in
+    [Components → Per-connection instances](../components.md); the Admin ABM's
+    `ConfirmDialog.fitzv` is the worked example.
+
 ---
 
 ## Checkpoint

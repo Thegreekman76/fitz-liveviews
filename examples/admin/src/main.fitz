@@ -21,6 +21,16 @@ import auth
 import dashboard
 import empleados
 
+// LiveComponents — the SFC must be imported by THIS entry file (and
+// `flv_register` must be in scope) for the compiler's auto-registration
+// (Fitz core §9.bb) to see it: the pre-scan walks the entry's DIRECT
+// imports only, same one-level rule as the auth/background pre-scans.
+// `Html` must also be imported here so the render fn's cross-module
+// signature resolves to `-> Html` (not a degraded `Any`) — same
+// convention as the course C2/C3 mains (v0.28.4 note).
+from fitz_liveviews import flv_register, Html
+from ConfirmDialog import confirm_dialog, confirm_dialog_render, confirm_dialog_ask, confirm_dialog_cancel
+
 @server(3000, "0.0.0.0")
 fn main() => 0
 

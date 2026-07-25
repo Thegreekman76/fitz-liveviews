@@ -399,6 +399,34 @@ ES/EN.
 
 Next per the author's order: the **Companion UI adoption package**.
 
+- **S10 — LiveComponents refactor, slice 1 (ConfirmDialog) — DONE 2026-07-24
+  (lib v0.11.0, Fitz core v0.28.6/W27).** First slice of migrating the ABM's
+  widgets to LiveComponents, now that W25 (v0.28.3) + W26 (v0.28.5) closed the
+  SFC → native-binary path. **Architecture decision resolved first**: component
+  state is process-global keyed `"{name}:{id}"`, but the ABM's grid/dialog
+  state is per-connection by design → per-connection widgets mint a
+  **per-socket uuid instance id** (`let cid = Uuid.v4().to_str()`), while
+  shared/domain-keyed widgets keep fixed/derived ids. Shared-per-screen state
+  was rejected (two admins would pollute each other's dialogs). The lib gained
+  **`component_with(name, id, initial)`** (per-instance init payload — closed
+  the open Phase 4 roadmap item) so each socket seeds its instance with
+  connection-scoped data (the locale); SSR paints with the shared placeholder
+  id `"ssr"` (safe: events only travel over the socket). ConfirmDialog is now
+  `ConfirmDialog.fitzv` — `ask` dispatched by the parent via `dispatch_to`
+  (trigger buttons live outside the component), `cancel` auto-routed by
+  `dispatch_component_events`, `confirm_delete` deliberately undeclared so it
+  falls through to the parent loop (DB delete + `component_state` read + K-1
+  close). Removed the `confirm_ids` socket local + 2 loop branches. Surfaced
+  and closed core **W27** (module `__FitzValue` import for coercion-only
+  shapes); confirmed conventions: `Uuid.v4().to_str()` for `Str` ids, entry
+  file imports SFC + `flv_register` + `Html` (§9.bb one-level pre-scan).
+  Validated 10/10 WS smoke (SSR wrapper, uuid instances, two-socket isolation,
+  cancel, real Postgres delete) with exact run ↔ binary parity. Known
+  limitation documented: no store eviction on disconnect until core grows
+  `Map.remove` (→ `flv_drop_instance`). **Next slices**: Toast/flash, then
+  pagination — same pattern; the grid itself (1842 LoC) only after the pattern
+  has hardened across 2-3 widgets.
+
 ## Expected Fitz core gaps (dogfooding)
 
 Same mechanism as the chat/kanban migrations (which pushed §9.cc/dd/ee

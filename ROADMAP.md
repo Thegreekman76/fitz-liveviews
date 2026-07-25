@@ -194,9 +194,12 @@ Per-instance state without hoisting everything to the parent.
       dropped the manual boot call. Public API stays the same:
       manual calls still work and take precedence over the implicit
       injection.
-- [ ] Per-instance init payload — today every instance starts with the
-      same `initial_state`; a `component(name, id, init_payload)` shape
-      would let each instance start with per-instance seed data
+- [x] Per-instance init payload — **done in v0.11.0 (2026-07-24)** as
+      `component_with(name, id, initial)`: like `component(name, id)`
+      but the FIRST render of the instance seeds the state store with
+      `initial` instead of the registry-wide `initial_state`. Powers
+      the per-connection instance pattern of the Admin ABM (uuid per
+      socket + connection-scoped seed data such as the locale).
 - [ ] `dispatch_to_all(name, event, payload)` for bulk actions across
       every live instance of a component
 

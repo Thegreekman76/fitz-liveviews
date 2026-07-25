@@ -28,9 +28,12 @@ domain) and grows slice by slice into a full ABM/CRUD.
 - **Postgres + Docker** — one `docker compose up` brings up the database
   (schema + seed) and the app.
 
-Slice 1 is **SSR-only** — server-rendered on every request. The live
-WebSocket layer and `.fitzv` components arrive in Slice 2 with the employees
-grid.
+The employees grid is a **live view**: SSR first paint + a `@ws` socket that
+re-queries Postgres and diff-and-patches on every event (search, filters,
+sort, pages, forms, tree, selection, grouping, i18n — slices S2-S9). Since
+S10 the delete-confirm modal is a **LiveComponent** (`ConfirmDialog.fitzv`)
+with one instance per connection (uuid per socket) seeded via
+`component_with(...)` — the blueprint for migrating the remaining widgets.
 
 Demo login: **`admin@fitz.dev`** / **`admin1234`**
 

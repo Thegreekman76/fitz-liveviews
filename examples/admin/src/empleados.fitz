@@ -25,7 +25,8 @@ from models import Empleado, Departamento, User, Pais, Provincia, Ciudad, Permis
 from session import user_from_cookie
 from shell import page_layout, redirect_to
 from i18n import t, pick, locale_from_cookie
-from fitz_liveviews import Html, html, flv, h_join, html_response, live_embed, LiveFrame, diff_html
+from fitz_liveviews import Html, html, flv, h_join, html_response, live_embed, LiveFrame, diff_html, flv_register, component_with, dispatch_component_events, dispatch_to, component_state
+from ConfirmDialog import confirm_dialog, confirm_dialog_render, confirm_dialog_ask, confirm_dialog_cancel
 
 // Rows per page. Small so pagination is visible with the demo seed.
 let PAGE_SIZE: Int = 8
@@ -775,7 +776,7 @@ fn grouped_body(rows: List<Empleado>, deptos: List<Departamento>, group_by: Str,
     return html(out)
 }
 
-fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, total: Int, total_pages: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, confirm_ids: Str, group_by: Str, grp_collapsed: Str, flash: Str, flash_kind: Str, body: Html, locale: Str) -> Html {
+fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, total: Int, total_pages: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, cid: Str, group_by: Str, grp_collapsed: Str, flash: Str, flash_kind: Str, body: Html, locale: Str) -> Html {
     // "Agrupar por" control.
     let grp_none = group_pill(t(locale, "grid.group.none"), "", "group_none", group_by)
     let grp_depto = group_pill(t(locale, "grid.group.depto"), "depto", "group_depto", group_by)
@@ -811,22 +812,14 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
           <button class="toast-x" data-flv-click="dismiss_flash">×</button>
         </div>""",
     }
-    // Confirm dialog — shown while `confirm_ids` is pending.
-    let n_del = csv_count(confirm_ids)
-    let confirm_q = pick(locale, "¿Eliminar {n_del} empleado(s)? Esta acción no se puede deshacer.", "Delete {n_del} employee(s)? This can't be undone.")
-    let modal: Str = match n_del > 0 {
-        true => """<div class="modal-overlay">
-          <div class="modal">
-            <h3>{t(locale, "confirm.title")}</h3>
-            <p>{confirm_q}</p>
-            <div class="modal-actions">
-              <button class="btn-clear" data-flv-click="cancel_delete">{t(locale, "confirm.cancel")}</button>
-              <button class="btn-danger" data-flv-click="confirm_delete">{t(locale, "confirm.delete")}</button>
-            </div>
-          </div>
-        </div>""",
-        false => "",
-    }
+    // Confirm dialog — a LiveComponent instance scoped to this connection
+    // (ConfirmDialog.fitzv). `cid` is the per-socket instance id; the SSR
+    // first paint passes the shared placeholder "ssr" (dialog closed, and
+    // events only travel over the socket, so it can never be mutated).
+    // `component_with` (lib v0.11.0) seeds the instance with this
+    // connection's locale on its first render.
+    let dlg = component_with("confirm_dialog", cid, confirm_dialog { locale: locale })
+    let modal: Str = dlg.raw
     let prev_btn: Str = match page > 1 {
         true => """<button class="pg-btn" data-flv-click="page_prev">‹</button>""",
         false => """<button class="pg-btn" disabled>‹</button>""",
@@ -1064,7 +1057,7 @@ fn grid_error(msg: Str, locale: Str) -> Html {
 // on the SAME filtered builder so the pager reflects the filters. Sort is a
 // dynamic `.order_by(col, ascending)`. Any DB failure renders the error panel.
 
-async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, confirm_ids: Str, group_by: Str, grp_collapsed: Str, flash: Str, flash_kind: Str, expanded: Str, locale: Str) -> Html {
+async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, cid: Str, group_by: Str, grp_collapsed: Str, flash: Str, flash_kind: Str, expanded: Str, locale: Str) -> Html {
     let conn = match db.connect(db_url()).await {
         Ok(c) => c,
         Err(e) => return grid_error(e, locale),
@@ -1142,7 +1135,7 @@ async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, so
         }
     }
     let body = html(body_str)
-    return render_grid(rows, deptos, p, total, total_pages, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed, flash, flash_kind, body, locale)
+    return render_grid(rows, deptos, p, total, total_pages, q, estado, depto, sort_col, sort_dir, sel, cid, group_by, grp_collapsed, flash, flash_kind, body, locale)
 }
 
 // The form screen (alta/edición) — queries the departamentos + the ubicaciones
@@ -1442,7 +1435,11 @@ async fn empleados_page(cookie: Str?) -> Response {
         Err(_) => return redirect_to("/login"),
     }
     let loc = locale_from_cookie(cookie)
-    let grid = grid_html(1, "", "all", 0, "id", "asc", "", "", "", "", "", "", "", loc).await
+    // "ssr" is the shared placeholder instance id for the ConfirmDialog —
+    // the closed dialog renders identically for everyone, and events only
+    // travel over the socket, so this instance can never be mutated. The WS
+    // loop mints a per-connection uuid and takes over on its first render.
+    let grid = grid_html(1, "", "all", 0, "id", "asc", "", "ssr", "", "", "", "", "", loc).await
     let live = live_embed("/live/empleados", "empleados-live", grid)
     return html_response(page_layout(t(loc, "nav.empleados"), "empleados", user.name, live, loc))
 }
@@ -1495,6 +1492,12 @@ async fn empleados_socket(ws: WsConn<LiveFrame>, cookie: Str?) {
     // an HTTP request, so `@header` works on `@ws` (Fitz core v0.28.0). No
     // client-side handshake needed.
     let locale = locale_from_cookie(cookie)
+    // Per-connection LiveComponent instance id (Admin ABM architecture
+    // decision, 2026-07-24): component state lives in the lib's global
+    // store keyed by "{name}:{id}", so per-connection widgets mint a
+    // per-socket uuid as the instance id. Two admins browsing the grid
+    // never share dialog state.
+    let cid = Uuid.v4().to_str()
     // Grid state.
     let page = 1
     let q = ""
@@ -1525,9 +1528,9 @@ async fn empleados_socket(ws: WsConn<LiveFrame>, cookie: Str?) {
     // Tree view state (Slice 4e) — expanded país / provincia node ids.
     let tree_exp_pais = ""
     let tree_exp_prov = ""
-    // Selection state (Slice 5) — selected row ids + ids pending delete-confirm.
+    // Selection state (Slice 5) — selected row ids. The ids pending
+    // delete-confirm now live in the ConfirmDialog LiveComponent instance.
     let sel = ""
-    let confirm_ids = ""
     // Grouping state (Slice 6) — active dimension + collapsed group keys.
     let group_by = ""
     let grp_collapsed = ""
@@ -1536,13 +1539,18 @@ async fn empleados_socket(ws: WsConn<LiveFrame>, cookie: Str?) {
     let flash_kind = ""
     // Expanded rows (Slice 7) — comma-joined ids whose detail panel is open.
     let expanded = ""
-    let last = grid_html(page, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed, flash, flash_kind, expanded, locale).await.raw
+    let last = grid_html(page, q, estado, depto, sort_col, sort_dir, sel, cid, group_by, grp_collapsed, flash, flash_kind, expanded, locale).await.raw
     loop {
         let frame = ws.recv()?
         let ev = frame.event
         // A flash lives for exactly one render: any next event clears it.
         flash = ""
         flash_kind = ""
+        // LiveComponent events first — frames fired from inside a component
+        // wrapper carry component_name + instance_id and are routed straight
+        // to the component's own handler (the dialog's `cancel`). Everything
+        // else falls through to the parent branches below.
+        let _ = dispatch_component_events(frame)
         // --- grid navigation / filters / sort ---
         if (ev == "page_next") {
             page = page + 1
@@ -1785,33 +1793,40 @@ async fn empleados_socket(ws: WsConn<LiveFrame>, cookie: Str?) {
         if (ev == "clear_sel") {
             sel = ""
         }
+        // Delete flow — the "ask" buttons live OUTSIDE the dialog component
+        // (toolbar / row actions), so the parent translates them into the
+        // component's `ask` event via dispatch_to. The dialog's own Cancel
+        // button routes automatically (see dispatch_component_events above).
         if (ev == "ask_delete_selected") {
             if (sel != "") {
-                confirm_ids = sel
+                let n_ask = csv_count(sel)
+                let _ = dispatch_to("confirm_dialog", cid, "ask", { "ids": sel, "count": "{n_ask}" })
             }
         }
         if (ev == "ask_delete_one") {
             let del_one = pget_int(frame.payload, "id", 0)
-            confirm_ids = "{del_one}"
+            let _ = dispatch_to("confirm_dialog", cid, "ask", { "ids": "{del_one}", "count": "1" })
         }
-        if (ev == "cancel_delete") {
-            confirm_ids = ""
-        }
+        // The dialog's Delete button fires `confirm_delete`, which the
+        // component deliberately does NOT declare — it needs the DB and
+        // cross-cutting grid state, so the parent handles it, reading the
+        // pending ids from the component's state (K-2) and closing the
+        // dialog afterwards (K-1).
         if (ev == "confirm_delete") {
-            match delete_ids(confirm_ids).await {
+            let dlg_state: confirm_dialog = component_state("confirm_dialog", cid)
+            match delete_ids(dlg_state.ids).await {
                 Ok(n_deleted) => {
                     sel = ""
-                    confirm_ids = ""
                     page = 1
                     flash = pick(locale, "{n_deleted} empleado(s) eliminado(s)", "{n_deleted} employee(s) deleted")
                     flash_kind = "success"
                 },
                 Err(e) => {
-                    confirm_ids = ""
                     flash = t(locale, "toast.del_error") + " " + e
                     flash_kind = "error"
                 },
             }
+            let _ = dispatch_to("confirm_dialog", cid, "cancel", { })
         }
         // --- column grouping (Slice 6) ---
         if (ev == "group_none") {
@@ -1833,7 +1848,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>, cookie: Str?) {
         let new_html = match mode {
             "form" => form_screen(edit_id, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_reporta, f_fecha, f_notas, f_nivel, f_permisos, f_skills, f_activo, f_tab, form_error, locale).await.raw,
             "tree" => tree_screen(tree_exp_pais, tree_exp_prov, locale).await.raw,
-            _ => grid_html(page, q, estado, depto, sort_col, sort_dir, sel, confirm_ids, group_by, grp_collapsed, flash, flash_kind, expanded, locale).await.raw,
+            _ => grid_html(page, q, estado, depto, sort_col, sort_dir, sel, cid, group_by, grp_collapsed, flash, flash_kind, expanded, locale).await.raw,
         }
         let patches = diff_html(last, new_html)
         ws.send(LiveFrame { html: new_html, patches: patches })?

@@ -5,6 +5,52 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.11.0] — 2026-07-24 — `component_with`: per-instance init payload + the per-connection instance pattern
+
+**Minor bump** — closes the "per-instance init payload" item that was open on
+the Phase 4 roadmap since LiveComponents shipped, and establishes the
+architecture for **per-connection** component instances (the Admin ABM
+LiveComponents refactor, slice 1).
+
+### Added — `component_with(name, id, initial) -> Html`
+
+- Like `component(name, id)`, but the FIRST render of the instance seeds the
+  state store with `initial` instead of the registry-wide `initial_state`.
+  Later renders ignore `initial` and use the stored (possibly mutated) state.
+- Two patterns it unlocks: per-instance seed data
+  (`component_with("MetricTile", tile.id, MetricTile { label: tile.label })`)
+  and **per-connection instances** — a `@ws` handler mints
+  `let cid = Uuid.v4().to_str()` and renders
+  `component_with("confirm_dialog", cid, confirm_dialog { locale: locale })`,
+  so each socket owns an isolated instance seeded with connection-scoped data.
+  SSR first paint uses a shared placeholder id (`"ssr"`) — safe because events
+  only travel over the socket. Full recipe in `docs/components.md` →
+  "Per-connection instances".
+- Known limitation (documented): per-connection instances are never evicted
+  from the store — no disconnect hook and `Map` has no `remove` in Fitz core
+  yet. `flv_drop_instance(...)` is planned once core grows `Map.remove`.
+- +3 tests (`cw_*`): seeds from the given initial, ignores initial on later
+  renders, isolates per-connection instances. Lib suite: 92 green.
+
+### Changed — Admin ABM: ConfirmDialog extracted as the first LiveComponent
+
+- `examples/admin/src/ConfirmDialog.fitzv` (new SFC) owns the delete-confirm
+  UI state that used to live as the `confirm_ids` local in the `@ws` loop of
+  `empleados.fitz`. Canonical parent/component contract: `ask` is dispatched
+  by the parent via `dispatch_to(...)` (the trigger buttons live outside the
+  component), `cancel` routes automatically via `dispatch_component_events`,
+  and the Delete button fires an undeclared `confirm_delete` that falls
+  through to the parent loop — which reads the pending ids with
+  `component_state(...)` (K-2), runs the real DB delete, and closes the
+  dialog with `dispatch_to(..., "cancel", {})` (K-1).
+- Validated end-to-end with 10/10 WS smoke on BOTH `fitz run` and the native
+  binary (`fitz build`, Fitz core ≥ v0.28.6/W27): per-connection uuid
+  instances, isolation between two sockets, real Postgres delete.
+- Requires Fitz core **v0.28.6** (W27: `__FitzValue` import for coercion-only
+  modules). Also exercises the entry-file conventions: the SFC + `flv_register`
+  + `Html` must be imported in `main.fitz` (auto-registration §9.bb pre-scans
+  the entry's DIRECT imports only).
+
 ## [v0.10.0] — 2026-07-22 — `__flv_init`: connection context for `@ws` handlers
 
 **Minor bump** — a live socket can now learn per-connection context (locale,

@@ -56,6 +56,13 @@ fn pick(locale: Str, es: Str, en: Str) -> Str {
     }
 }
 
+// Delete-confirmation message with the count interpolated. Lives here (not in
+// the ConfirmDialog SFC template) because the count goes INSIDE the localized
+// sentence — word order differs per language.
+fn confirm_msg(locale: Str, n: Str) -> Str {
+    return pick(locale, "¿Eliminar {n} empleado(s)? Esta acción no se puede deshacer.", "Delete {n} employee(s)? This can't be undone.")
+}
+
 // The dictionary. One entry per user-facing string, grouped by area.
 fn t(locale: Str, key: Str) -> Str {
     return match key {
