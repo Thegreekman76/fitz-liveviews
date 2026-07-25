@@ -30,6 +30,7 @@ import empleados
 // convention as the course C2/C3 mains (v0.28.4 note).
 from fitz_liveviews import flv_register, Html
 from ConfirmDialog import confirm_dialog, confirm_dialog_render, confirm_dialog_ask, confirm_dialog_cancel
+from Toast import toast, toast_render, toast_show, toast_dismiss
 
 @server(3000, "0.0.0.0")
 fn main() => 0

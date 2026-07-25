@@ -27,6 +27,7 @@ from shell import page_layout, redirect_to
 from i18n import t, pick, locale_from_cookie
 from fitz_liveviews import Html, html, flv, h_join, html_response, live_embed, LiveFrame, diff_html, flv_register, component_with, dispatch_component_events, dispatch_to, component_state
 from ConfirmDialog import confirm_dialog, confirm_dialog_render, confirm_dialog_ask, confirm_dialog_cancel
+from Toast import toast, toast_render, toast_show, toast_dismiss
 
 // Rows per page. Small so pagination is visible with the demo seed.
 let PAGE_SIZE: Int = 8
@@ -776,7 +777,7 @@ fn grouped_body(rows: List<Empleado>, deptos: List<Departamento>, group_by: Str,
     return html(out)
 }
 
-fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, total: Int, total_pages: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, cid: Str, group_by: Str, grp_collapsed: Str, flash: Str, flash_kind: Str, body: Html, locale: Str) -> Html {
+fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, total: Int, total_pages: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, cid: Str, group_by: Str, grp_collapsed: Str, body: Html, locale: Str) -> Html {
     // "Agrupar por" control.
     let grp_none = group_pill(t(locale, "grid.group.none"), "", "group_none", group_by)
     let grp_depto = group_pill(t(locale, "grid.group.depto"), "depto", "group_depto", group_by)
@@ -804,14 +805,14 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
     }
     // Export link — respects the active filters (not the selection).
     let export_href = "/empleados/export.csv?q={url_enc(q)}&estado={estado}&depto={depto}"
-    // Toast — a transient flash message after a save / delete (Slice 7).
-    let toast: Str = match flash == "" {
-        true => "",
-        false => """<div class="toast toast-{flash_kind}">
-          <span>{flv(flash)}</span>
-          <button class="toast-x" data-flv-click="dismiss_flash">×</button>
-        </div>""",
-    }
+    // Toast — a per-connection LiveComponent (Toast.fitzv), same `cid` instance
+    // id as the ConfirmDialog. The parent dispatches `show` after a save/delete
+    // and `dismiss` at the top of every loop iteration, so the flash stays
+    // transient (one render) — see the @ws loop. Renders closed for the "ssr"
+    // placeholder; `component_with` (lib v0.11.0) seeds the connection's locale
+    // on the instance's first render.
+    let toast_c = component_with("toast", cid, toast { locale: locale })
+    let toast: Str = toast_c.raw
     // Confirm dialog — a LiveComponent instance scoped to this connection
     // (ConfirmDialog.fitzv). `cid` is the per-socket instance id; the SSR
     // first paint passes the shared placeholder "ssr" (dialog closed, and
@@ -1057,7 +1058,7 @@ fn grid_error(msg: Str, locale: Str) -> Html {
 // on the SAME filtered builder so the pager reflects the filters. Sort is a
 // dynamic `.order_by(col, ascending)`. Any DB failure renders the error panel.
 
-async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, cid: Str, group_by: Str, grp_collapsed: Str, flash: Str, flash_kind: Str, expanded: Str, locale: Str) -> Html {
+async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, cid: Str, group_by: Str, grp_collapsed: Str, expanded: Str, locale: Str) -> Html {
     let conn = match db.connect(db_url()).await {
         Ok(c) => c,
         Err(e) => return grid_error(e, locale),
@@ -1135,7 +1136,7 @@ async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, so
         }
     }
     let body = html(body_str)
-    return render_grid(rows, deptos, p, total, total_pages, q, estado, depto, sort_col, sort_dir, sel, cid, group_by, grp_collapsed, flash, flash_kind, body, locale)
+    return render_grid(rows, deptos, p, total, total_pages, q, estado, depto, sort_col, sort_dir, sel, cid, group_by, grp_collapsed, body, locale)
 }
 
 // The form screen (alta/edición) — queries the departamentos + the ubicaciones
@@ -1439,7 +1440,7 @@ async fn empleados_page(cookie: Str?) -> Response {
     // the closed dialog renders identically for everyone, and events only
     // travel over the socket, so this instance can never be mutated. The WS
     // loop mints a per-connection uuid and takes over on its first render.
-    let grid = grid_html(1, "", "all", 0, "id", "asc", "", "ssr", "", "", "", "", "", loc).await
+    let grid = grid_html(1, "", "all", 0, "id", "asc", "", "ssr", "", "", "", loc).await
     let live = live_embed("/live/empleados", "empleados-live", grid)
     return html_response(page_layout(t(loc, "nav.empleados"), "empleados", user.name, live, loc))
 }
@@ -1534,18 +1535,21 @@ async fn empleados_socket(ws: WsConn<LiveFrame>, cookie: Str?) {
     // Grouping state (Slice 6) — active dimension + collapsed group keys.
     let group_by = ""
     let grp_collapsed = ""
-    // Flash message (Slice 7) — a transient toast shown after a save / delete.
-    let flash = ""
-    let flash_kind = ""
+    // Flash message (Slice 7) — a transient toast, now the Toast LiveComponent
+    // (Toast.fitzv) scoped to this connection via `cid`. The parent dispatches
+    // `show` after a save/delete and `dismiss` at the top of each loop
+    // iteration below (the old `flash` / `flash_kind` locals are gone).
     // Expanded rows (Slice 7) — comma-joined ids whose detail panel is open.
     let expanded = ""
-    let last = grid_html(page, q, estado, depto, sort_col, sort_dir, sel, cid, group_by, grp_collapsed, flash, flash_kind, expanded, locale).await.raw
+    let last = grid_html(page, q, estado, depto, sort_col, sort_dir, sel, cid, group_by, grp_collapsed, expanded, locale).await.raw
     loop {
         let frame = ws.recv()?
         let ev = frame.event
-        // A flash lives for exactly one render: any next event clears it.
-        flash = ""
-        flash_kind = ""
+        // A flash lives for exactly one render: dismiss the toast at the top of
+        // every iteration (mirrors the old `flash = ""` clear). A save/delete
+        // branch below re-opens it via `dispatch_to(..., "show", ...)` for the
+        // frame that produced it.
+        let _ = dispatch_to("toast", cid, "dismiss", { })
         // LiveComponent events first — frames fired from inside a component
         // wrapper carry component_name + instance_id and are routed straight
         // to the component's own handler (the dialog's `cancel`). Everything
@@ -1751,8 +1755,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>, cookie: Str?) {
                                         mode = "grid"
                                         form_error = ""
                                         page = 1
-                                        flash = t(locale, "toast.saved")
-                                        flash_kind = "success"
+                                        let _ = dispatch_to("toast", cid, "show", { "message": t(locale, "toast.saved"), "kind": "success" })
                                     },
                                     Err(er) => {
                                         form_error = er
@@ -1818,12 +1821,10 @@ async fn empleados_socket(ws: WsConn<LiveFrame>, cookie: Str?) {
                 Ok(n_deleted) => {
                     sel = ""
                     page = 1
-                    flash = pick(locale, "{n_deleted} empleado(s) eliminado(s)", "{n_deleted} employee(s) deleted")
-                    flash_kind = "success"
+                    let _ = dispatch_to("toast", cid, "show", { "message": pick(locale, "{n_deleted} empleado(s) eliminado(s)", "{n_deleted} employee(s) deleted"), "kind": "success" })
                 },
                 Err(e) => {
-                    flash = t(locale, "toast.del_error") + " " + e
-                    flash_kind = "error"
+                    let _ = dispatch_to("toast", cid, "show", { "message": t(locale, "toast.del_error") + " " + e, "kind": "error" })
                 },
             }
             let _ = dispatch_to("confirm_dialog", cid, "cancel", { })
@@ -1848,7 +1849,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>, cookie: Str?) {
         let new_html = match mode {
             "form" => form_screen(edit_id, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_reporta, f_fecha, f_notas, f_nivel, f_permisos, f_skills, f_activo, f_tab, form_error, locale).await.raw,
             "tree" => tree_screen(tree_exp_pais, tree_exp_prov, locale).await.raw,
-            _ => grid_html(page, q, estado, depto, sort_col, sort_dir, sel, cid, group_by, grp_collapsed, flash, flash_kind, expanded, locale).await.raw,
+            _ => grid_html(page, q, estado, depto, sort_col, sort_dir, sel, cid, group_by, grp_collapsed, expanded, locale).await.raw,
         }
         let patches = diff_html(last, new_html)
         ws.send(LiveFrame { html: new_html, patches: patches })?

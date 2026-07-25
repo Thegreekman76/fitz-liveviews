@@ -1,0 +1,63 @@
+// Toast.fitzv — the transient flash message as a LiveComponent.
+//
+// Toast/flash slice of the Admin ABM refactor. The toast owns the
+// "success/error message after a save or delete" UI state that used to live as
+// the `flash` / `flash_kind` locals in the `@ws` loop of empleados.fitz.
+//
+// Per-connection scoping: same pattern as ConfirmDialog. The parent renders ONE
+// instance per socket, keyed by the connection's `cid` uuid
+// (`component_with("toast", cid, toast { locale: locale })` — see
+// empleados.fitz). The SSR first paint uses the shared placeholder id "ssr"; it
+// renders closed and can never be mutated (events only travel over the socket).
+//
+// Transient semantics preserved: a flash lives for exactly one render. The
+// parent dispatches `dismiss` at the top of every loop iteration (mirroring the
+// old `flash = ""` clear) and `show` in the save/delete branches, so the toast
+// appears for the frame that produced it and clears on the next action — the
+// same "cleared on next action" behaviour as the pre-refactor inline toast.
+//
+// Event split (the canonical parent/component contract):
+//   - `show`    — fired by the PARENT loop via `dispatch_to(...)` after a
+//                 save/delete. Payload carries `message` (already localized by
+//                 the parent) + `kind` ("success" | "error").
+//   - `dismiss` — fired both from INSIDE the template (the × button, routed
+//                 automatically by `dispatch_component_events(frame)`) and by
+//                 the parent at the top of every loop iteration to keep the
+//                 flash transient.
+
+from fitz_liveviews import flv
+
+component toast {
+  state {
+    open: Bool = false
+    message: Str = ""
+    kind: Str = "success"
+    locale: Str = "es"
+  }
+
+  event show() {
+    if (payload.has("message")) {
+      message = payload["message"]
+    }
+    if (payload.has("kind")) {
+      kind = payload["kind"]
+    }
+    open = true
+  }
+
+  event dismiss() {
+    open = false
+    message = ""
+  }
+
+  <template>
+    <div class="toast-slot">
+      {#if open}
+        <div class="toast toast-{kind}">
+          <span>{flv(message)}</span>
+          <button class="toast-x" data-flv-click="dismiss">×</button>
+        </div>
+      {/if}
+    </div>
+  </template>
+}
