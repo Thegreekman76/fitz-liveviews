@@ -28,6 +28,7 @@ from i18n import t, pick, locale_from_cookie
 from fitz_liveviews import Html, html, flv, h_join, html_response, live_embed, LiveFrame, diff_html, flv_register, component_with, dispatch_component_events, dispatch_to, component_state
 from ConfirmDialog import confirm_dialog, confirm_dialog_render, confirm_dialog_ask, confirm_dialog_cancel
 from Toast import toast, toast_render, toast_show, toast_dismiss
+from Pager import pager, pager_render
 
 // Rows per page. Small so pagination is visible with the demo seed.
 let PAGE_SIZE: Int = 8
@@ -110,20 +111,6 @@ fn depto_pill(label: Str, id: Int, depto: Int) -> Str {
         false => "pill",
     }
     return """<button class="{cls}" data-flv-click="filter_depto" data-flv-value-depto="{id}">{flv(label)}</button>"""
-}
-
-// Numbered page buttons (1..total_pages), current page highlighted. Each
-// carries its page number in the payload (parsed with `to_int` server-side).
-fn page_buttons(page: Int, total_pages: Int) -> Str {
-    let out = ""
-    for n in 1..(total_pages + 1) {
-        let cls = match n == page {
-            true => "pg-btn pg-num pg-active",
-            false => "pg-btn pg-num",
-        }
-        out = out + """<button class="{cls}" data-flv-click="goto_page" data-flv-value-page="{n}">{n}</button>"""
-    }
-    return out
 }
 
 // ---------------------------------------------------------------------------
@@ -821,15 +808,13 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
     // connection's locale on its first render.
     let dlg = component_with("confirm_dialog", cid, confirm_dialog { locale: locale })
     let modal: Str = dlg.raw
-    let prev_btn: Str = match page > 1 {
-        true => """<button class="pg-btn" data-flv-click="page_prev">‹</button>""",
-        false => """<button class="pg-btn" disabled>‹</button>""",
-    }
-    let next_btn: Str = match page < total_pages {
-        true => """<button class="pg-btn" data-flv-click="page_next">›</button>""",
-        false => """<button class="pg-btn" disabled>›</button>""",
-    }
-    let nums = page_buttons(page, total_pages)
+    // Pager — a stateless presentational LiveComponent (Pager.fitzv). `page`
+    // and `total_pages` are the grid's query state (owned by the @ws loop, not
+    // the pager), passed as props: the render fn is called directly with a
+    // fresh `pager { ... }` every frame, so there's no per-connection store.
+    // The pager declares no event handlers, so its buttons' `page_prev` /
+    // `page_next` / `goto_page` events fall through to the parent loop.
+    let pager_html: Str = pager_render(pager { page: page, total_pages: total_pages }).raw
     // Footer: pager in flat mode, a plain count when grouped.
     let pg_lbl = t(locale, "grid.page")
     let of_lbl = t(locale, "grid.of")
@@ -837,7 +822,7 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
     let foot: Str = match group_by == "" {
         true => """<div class="grid-foot">
           <span class="grid-info">{flv(pg_lbl)} {page} {flv(of_lbl)} {total_pages}</span>
-          <div class="pager">{prev_btn}{nums}{next_btn}</div>
+          {pager_html}
         </div>""",
         false => """<div class="grid-foot"><span class="grid-info">{total} {flv(grouped_lbl)}</span></div>""",
     }

@@ -1,0 +1,45 @@
+// Pager.fitzv — pagination controls as a stateless presentational component.
+//
+// Third slice of the Admin ABM LiveComponents refactor. Unlike ConfirmDialog
+// and Toast (which own private per-connection state), the pager is a
+// CONTROLLED / presentational component: `page` and `total_pages` are the
+// grid's query state, owned by the parent's `@ws` loop. They arrive as
+// "props" — the parent renders the pager fresh every frame with
+// `pager_render(pager { page: page, total_pages: total_pages }).raw`, calling
+// the generated render fn directly (NOT `component_with`), so there is no
+// per-connection store and no context wrapper.
+//
+// Because the component declares NO event handlers, every button event
+// (`page_prev` / `page_next` / `goto_page`) falls through to the parent's
+// loop (same fall-through contract ConfirmDialog uses for `confirm_delete`).
+// The parent mutates `page` and re-queries — the pager just displays it.
+//
+// This is the right architecture for pagination (React/Vue/Svelte all model
+// it as a controlled component): `page` is grid state, not widget state, so
+// forcing it into a stateful child would invert the ownership and cost a
+// `component_state` read-back plus a `reset` dispatch at every filter site.
+
+from pager_helpers import page_nums
+
+component pager {
+  state {
+    page: Int = 1
+    total_pages: Int = 1
+  }
+
+  <template>
+    <div class="pager">
+      {#if page > 1}
+        <button class="pg-btn" data-flv-click="page_prev">‹</button>
+      {#else}
+        <button class="pg-btn" disabled>‹</button>
+      {/if}
+      {page_nums(page, total_pages)}
+      {#if page < total_pages}
+        <button class="pg-btn" data-flv-click="page_next">›</button>
+      {#else}
+        <button class="pg-btn" disabled>›</button>
+      {/if}
+    </div>
+  </template>
+}
