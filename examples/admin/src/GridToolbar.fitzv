@@ -1,0 +1,70 @@
+// GridToolbar.fitzv — the grid's search box + estado filter pills + action
+// buttons, as a presentational (controlled) LiveComponent.
+//
+// Fourth slice of the Admin ABM LiveComponents refactor. Like Pager, this is
+// a CONTROLLED / presentational component: the search term `q`, the active
+// `estado` filter, and the parent-computed `export_href` are the grid's query
+// state, owned by the parent's `@ws` loop. They arrive as "props": the parent
+// renders the toolbar fresh every frame with
+// `grid_toolbar_render(grid_toolbar { q, estado, export_href, locale }).raw`,
+// calling the generated render fn directly (NOT `component_with`), so there is
+// no per-connection store and no context wrapper.
+//
+// The component declares NO event handlers, so every form/button event
+// (`search`, `estado_all` / `estado_active` / `estado_inactive`, `show_tree`,
+// `new_empleado`) falls through to the parent's loop (same fall-through
+// contract Pager uses for `page_prev` / `page_next` / `goto_page`).
+//
+// Styles stay GLOBAL (in shell.fitz): `.grid-toolbar` / `.grid-search` /
+// `.pill` / `.btn-*` are shared with the depto/group filter bars and the rest
+// of the grid, so this component deliberately has NO `<style scoped>` — the
+// Toast model (global CSS), not the Pager model (self-contained scoped CSS).
+// The estado pills' active state is expressed with `{#if}` / `{#else}` because
+// the SSR template DSL has no `match`.
+
+from i18n import t
+from fitz_liveviews import flv
+
+component grid_toolbar {
+  state {
+    q: Str = ""
+    estado: Str = "all"
+    export_href: Str = ""
+    // `ph_search` is passed pre-computed by the parent: the SSR attribute-value
+    // scanner can't handle nested double quotes inside `{...}`, so a
+    // `placeholder="{t(locale, "grid.search.ph")}"` would break the parse.
+    // Text-content interpolation (between tags) handles nested quotes fine.
+    ph_search: Str = ""
+    locale: Str = "es"
+  }
+
+  <template>
+    <div class="grid-toolbar">
+      <form class="grid-search" data-flv-submit="search">
+        <input name="q" value="{flv(q)}" placeholder="{flv(ph_search)}" autocomplete="off" />
+        <button class="btn-search" type="submit">{flv(t(locale, "grid.search"))}</button>
+        <button class="btn-clear" type="button" data-flv-click="search" data-flv-value-q="">{flv(t(locale, "grid.clear"))}</button>
+      </form>
+      <div class="grid-filters">
+        {#if estado == "all"}
+          <button class="pill pill-active" data-flv-click="estado_all">{flv(t(locale, "grid.f.all"))}</button>
+        {#else}
+          <button class="pill" data-flv-click="estado_all">{flv(t(locale, "grid.f.all"))}</button>
+        {/if}
+        {#if estado == "active"}
+          <button class="pill pill-active" data-flv-click="estado_active">{flv(t(locale, "grid.f.active"))}</button>
+        {#else}
+          <button class="pill" data-flv-click="estado_active">{flv(t(locale, "grid.f.active"))}</button>
+        {/if}
+        {#if estado == "inactive"}
+          <button class="pill pill-active" data-flv-click="estado_inactive">{flv(t(locale, "grid.f.inactive"))}</button>
+        {#else}
+          <button class="pill" data-flv-click="estado_inactive">{flv(t(locale, "grid.f.inactive"))}</button>
+        {/if}
+      </div>
+      <a class="btn-clear btn-export" href="{export_href}">⬇ {flv(t(locale, "grid.export"))}</a>
+      <button class="btn-clear btn-tree" data-flv-click="show_tree">🌳 {flv(t(locale, "grid.locations"))}</button>
+      <button class="btn-primary btn-nuevo" data-flv-click="new_empleado">+ {flv(t(locale, "grid.new"))}</button>
+    </div>
+  </template>
+}

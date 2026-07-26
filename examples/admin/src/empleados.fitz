@@ -29,6 +29,8 @@ from fitz_liveviews import Html, html, flv, h_join, html_response, live_embed, L
 from ConfirmDialog import confirm_dialog, confirm_dialog_render, confirm_dialog_ask, confirm_dialog_cancel
 from Toast import toast, toast_render, toast_show, toast_dismiss
 from Pager import pager, pager_render
+from GridToolbar import grid_toolbar, grid_toolbar_render
+from GridFilters import grid_filters, grid_filters_render
 
 // Rows per page. Small so pagination is visible with the demo seed.
 let PAGE_SIZE: Int = 8
@@ -93,25 +95,6 @@ fn sort_th(label: Str, col: Str, cls: Str, sort_col: Str, sort_dir: Str) -> Str 
     return """<th class="{cls} th-sort" data-flv-click="sort" data-flv-value-col="{col}">{flv(label)}{arrow}</th>"""
 }
 
-// An estado filter pill — highlighted when it's the active filter.
-fn estado_pill(label: Str, val: Str, event: Str, estado: Str) -> Str {
-    let cls = match val == estado {
-        true => "pill pill-active",
-        false => "pill",
-    }
-    return """<button class="{cls}" data-flv-click="{event}">{flv(label)}</button>"""
-}
-
-// One departamento pill. `id` 0 = "Todos". Highlighted when it's the active
-// department filter. Clicking carries the id in the payload (parsed with
-// `to_int` server-side).
-fn depto_pill(label: Str, id: Int, depto: Int) -> Str {
-    let cls = match id == depto {
-        true => "pill pill-active",
-        false => "pill",
-    }
-    return """<button class="{cls}" data-flv-click="filter_depto" data-flv-value-depto="{id}">{flv(label)}</button>"""
-}
 
 // ---------------------------------------------------------------------------
 // Render — one row + the whole grid (pure, no DB)
@@ -706,15 +689,6 @@ fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provi
     </div>""")
 }
 
-// One "Agrupar por" pill (Slice 6). Highlighted when it's the active grouping.
-fn group_pill(label: Str, val: Str, event: Str, group_by: Str) -> Str {
-    let cls = match val == group_by {
-        true => "pill pill-active",
-        false => "pill",
-    }
-    return """<button class="{cls}" data-flv-click="{event}">{flv(label)}</button>"""
-}
-
 // One group section (Slice 6) — a header row (expand/collapse toggle + label +
 // count) spanning the table, followed by the member rows when expanded.
 fn group_section(key: Str, label: Str, members: List<Empleado>, collapsed: Str, deptos: List<Departamento>, sel: Str, expanded: Str, locale: Str) -> Str {
@@ -765,15 +739,11 @@ fn grouped_body(rows: List<Empleado>, deptos: List<Departamento>, group_by: Str,
 }
 
 fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, total: Int, total_pages: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, cid: Str, group_by: Str, grp_collapsed: Str, body: Html, locale: Str) -> Html {
-    // "Agrupar por" control.
-    let grp_none = group_pill(t(locale, "grid.group.none"), "", "group_none", group_by)
-    let grp_depto = group_pill(t(locale, "grid.group.depto"), "depto", "group_depto", group_by)
-    let grp_estado = group_pill(t(locale, "grid.group.estado"), "estado", "group_estado", group_by)
-    let group_by_lbl = t(locale, "grid.group.by")
-    let group_bar = """<div class="grid-filters grid-group">
-      <span class="filter-label">{flv(group_by_lbl)}</span>
-      {grp_none}{grp_depto}{grp_estado}
-    </div>"""
+    // Departamento filter bar + "Agrupar por" bar — a presentational
+    // LiveComponent (GridFilters.fitzv). `deptos` / `depto` / `group_by` are
+    // the grid's query state, passed as props; the pill events fall through to
+    // the parent loop (the component declares no handlers).
+    let filters_html: Str = grid_filters_render(grid_filters { deptos: deptos, depto: depto, group_by: group_by, locale: locale }).raw
     // Select-all checkbox reflects the ids ON THIS PAGE.
     let page_ids = ids_csv(rows)
     let all_checked = match all_in(sel, page_ids) {
@@ -834,48 +804,20 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
     let th_estado = sort_th(t(locale, "grid.col.estado"), "estado", "", sort_col, sort_dir)
     let th_depto = t(locale, "grid.col.depto")
     let th_acc = t(locale, "grid.col.acciones")
-    // Estado filter pills.
-    let pill_all = estado_pill(t(locale, "grid.f.all"), "all", "estado_all", estado)
-    let pill_active = estado_pill(t(locale, "grid.f.active"), "active", "estado_active", estado)
-    let pill_inactive = estado_pill(t(locale, "grid.f.inactive"), "inactive", "estado_inactive", estado)
-    // Departamento filter pills (Todos + one per department).
-    let depto_todos = depto_pill(t(locale, "grid.f.all"), 0, depto)
-    let depto_pills = h_join(deptos.map(fn(d) => html(depto_pill(d.nombre, d.id, depto))))
+    // Toolbar (search + estado pills + action buttons) — a presentational
+    // LiveComponent (GridToolbar.fitzv). `q` / `estado` / `export_href` are the
+    // grid's query state, passed as props; its form/button events fall through
+    // to the parent loop (the component declares no handlers).
+    let toolbar_html: Str = grid_toolbar_render(grid_toolbar { q: q, estado: estado, export_href: export_href, ph_search: t(locale, "grid.search.ph"), locale: locale }).raw
     let g_title = t(locale, "nav.empleados")
     let g_sub = t(locale, "grid.subtitle")
-    let ph_search = t(locale, "grid.search.ph")
-    let lbl_search = t(locale, "grid.search")
-    let lbl_clear = t(locale, "grid.clear")
-    let lbl_locations = t(locale, "grid.locations")
-    let lbl_new = t(locale, "grid.new")
-    let lbl_export = t(locale, "grid.export")
-    let lbl_depto = t(locale, "grid.f.depto")
     return html("""<div id="empleados-live" class="grid-wrap">
       <div class="page-head">
         <h2>{flv(g_title)}</h2>
         <p>{flv(g_sub)} · {total}</p>
       </div>
-      <div class="grid-toolbar">
-        <form class="grid-search" data-flv-submit="search">
-          <input name="q" value="{flv(q)}" placeholder="{flv(ph_search)}" autocomplete="off" />
-          <button class="btn-search" type="submit">{flv(lbl_search)}</button>
-          <button class="btn-clear" type="button" data-flv-click="search" data-flv-value-q="">{flv(lbl_clear)}</button>
-        </form>
-        <div class="grid-filters">
-          {pill_all}
-          {pill_active}
-          {pill_inactive}
-        </div>
-        <a class="btn-clear btn-export" href="{export_href}">⬇ {flv(lbl_export)}</a>
-        <button class="btn-clear btn-tree" data-flv-click="show_tree">🌳 {flv(lbl_locations)}</button>
-        <button class="btn-primary btn-nuevo" data-flv-click="new_empleado">+ {flv(lbl_new)}</button>
-      </div>
-      <div class="grid-filters grid-deptos">
-        <span class="filter-label">{flv(lbl_depto)}</span>
-        {depto_todos}
-        {depto_pills}
-      </div>
-      {group_bar}
+      {toolbar_html}
+      {filters_html}
       {sel_bar}
       <div class="grid-card">
         <div class="grid-scroll">
