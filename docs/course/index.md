@@ -26,7 +26,7 @@ It's the companion to the [Fitz language course](https://thegreekman76.github.io
 | **C3** | [Composing UI](c3-composing-ui.md) | A team panel from reusable render helpers: a `type`, a reused `stat_card`, a `badge`, scoped styling | ✅ |
 | **C4** | [Persistent & multi-user state](c4-persistent-multiuser.md) | A Postgres-backed notes list, `ws.broadcast(...)`, two tabs in sync — and why this one is string-helper only | ✅ |
 | **C5** | [LiveComponents](c5-livecomponents.md) | One `Tile` definition, three independent instances — per-instance state, the dashboard/kanban pattern | ✅ |
-| **C6** | Ship it | `fitz build` → one binary, Docker, deploy — the Admin ABM as the blueprint | 🚧 |
+| **C6** | [Ship it](c6-ship-it.md) | `fitz build` → one binary, Docker, deploy — the Admin ABM as the blueprint | ✅ |
 
 Each chapter is self-contained and ends with a **checkpoint** (what should work
 now) and a **troubleshooting** box for the mistakes people actually hit.

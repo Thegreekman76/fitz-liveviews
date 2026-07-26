@@ -137,7 +137,7 @@ chapter, scaled up.
 
 ## What's next
 
-You can build reusable, independently-stateful components. **C6 — Ship it** is
-the last step: `fitz build` turns any of these projects into a single native
-binary, and a small Dockerfile puts it in a container — the same path the
-[Admin ABM](../examples/admin.md) uses to deploy.
+You can build reusable, independently-stateful components. **[C6 — Ship
+it](c6-ship-it.md)** is the last step: `fitz build` turns any of these projects
+into a single native binary, and a small Dockerfile puts it in a container — the
+same path the [Admin ABM](../examples/admin.md) uses to deploy.
