@@ -31,6 +31,8 @@ from Toast import toast, toast_render, toast_show, toast_dismiss
 from Pager import pager, pager_render
 from GridToolbar import grid_toolbar, grid_toolbar_render
 from GridFilters import grid_filters, grid_filters_render
+from EmpleadoRow import empleado_row, empleado_row_render
+from EmpleadoForm import empleado_form, empleado_form_render
 
 // Rows per page. Small so pagination is visible with the demo seed.
 let PAGE_SIZE: Int = 8
@@ -66,13 +68,6 @@ fn pget_int(p: Map<Str, Str>, k: Str, dflt: Int) -> Int {
     }
 }
 
-fn estado_badge(activo: Bool, locale: Str) -> Str {
-    return match activo {
-        true => """<span class="badge badge-ok">{t(locale, "badge.active")}</span>""",
-        false => """<span class="badge badge-off">{t(locale, "badge.inactive")}</span>""",
-    }
-}
-
 // Resolve a department name from the preloaded list (linear find — the demo
 // has a handful of departments; a `.preload(...)` relation lands in S4).
 fn depto_name(deptos: List<Departamento>, id: Int) -> Str {
@@ -97,85 +92,8 @@ fn sort_th(label: Str, col: Str, cls: Str, sort_col: Str, sort_dir: Str) -> Str 
 
 
 // ---------------------------------------------------------------------------
-// Render — one row + the whole grid (pure, no DB)
+// Render — the whole grid (pure, no DB); one row is EmpleadoRow.fitzv
 // ---------------------------------------------------------------------------
-
-fn grid_row(e: Empleado, deptos: List<Departamento>, sel: Str, expanded: Str, locale: Str) -> Html {
-    let depto = depto_name(deptos, e.departamento_id)
-    let estado = estado_badge(e.activo, locale)
-    let checked = match id_checked(sel, e.id) {
-        true => " checked",
-        false => "",
-    }
-    let ex = id_checked(expanded, e.id)
-    let tr_cls = match id_checked(sel, e.id) {
-        true => "row-selected",
-        false => match ex {
-            true => "row-expanded",
-            false => "",
-        },
-    }
-    let chevron = match ex {
-        true => "▾",
-        false => "▸",
-    }
-    return html("""<tr class="{tr_cls}">
-      <td data-label="" class="col-exp"><button class="btn-icon btn-exp" data-tooltip="{t(locale, "grid.tip.detail")}" data-flv-click="toggle_row" data-flv-value-id="{e.id}">{chevron}</button></td>
-      <td data-label="" class="col-sel"><input type="checkbox" class="row-sel" data-flv-click="toggle_sel" data-flv-value-id="{e.id}"{checked} /></td>
-      <td data-label="ID" class="col-id">{e.id}</td>
-      <td data-label="Nombre"><strong>{flv(e.nombre)}</strong></td>
-      <td data-label="Email">{flv(e.email)}</td>
-      <td data-label="Cargo">{flv(e.cargo)}</td>
-      <td data-label="Departamento">{flv(depto)}</td>
-      <td data-label="Estado">{estado}</td>
-      <td data-label="Acciones" class="col-actions">
-        <button class="btn-icon" data-tooltip="{t(locale, "grid.tip.edit")}" data-flv-click="edit_empleado" data-flv-value-id="{e.id}">✎</button>
-        <button class="btn-icon btn-danger" data-tooltip="{t(locale, "grid.tip.delete")}" data-flv-click="ask_delete_one" data-flv-value-id="{e.id}">🗑</button>
-      </td>
-    </tr>""")
-}
-
-// ---------------------------------------------------------------------------
-// Alta / edición form (Slice 4a) — lives inside the same LiveView as the grid
-// ---------------------------------------------------------------------------
-//
-// `<option>` tags for the departamento select, with the current value marked
-// `selected`. `selected_id` 0 = "(sin departamento)".
-fn depto_options(deptos: List<Departamento>, selected_id: Int, locale: Str) -> Str {
-    let none = t(locale, "form.depto.none")
-    let head = match selected_id == 0 {
-        true => """<option value="0" selected>{none}</option>""",
-        false => """<option value="0">{none}</option>""",
-    }
-    let opts = h_join(deptos.map(fn(d) => html(match d.id == selected_id {
-        true => """<option value="{d.id}" selected>{flv(d.nombre)}</option>""",
-        false => """<option value="{d.id}">{flv(d.nombre)}</option>""",
-    })))
-    return head + opts
-}
-
-// A single `<option>` with the `selected` attribute when it matches.
-fn option_tag(id: Int, label: Str, selected: Int) -> Str {
-    return match id == selected {
-        true => """<option value="{id}" selected>{flv(label)}</option>""",
-        false => """<option value="{id}">{flv(label)}</option>""",
-    }
-}
-
-// `<option>` tags for the cascade selects (país/provincia/ciudad). Each list
-// item exposes `.id` + `.nombre`; the ones are different nominal types so we
-// render them inline. A placeholder head (`value="0"`) sits on top.
-fn pais_options(items: List<Pais>, selected: Int) -> Str {
-    return """<option value="0">— País —</option>""" + h_join(items.map(fn(p) => html(option_tag(p.id, p.nombre, selected))))
-}
-
-fn provincia_options(items: List<Provincia>, selected: Int) -> Str {
-    return """<option value="0">— Provincia —</option>""" + h_join(items.map(fn(p) => html(option_tag(p.id, p.nombre, selected))))
-}
-
-fn ciudad_options(items: List<Ciudad>, selected: Int) -> Str {
-    return """<option value="0">— Ciudad —</option>""" + h_join(items.map(fn(c) => html(option_tag(c.id, c.nombre, selected))))
-}
 
 // Group-checkbox (Slice 4c) — the set of checked permiso ids is kept as a
 // comma-joined string (e.g. "1,3,5"); membership is a substring check against
@@ -184,32 +102,6 @@ fn id_checked(csv: Str, id: Int) -> Bool {
     let hay = "," + csv + ","
     let needle = ",{id},"
     return hay.contains(needle)
-}
-
-// Renders the permisos as a fieldset per module (the list must be ordered by
-// `modulo`), one checkbox per permiso, pre-checked from `checked_csv`. All
-// checkboxes share `name="permisos"` so the client joins them comma-separated.
-fn permisos_html(permisos: List<Permiso>, checked_csv: Str) -> Str {
-    let out = ""
-    let cur_mod = ""
-    for p in permisos {
-        if (p.modulo != cur_mod) {
-            if (cur_mod != "") {
-                out = out + "</div></fieldset>"
-            }
-            out = out + """<fieldset class="perm-group"><legend>{flv(p.modulo)}</legend><div class="perm-checks">"""
-            cur_mod = p.modulo
-        }
-        let checked = match id_checked(checked_csv, p.id) {
-            true => "checked",
-            false => "",
-        }
-        out = out + """<label class="perm-check"><input type="checkbox" name="permisos" value="{p.id}" {checked} /> {flv(p.nombre)}</label>"""
-    }
-    if (cur_mod != "") {
-        out = out + "</div></fieldset>"
-    }
-    return out
 }
 
 // Toggle an id in a comma-joined set: remove it if present, add it otherwise.
@@ -388,114 +280,6 @@ fn tree_html(paises: List<Pais>, provincias: List<Provincia>, ciudades: List<Ciu
     return out
 }
 
-// Multiselect (Slice 4d) — a flat checkbox list; all share `name="skills"` so
-// the client joins the checked ones comma-separated (same mechanism as the
-// group-checkbox). Pre-checked from `checked_csv`.
-fn skills_html(skills: List<Skill>, checked_csv: Str) -> Str {
-    return h_join(skills.map(fn(s) => html(match id_checked(checked_csv, s.id) {
-        true => """<label class="skill-check skill-on"><input type="checkbox" name="skills" value="{s.id}" checked /> {flv(s.nombre)}</label>""",
-        false => """<label class="skill-check"><input type="checkbox" name="skills" value="{s.id}" /> {flv(s.nombre)}</label>""",
-    })))
-}
-
-// The whole create/edit form as a fragment (same root id so it patches over
-// the grid). `edit_id` 0 = alta; > 0 = edición. `error` non-empty renders a
-// validation/DB banner. The país/provincia/ciudad selects are a cascade: each
-// `change` re-queries the dependent options server-side (Slice 4b).
-// GroupSelect (Slice 8) — a <select> with <optgroup>s: colleagues grouped by
-// department, for the "reporta a" field. `self_id` (the row being edited) is
-// excluded so an employee can't report to itself.
-fn reporta_options(colegas: List<Empleado>, deptos: List<Departamento>, self_id: Int, selected: Int, locale: Str) -> Str {
-    let none = t(locale, "form.reporta.none")
-    let head = match selected == 0 {
-        true => """<option value="0" selected>{none}</option>""",
-        false => """<option value="0">{none}</option>""",
-    }
-    let groups = ""
-    for d in deptos {
-        let members = colegas.filter(fn(e) => e.departamento_id == d.id and e.id != self_id)
-        if (members.len() > 0) {
-            let opts = ""
-            for e in members {
-                opts = opts + match e.id == selected {
-                    true => """<option value="{e.id}" selected>{flv(e.nombre)}</option>""",
-                    false => """<option value="{e.id}">{flv(e.nombre)}</option>""",
-                }
-            }
-            groups = groups + """<optgroup label="{flv(d.nombre)}">{opts}</optgroup>"""
-        }
-    }
-    return head + groups
-}
-
-// One form tab button (Slice 8). Opts into form serialization (`data-flv-form`,
-// lib v0.9.0) so switching tabs keeps whatever is typed in the other tabs.
-fn tab_btn(label: Str, val: Str, f_tab: Str) -> Str {
-    let cls = match val == f_tab {
-        true => "tab-btn tab-on",
-        false => "tab-btn",
-    }
-    return """<button type="button" class="{cls}" data-flv-form data-flv-click="form_tab" data-flv-value-tab="{val}">{flv(label)}</button>"""
-}
-
-// CSS class for a tab panel — only the active one is shown, but ALL panels stay
-// in the DOM so the form serializes every field on save regardless of tab.
-fn tab_panel_cls(val: Str, f_tab: Str) -> Str {
-    return match val == f_tab {
-        true => "tab-panel tab-active",
-        false => "tab-panel",
-    }
-}
-
-// Stepper (Slice 8b) — the "alta" form is a guided 3-step onboarding wizard
-// (Datos → Organización → Accesos) reusing the same panels + `f_tab` state as
-// the edit tabs. `step_order` gives each step a number so the indicator can
-// mark past steps done, the current active, the rest pending.
-fn step_order(val: Str) -> Int {
-    return match val {
-        "datos" => 1,
-        "org" => 2,
-        "accesos" => 3,
-        _ => 1,
-    }
-}
-
-fn step_dot(num: Str, label: Str, val: Str, f_tab: Str) -> Str {
-    let ov = step_order(val)
-    let cur = step_order(f_tab)
-    let cls = match ov < cur {
-        true => "step step-done",
-        false => match ov == cur {
-            true => "step step-active",
-            false => "step",
-        },
-    }
-    return """<div class="{cls}"><span class="step-num">{num}</span><span class="step-label">{flv(label)}</span></div>"""
-}
-
-fn stepper_bar(f_tab: Str, locale: Str) -> Str {
-    let s1 = step_dot("1", t(locale, "form.tab.datos"), "datos", f_tab)
-    let s2 = step_dot("2", t(locale, "form.tab.org"), "org", f_tab)
-    let s3 = step_dot("3", t(locale, "form.tab.accesos"), "accesos", f_tab)
-    return """<div class="stepper">{s1}<div class="step-line"></div>{s2}<div class="step-line"></div>{s3}</div>"""
-}
-
-// Rating (Slice 8c) — a 0-5 star input via radios (no JS). The radios are
-// emitted 5→1 so a `flex-direction: row-reverse` container + the
-// `input:checked ~ label` CSS fills the chosen star and every one to its left.
-fn rating_input(selected: Int) -> Str {
-    let out = ""
-    for n in 1..6 {
-        let val = 6 - n
-        let checked = match val == selected {
-            true => " checked",
-            false => "",
-        }
-        out = out + """<input type="radio" id="nivel-{val}" name="nivel" value="{val}"{checked} /><label for="nivel-{val}" data-tooltip="{val}">★</label>"""
-    }
-    return out
-}
-
 // Read-only star display (Slice 8c) — filled/empty stars for the expand-row.
 fn stars_display(n: Int) -> Str {
     let out = ""
@@ -508,186 +292,6 @@ fn stars_display(n: Int) -> Str {
     return out
 }
 
-fn form_html(edit_id: Int, deptos: List<Departamento>, paises: List<Pais>, provincias: List<Provincia>, ciudades: List<Ciudad>, permisos: List<Permiso>, skills: List<Skill>, colegas: List<Empleado>, f_nombre: Str, f_email: Str, f_cargo: Str, f_depto: Int, f_pais: Int, f_provincia: Int, f_ciudad: Int, f_reporta: Int, f_fecha: Str, f_notas: Str, f_nivel: Int, f_permisos: Str, f_skills: Str, f_activo: Bool, f_tab: Str, error: Str, locale: Str) -> Html {
-    let title = match edit_id == 0 {
-        true => t(locale, "form.title.new"),
-        false => t(locale, "form.title.edit"),
-    }
-    let opts = depto_options(deptos, f_depto, locale)
-    let reporta_opts = reporta_options(colegas, deptos, edit_id, f_reporta, locale)
-    let pais_opts = pais_options(paises, f_pais)
-    let prov_opts = provincia_options(provincias, f_provincia)
-    let ciu_opts = ciudad_options(ciudades, f_ciudad)
-    let perm_html = permisos_html(permisos, f_permisos)
-    let skills_h = skills_html(skills, f_skills)
-    // Estado as a radio group (Slice 8).
-    let est_a = match f_activo {
-        true => " checked",
-        false => "",
-    }
-    let est_i = match f_activo {
-        true => "",
-        false => " checked",
-    }
-    let rating = rating_input(f_nivel)
-    let banner = match error == "" {
-        true => "",
-        false => """<div class="form-error">{flv(error)}</div>""",
-    }
-    // Nav — alta is a guided Stepper (onboarding); edición uses free Tabs.
-    let is_stepper = edit_id == 0
-    let tabs = tab_btn(t(locale, "form.tab.datos"), "datos", f_tab) + tab_btn(t(locale, "form.tab.org"), "org", f_tab) + tab_btn(t(locale, "form.tab.accesos"), "accesos", f_tab)
-    let header_nav = match is_stepper {
-        true => stepper_bar(f_tab, locale),
-        false => """<div class="tab-nav">{tabs}</div>""",
-    }
-    let p_datos = tab_panel_cls("datos", f_tab)
-    let p_org = tab_panel_cls("org", f_tab)
-    let p_accesos = tab_panel_cls("accesos", f_tab)
-    // Stepper nav buttons (contextual): Back / Next / Finalizar.
-    let prev_val = match f_tab {
-        "org" => "datos",
-        "accesos" => "org",
-        _ => "",
-    }
-    let next_val = match f_tab {
-        "datos" => "org",
-        "org" => "accesos",
-        _ => "",
-    }
-    let lbl_back = t(locale, "form.back")
-    let lbl_next = t(locale, "form.next")
-    let lbl_finish = t(locale, "form.finish")
-    let lbl_save = t(locale, "form.save")
-    let back_btn = match prev_val == "" {
-        true => "",
-        false => """<button type="button" class="btn-clear" data-flv-form data-flv-click="form_tab" data-flv-value-tab="{prev_val}">{lbl_back}</button>""",
-    }
-    let next_btn = match next_val == "" {
-        true => "",
-        false => """<button type="button" class="btn-primary" data-flv-form data-flv-click="form_tab" data-flv-value-tab="{next_val}">{lbl_next}</button>""",
-    }
-    let save_last = match f_tab == "accesos" {
-        true => """<button class="btn-primary" type="submit">{lbl_finish}</button>""",
-        false => "",
-    }
-    let cancel_btn = """<button class="btn-clear" type="button" data-flv-click="cancel_form">{t(locale, "form.cancel")}</button>"""
-    let footer_nav = match is_stepper {
-        true => """<div class="form-actions">{cancel_btn}{back_btn}{next_btn}{save_last}</div>""",
-        false => """<div class="form-actions"><button class="btn-primary" type="submit">{lbl_save}</button>{cancel_btn}</div>""",
-    }
-    let f_sub = t(locale, "form.subtitle")
-    let l_nombre = t(locale, "form.nombre")
-    let ph_nombre = t(locale, "form.nombre.ph")
-    let l_email = t(locale, "form.email")
-    let l_cargo = t(locale, "form.cargo")
-    let ph_cargo = t(locale, "form.cargo.ph")
-    let l_fecha = t(locale, "form.fecha")
-    let l_estado = t(locale, "form.estado")
-    let l_activo = t(locale, "badge.active")
-    let l_inactivo = t(locale, "badge.inactive")
-    let l_desemp = t(locale, "form.desempeno")
-    let l_notas = t(locale, "form.notas")
-    let ph_notas = t(locale, "form.notas.ph")
-    let l_depto = t(locale, "form.depto")
-    let l_reporta = t(locale, "form.reporta")
-    let l_pais = t(locale, "form.pais")
-    let l_prov = t(locale, "form.provincia")
-    let l_ciudad = t(locale, "form.ciudad")
-    let l_permisos = t(locale, "form.permisos")
-    let l_skills = t(locale, "form.skills")
-    return html("""<div id="empleados-live" class="grid-wrap">
-      <div class="page-head">
-        <h2>{flv(title)}</h2>
-        <p>{flv(f_sub)}</p>
-      </div>
-      <div class="grid-card form-card">
-        {banner}
-        <form class="abm-form" data-flv-submit="save_empleado">
-          <input type="hidden" name="id" value="{edit_id}" />
-          {header_nav}
-
-          <div class="{p_datos}">
-            <div class="form-row">
-              <label>{flv(l_nombre)}</label>
-              <input name="nombre" value="{flv(f_nombre)}" placeholder="{flv(ph_nombre)}" autocomplete="off" />
-            </div>
-            <div class="form-row">
-              <label>{flv(l_email)}</label>
-              <input name="email" type="email" value="{flv(f_email)}" placeholder="persona@empresa.com" autocomplete="off" />
-            </div>
-            <div class="form-grid-2">
-              <div class="form-row">
-                <label>{flv(l_cargo)}</label>
-                <input name="cargo" value="{flv(f_cargo)}" placeholder="{flv(ph_cargo)}" autocomplete="off" />
-              </div>
-              <div class="form-row">
-                <label>{flv(l_fecha)}</label>
-                <input name="fecha_ingreso" type="date" value="{flv(f_fecha)}" />
-              </div>
-            </div>
-            <div class="form-grid-2">
-              <div class="form-row">
-                <label>{flv(l_estado)}</label>
-                <div class="radio-group">
-                  <label class="radio"><input type="radio" name="activo" value="true"{est_a} /> {flv(l_activo)}</label>
-                  <label class="radio"><input type="radio" name="activo" value="false"{est_i} /> {flv(l_inactivo)}</label>
-                </div>
-              </div>
-              <div class="form-row">
-                <label>{flv(l_desemp)}</label>
-                <div class="rating">{rating}</div>
-              </div>
-            </div>
-            <div class="form-row">
-              <label>{flv(l_notas)}</label>
-              <textarea name="notas" rows="3" placeholder="{flv(ph_notas)}">{flv(f_notas)}</textarea>
-            </div>
-          </div>
-
-          <div class="{p_org}">
-            <div class="form-grid-2">
-              <div class="form-row">
-                <label>{flv(l_depto)}</label>
-                <select name="departamento_id">{opts}</select>
-              </div>
-              <div class="form-row">
-                <label>{flv(l_reporta)}</label>
-                <select name="reporta_a">{reporta_opts}</select>
-              </div>
-            </div>
-            <div class="form-grid-3">
-              <div class="form-row">
-                <label>{flv(l_pais)}</label>
-                <select name="pais_id" data-flv-change="cascade_pais">{pais_opts}</select>
-              </div>
-              <div class="form-row">
-                <label>{flv(l_prov)}</label>
-                <select name="provincia_id" data-flv-change="cascade_provincia">{prov_opts}</select>
-              </div>
-              <div class="form-row">
-                <label>{flv(l_ciudad)}</label>
-                <select name="ciudad_id" data-flv-change="cascade_ciudad">{ciu_opts}</select>
-              </div>
-            </div>
-          </div>
-
-          <div class="{p_accesos}">
-            <div class="form-row">
-              <label>{flv(l_permisos)}</label>
-              <div class="perm-groups">{perm_html}</div>
-            </div>
-            <div class="form-row">
-              <label>{flv(l_skills)}</label>
-              <div class="skill-list">{skills_h}</div>
-            </div>
-          </div>
-
-          {footer_nav}
-        </form>
-      </div>
-    </div>""")
-}
 
 // One group section (Slice 6) — a header row (expand/collapse toggle + label +
 // count) spanning the table, followed by the member rows when expanded.
@@ -700,7 +304,7 @@ fn group_section(key: Str, label: Str, members: List<Empleado>, collapsed: Str, 
     }
     let head = """<tr class="grp-row"><td colspan="9" class="grp-cell"><button class="grp-toggle" data-flv-click="toggle_group" data-flv-value-key="{key}"><span class="tree-arrow">{arrow}</span> <strong>{flv(label)}</strong> <span class="grp-count">{n}</span></button></td></tr>"""
     let rows = match open {
-        true => h_join(members.map(fn(e) => grid_row(e, deptos, sel, expanded, locale))),
+        true => h_join(members.map(fn(e) => empleado_row_render(empleado_row { id: e.id, nombre: e.nombre, email: e.email, cargo: e.cargo, depto: depto_name(deptos, e.departamento_id), activo: e.activo, checked: id_checked(sel, e.id), expanded: id_checked(expanded, e.id), locale: locale }))),
         false => "",
     }
     return head + rows
@@ -1053,7 +657,7 @@ async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, so
     } else {
         if (group_by == "") {
             for e in rows {
-                body_str = body_str + grid_row(e, deptos, sel, expanded, locale).raw
+                body_str = body_str + empleado_row_render(empleado_row { id: e.id, nombre: e.nombre, email: e.email, cargo: e.cargo, depto: depto_name(deptos, e.departamento_id), activo: e.activo, checked: id_checked(sel, e.id), expanded: id_checked(expanded, e.id), locale: locale }).raw
                 if (id_checked(expanded, e.id)) {
                     body_str = body_str + row_detail(e, deptos, locale).await
                 }
@@ -1110,7 +714,7 @@ async fn form_screen(edit_id: Int, f_nombre: Str, f_email: Str, f_cargo: Str, f_
         Ok(ss) => ss,
         Err(e) => return grid_error(e, locale),
     }
-    return form_html(edit_id, deptos, paises, provincias, ciudades, permisos, skills, colegas, f_nombre, f_email, f_cargo, f_depto, f_pais, f_provincia, f_ciudad, f_reporta, f_fecha, f_notas, f_nivel, f_permisos, f_skills, f_activo, f_tab, error, locale)
+    return empleado_form_render(empleado_form { edit_id: edit_id, deptos: deptos, paises: paises, provincias: provincias, ciudades: ciudades, permisos: permisos, skills: skills, colegas: colegas, f_nombre: f_nombre, f_email: f_email, f_cargo: f_cargo, f_depto: f_depto, f_pais: f_pais, f_provincia: f_provincia, f_ciudad: f_ciudad, f_reporta: f_reporta, f_fecha: f_fecha, f_notas: f_notas, f_nivel: f_nivel, f_permisos: f_permisos, f_skills: f_skills, f_activo: f_activo, f_tab: f_tab, error: error, locale: locale })
 }
 
 // The tree screen (Slice 4e) — the ubicaciones hierarchy as an expandable

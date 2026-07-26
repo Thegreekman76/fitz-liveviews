@@ -13,19 +13,24 @@ presentacional/controlado, siguiendo los patrones ya endurecidos con
 ConfirmDialog (per-connection), Toast (per-connection, transitorio) y Pager
 (presentacional/controlado + `<style scoped>`).
 
-## Estado (2026-07-25)
+## Estado (2026-07-26)
 
 | Rebanada | Componente | Estado | Validación |
 |---|---|---|---|
 | 1. Toolbar/search | `GridToolbar.fitzv` | ✅ hecho | run == binario bit-a-bit (16→19 frames) |
 | 2. Filtros (deptos + group-by) | `GridFilters.fitzv` | ✅ hecho | run == binario bit-a-bit (19 frames) |
-| 3. Grilla+filas (`grid_row`) | `EmpleadoRow.fitzv` | ⏳ pendiente | plan abajo |
-| 4. Form (`form_html`) | `EmpleadoForm.fitzv` | ⏳ pendiente | plan abajo |
+| 3. Grilla+filas (`grid_row`) | `EmpleadoRow.fitzv` | ✅ hecho | run == binario bit-a-bit (30 frames) |
+| 4. Form (`form_html`) | `EmpleadoForm.fitzv` | ✅ hecho | run == binario, idéntico módulo line-endings (30 frames) |
 
-Después del refactor: C6 del curso "Ship it" + playground (seed = `examples/gallery`).
+**El refactor cerró.** El monolito quedó descompuesto en los 4 pedazos naturales,
+todos como `.fitzv` presentacional/controlado, compilando a binario nativo con
+paridad ante `fitz run`. Próximo: C6 del curso "Ship it" + playground
+(seed = `examples/gallery`).
 
-**`fitz check` verde. `git status`:** `M empleados.fitz`, `?? GridToolbar.fitzv`,
-`?? GridFilters.fitzv`, `?? dev/grid_smoke.py`, `?? REFACTOR-NOTES.md`.
+**`fitz build` verde. `git status`:** `M empleados.fitz`, `M dev/grid_smoke.py`,
+`?? EmpleadoRow.fitzv`, `?? EmpleadoForm.fitzv`, `?? row_helpers.fitz`,
+`?? form_helpers.fitz` (+ `GridToolbar/GridFilters.fitzv` de las rebanadas
+1-2 ya commiteadas).
 
 ---
 
@@ -96,6 +101,15 @@ Componente **presentacional/controlado** (modelo Pager, NO per-connection):
    `href="{export_href}"`, `data-tooltip="{tip_edit(locale)}"`, mixed
    `href="/x?q={url_enc(q)}&estado={estado}"` — todo OK (v0.28.7 mixed attr).
 
+9. **Un módulo de helpers que usa `h_join(xs.map(fn(x) => html(...)))` DEBE
+   importar `Html`** (`from fitz_liveviews import Html, flv, html, h_join`). Sin
+   `Html` en el import, la firma cross-module de `h_join` degrada a `Any` y el
+   closure de `.map` se emite devolviendo `__FitzValue` en vez de `Html` → 10×
+   `error[E0308]: expected __FitzValue, found Arc<Mutex<HtmlData>>` en `fitz
+   build`. Es el gotcha W27/v0.28.6 (el entry file / cualquier módulo que roce
+   SFCs necesita `Html` importado). Pegó al mover los option-builders a
+   `form_helpers.fitz` (`empleados.fitz` ya lo importaba, por eso ahí no salía).
+
 Mapa completo del DSL: `d:\fitz\src\view\{expand,check,codegen_ssr,parser,lexer}.rs`.
 
 ---
@@ -131,7 +145,13 @@ Barra de deptos (`{#for d in deptos}` sobre `List<Departamento>`) + barra
 
 ---
 
-## Rebanada 3 — `EmpleadoRow.fitzv` (PENDIENTE — plan cerrado)
+## Rebanada 3 — `EmpleadoRow.fitzv` (✅ HECHO — implementado según este plan)
+
+> El `{#if}` inline (chevron/checkbox/badge) compila y valida run↔binario sin
+> whitespace feo — el riesgo del plan quedó descartado. `row_helpers.fitz` +
+> `EmpleadoRow.fitzv` creados, los 2 call sites cableados, `grid_row` +
+> `estado_badge` borrados. Plan original abajo como referencia.
+
 
 **Decisión (elección del autor: "arquitectónicamente lo mejor + escalable"):**
 SFC declarativo para la estructura del `<tr>`, con helpers puros en un módulo
@@ -228,7 +248,20 @@ component empleado_row {
 
 ---
 
-## Rebanada 4 — `EmpleadoForm.fitzv` (PENDIENTE — el gigante)
+## Rebanada 4 — `EmpleadoForm.fitzv` (✅ HECHO — thin-shell, según este plan)
+
+> Se fue por el thin-shell. `form_helpers.fitz` recibió los option-builders +
+> permisos/skills + tabs/stepper/rating + 3 helpers nuevos de cáscara
+> (`form_banner` / `form_header_nav` / `form_footer_nav`) + `panel_cls_*` +
+> `ph_*` (placeholders i18n). `id_checked` se duplicó ahí (copia; sigue en
+> `empleados.fitz`). El SFC tiene 25 props (18 escalares + 7 `List<Nominal>`,
+> defaults literales `[]`); los inputs de texto son inline, los radios de estado
+> usan `{#if}`, todo lo demás interpola helpers crudos. Gotcha nuevo que pegó al
+> compilar: faltaba `import Html` en `form_helpers.fitz` (gotcha #9 arriba).
+> El smoke NO ejercita un save *válido* (insertaría/actualizaría la DB y rompería
+> el diff entre corridas independientes); el happy-path del save lo valida el
+> autor en el browser. Plan original abajo como referencia.
+
 
 `form_html(...)` (~180 líneas) + `form_screen(...)` (fetch async de opciones).
 Es el más difícil: la estructura tiene tabs/stepper/cascadas `data-flv-change`, y
@@ -299,10 +332,27 @@ sed "s/$UUID/CID/g" binario_frames.txt > b.txt
 diff a.txt b.txt   # esperado: vacío (== bit-a-bit salvo cid random)
 ```
 
-El único diff legítimo entre run y binario son los `instance_id` UUID
-per-connection (`let cid = Uuid.v4()`), que son aleatorios por conexión. Por eso
-se normalizan antes de diffear. **El chequeo visual del CSS lo hace el autor**
-(el smoke headless no renderiza estilos).
+Los diffs legítimos entre run y binario son dos, ambos cosméticos:
+
+1. Los `instance_id` UUID per-connection (`let cid = Uuid.v4()`), aleatorios por
+   conexión → se normalizan con el `sed` de arriba.
+2. **La ubicación de los `\r` (CRLF) en líneas de whitespace de los literales /
+   templates multi-línea** — artefacto preexistente conocido (v0.28.5: "HTML
+   idéntico módulo line-endings"). El intérprete y el codegen intercalan los `\r`
+   distinto en el whitespace de indentación; el contenido HTML (tags, atributos,
+   texto) es idéntico y el navegador colapsa ese whitespace. Aparece desde que el
+   grid incluye un `.fitzv` con `<template>` multi-línea (EmpleadoForm); el grid
+   de una-línea-por-celda de EmpleadoRow no lo disparaba. **Normalizarlo con
+   `tr -d '\r'` en ambos lados antes de diffear** (el diff queda vacío):
+
+   ```bash
+   sed "s/$UUID/CID/g" run_frames.txt | tr -d '\r' > a.txt
+   sed "s/$UUID/CID/g" binario_frames.txt | tr -d '\r' > b.txt
+   diff a.txt b.txt   # esperado: vacío
+   ```
+
+**El chequeo visual del CSS lo hace el autor** (el smoke headless no renderiza
+estilos).
 
 ## Entorno
 

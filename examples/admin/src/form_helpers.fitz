@@ -1,0 +1,249 @@
+// form_helpers.fitz — pure HTML helpers for EmpleadoForm.fitzv.
+//
+// Separate module to break the cycle (empleados.fitz imports EmpleadoForm, which
+// imports these helpers). The SFC is a thin declarative SHELL (form / panels /
+// selects / footer); everything the DSL can't express inline lives here as a
+// helper that returns raw HTML, interpolated crudely (gotcha #2 — interpolation
+// doesn't auto-escape, so a helper returning HTML emits it verbatim).
+//
+// Moved verbatim from empleados.fitz (option builders, permisos/skills, stepper
+// bits) plus new shell helpers (banner / header-nav / footer-nav / panel classes
+// / placeholders). `id_checked` is duplicated here (it's also used all over
+// empleados.fitz; a copy avoids the import cycle — the plan authorizes it).
+
+from models import Departamento, Pais, Provincia, Ciudad, Permiso, Skill, Empleado
+from i18n import t
+from fitz_liveviews import Html, flv, html, h_join
+
+// --- set membership (copy of empleados.fitz's; see module header) ------------
+fn id_checked(csv: Str, id: Int) -> Bool {
+    let hay = "," + csv + ","
+    let needle = ",{id},"
+    return hay.contains(needle)
+}
+
+// --- <option> builders -------------------------------------------------------
+
+// `<option>` tags for the departamento select, current value marked `selected`.
+fn depto_options(deptos: List<Departamento>, selected_id: Int, locale: Str) -> Str {
+    let none = t(locale, "form.depto.none")
+    let head = match selected_id == 0 {
+        true => """<option value="0" selected>{none}</option>""",
+        false => """<option value="0">{none}</option>""",
+    }
+    let opts = h_join(deptos.map(fn(d) => html(match d.id == selected_id {
+        true => """<option value="{d.id}" selected>{flv(d.nombre)}</option>""",
+        false => """<option value="{d.id}">{flv(d.nombre)}</option>""",
+    })))
+    return head + opts
+}
+
+// A single `<option>` with `selected` when it matches.
+fn option_tag(id: Int, label: Str, selected: Int) -> Str {
+    return match id == selected {
+        true => """<option value="{id}" selected>{flv(label)}</option>""",
+        false => """<option value="{id}">{flv(label)}</option>""",
+    }
+}
+
+fn pais_options(items: List<Pais>, selected: Int) -> Str {
+    return """<option value="0">— País —</option>""" + h_join(items.map(fn(p) => html(option_tag(p.id, p.nombre, selected))))
+}
+
+fn provincia_options(items: List<Provincia>, selected: Int) -> Str {
+    return """<option value="0">— Provincia —</option>""" + h_join(items.map(fn(p) => html(option_tag(p.id, p.nombre, selected))))
+}
+
+fn ciudad_options(items: List<Ciudad>, selected: Int) -> Str {
+    return """<option value="0">— Ciudad —</option>""" + h_join(items.map(fn(c) => html(option_tag(c.id, c.nombre, selected))))
+}
+
+// GroupSelect (Slice 8) — a <select> with <optgroup>s: colleagues grouped by
+// department, for the "reporta a" field. `self_id` (the row being edited) is
+// excluded so an employee can't report to itself.
+fn reporta_options(colegas: List<Empleado>, deptos: List<Departamento>, self_id: Int, selected: Int, locale: Str) -> Str {
+    let none = t(locale, "form.reporta.none")
+    let head = match selected == 0 {
+        true => """<option value="0" selected>{none}</option>""",
+        false => """<option value="0">{none}</option>""",
+    }
+    let groups = ""
+    for d in deptos {
+        let members = colegas.filter(fn(e) => e.departamento_id == d.id and e.id != self_id)
+        if (members.len() > 0) {
+            let opts = ""
+            for e in members {
+                opts = opts + match e.id == selected {
+                    true => """<option value="{e.id}" selected>{flv(e.nombre)}</option>""",
+                    false => """<option value="{e.id}">{flv(e.nombre)}</option>""",
+                }
+            }
+            groups = groups + """<optgroup label="{flv(d.nombre)}">{opts}</optgroup>"""
+        }
+    }
+    return head + groups
+}
+
+// --- permisos + skills -------------------------------------------------------
+
+// Permisos as a fieldset per module (list ordered by `modulo`), one checkbox
+// per permiso, pre-checked from `checked_csv`. All share `name="permisos"`.
+fn permisos_html(permisos: List<Permiso>, checked_csv: Str) -> Str {
+    let out = ""
+    let cur_mod = ""
+    for p in permisos {
+        if (p.modulo != cur_mod) {
+            if (cur_mod != "") {
+                out = out + "</div></fieldset>"
+            }
+            out = out + """<fieldset class="perm-group"><legend>{flv(p.modulo)}</legend><div class="perm-checks">"""
+            cur_mod = p.modulo
+        }
+        let checked = match id_checked(checked_csv, p.id) {
+            true => "checked",
+            false => "",
+        }
+        out = out + """<label class="perm-check"><input type="checkbox" name="permisos" value="{p.id}" {checked} /> {flv(p.nombre)}</label>"""
+    }
+    if (cur_mod != "") {
+        out = out + "</div></fieldset>"
+    }
+    return out
+}
+
+// Multiselect (Slice 4d) — a flat checkbox list; all share `name="skills"`.
+fn skills_html(skills: List<Skill>, checked_csv: Str) -> Str {
+    return h_join(skills.map(fn(s) => html(match id_checked(checked_csv, s.id) {
+        true => """<label class="skill-check skill-on"><input type="checkbox" name="skills" value="{s.id}" checked /> {flv(s.nombre)}</label>""",
+        false => """<label class="skill-check"><input type="checkbox" name="skills" value="{s.id}" /> {flv(s.nombre)}</label>""",
+    })))
+}
+
+// --- tabs / stepper / rating -------------------------------------------------
+
+// One form tab button (Slice 8). Opts into form serialization (`data-flv-form`).
+fn tab_btn(label: Str, val: Str, f_tab: Str) -> Str {
+    let cls = match val == f_tab {
+        true => "tab-btn tab-on",
+        false => "tab-btn",
+    }
+    return """<button type="button" class="{cls}" data-flv-form data-flv-click="form_tab" data-flv-value-tab="{val}">{flv(label)}</button>"""
+}
+
+// CSS class for a tab panel — only the active one shows, but ALL panels stay in
+// the DOM so the form serializes every field on save regardless of tab.
+fn tab_panel_cls(val: Str, f_tab: Str) -> Str {
+    return match val == f_tab {
+        true => "tab-panel tab-active",
+        false => "tab-panel",
+    }
+}
+
+fn step_order(val: Str) -> Int {
+    return match val {
+        "datos" => 1,
+        "org" => 2,
+        "accesos" => 3,
+        _ => 1,
+    }
+}
+
+fn step_dot(num: Str, label: Str, val: Str, f_tab: Str) -> Str {
+    let ov = step_order(val)
+    let cur = step_order(f_tab)
+    let cls = match ov < cur {
+        true => "step step-done",
+        false => match ov == cur {
+            true => "step step-active",
+            false => "step",
+        },
+    }
+    return """<div class="{cls}"><span class="step-num">{num}</span><span class="step-label">{flv(label)}</span></div>"""
+}
+
+fn stepper_bar(f_tab: Str, locale: Str) -> Str {
+    let s1 = step_dot("1", t(locale, "form.tab.datos"), "datos", f_tab)
+    let s2 = step_dot("2", t(locale, "form.tab.org"), "org", f_tab)
+    let s3 = step_dot("3", t(locale, "form.tab.accesos"), "accesos", f_tab)
+    return """<div class="stepper">{s1}<div class="step-line"></div>{s2}<div class="step-line"></div>{s3}</div>"""
+}
+
+// Rating (Slice 8c) — a 0-5 star input via radios (no JS), emitted 5→1 so the
+// `row-reverse` + `input:checked ~ label` CSS fills the chosen star + its left.
+fn rating_input(selected: Int) -> Str {
+    let out = ""
+    for n in 1..6 {
+        let val = 6 - n
+        let checked = match val == selected {
+            true => " checked",
+            false => "",
+        }
+        out = out + """<input type="radio" id="nivel-{val}" name="nivel" value="{val}"{checked} /><label for="nivel-{val}" data-tooltip="{val}">★</label>"""
+    }
+    return out
+}
+
+// --- shell fragments (banner / navs / panel classes / placeholders) ----------
+//
+// The form_html body's dynamic bits, moved out so the SFC template stays
+// declarative. Same logic as the old form_html; the SFC interpolates these raw.
+
+// Validation/DB banner ("" when no error).
+fn form_banner(error: Str) -> Str {
+    return match error == "" {
+        true => "",
+        false => """<div class="form-error">{flv(error)}</div>""",
+    }
+}
+
+// Header nav — alta (edit_id == 0) is a guided Stepper; edición uses free Tabs.
+fn form_header_nav(edit_id: Int, f_tab: Str, locale: Str) -> Str {
+    let tabs = tab_btn(t(locale, "form.tab.datos"), "datos", f_tab) + tab_btn(t(locale, "form.tab.org"), "org", f_tab) + tab_btn(t(locale, "form.tab.accesos"), "accesos", f_tab)
+    return match edit_id == 0 {
+        true => stepper_bar(f_tab, locale),
+        false => """<div class="tab-nav">{tabs}</div>""",
+    }
+}
+
+// Footer nav — stepper (contextual Back / Next / Finalizar) vs tabs (Save).
+fn form_footer_nav(edit_id: Int, f_tab: Str, locale: Str) -> Str {
+    let prev_val = match f_tab {
+        "org" => "datos",
+        "accesos" => "org",
+        _ => "",
+    }
+    let next_val = match f_tab {
+        "datos" => "org",
+        "org" => "accesos",
+        _ => "",
+    }
+    let back_btn = match prev_val == "" {
+        true => "",
+        false => """<button type="button" class="btn-clear" data-flv-form data-flv-click="form_tab" data-flv-value-tab="{prev_val}">{t(locale, "form.back")}</button>""",
+    }
+    let next_btn = match next_val == "" {
+        true => "",
+        false => """<button type="button" class="btn-primary" data-flv-form data-flv-click="form_tab" data-flv-value-tab="{next_val}">{t(locale, "form.next")}</button>""",
+    }
+    let save_last = match f_tab == "accesos" {
+        true => """<button class="btn-primary" type="submit">{t(locale, "form.finish")}</button>""",
+        false => "",
+    }
+    let cancel_btn = """<button class="btn-clear" type="button" data-flv-click="cancel_form">{t(locale, "form.cancel")}</button>"""
+    return match edit_id == 0 {
+        true => """<div class="form-actions">{cancel_btn}{back_btn}{next_btn}{save_last}</div>""",
+        false => """<div class="form-actions"><button class="btn-primary" type="submit">{t(locale, "form.save")}</button>{cancel_btn}</div>""",
+    }
+}
+
+// Panel classes (string-key literal in an attribute → nested-quotes gotcha #1;
+// one helper per panel keeps the string arg out of the template).
+fn panel_cls_datos(f_tab: Str) -> Str => tab_panel_cls("datos", f_tab)
+fn panel_cls_org(f_tab: Str) -> Str => tab_panel_cls("org", f_tab)
+fn panel_cls_accesos(f_tab: Str) -> Str => tab_panel_cls("accesos", f_tab)
+
+// Placeholders with i18n (escaped, matching the old `placeholder="{flv(ph)}"`;
+// the `t(...)` string-key can't sit inside an attribute — gotcha #1).
+fn ph_nombre(locale: Str) -> Str => flv(t(locale, "form.nombre.ph"))
+fn ph_cargo(locale: Str) -> Str => flv(t(locale, "form.cargo.ph"))
+fn ph_notas(locale: Str) -> Str => flv(t(locale, "form.notas.ph"))

@@ -1,0 +1,153 @@
+// EmpleadoForm.fitzv — the create/edit employee form, as a presentational
+// (controlled) LiveComponent. Fourth (and last) slice of the Admin ABM refactor.
+//
+// Like the other extracted pieces this is CONTROLLED / presentational: every
+// prop is the form's per-connection state, owned by the parent's `@ws` loop
+// (`form_screen` renders it fresh each frame). It declares NO event handlers, so
+// `save_empleado` / `form_tab` / `cancel_form` / `cascade_*` all fall through to
+// the parent's loop (same fall-through contract as Pager/GridFilters/EmpleadoRow).
+//
+// Enfoque thin-shell: the template is the stable STRUCTURE (page-head, form, the
+// 3 panels, selects, footer). The variable CONTENT — the `<option>` lists,
+// permisos/skills, stepper/tabs nav, banner — comes from `form_helpers.fitz`,
+// interpolated raw (gotcha #2). The text inputs are inline: `value="{flv(f_x)}"`
+// is fine in an attribute (a fn call with no nested string literal, gotcha #8);
+// placeholders and panel classes carry an i18n string-key that can't sit in an
+// attribute (gotcha #1), so they go through per-key helpers (ph_* / panel_cls_*).
+// The estado radios' `checked` uses inline `{#if}` (gotcha #6 forbids a bare
+// `{...}` in attribute position).
+//
+// ALL 3 panels stay in the DOM (only the active one is shown, via CSS) so the
+// form serializes every field on save regardless of the active tab.
+//
+// CSS stays GLOBAL (shell.fitz): `.abm-form` / `.form-row` / `.tab-panel` / … are
+// shared, so no `<style scoped>`.
+
+from form_helpers import form_banner, form_header_nav, form_footer_nav, panel_cls_datos, panel_cls_org, panel_cls_accesos, ph_nombre, ph_cargo, ph_notas, depto_options, reporta_options, pais_options, provincia_options, ciudad_options, permisos_html, skills_html, rating_input
+from models import Departamento, Pais, Provincia, Ciudad, Permiso, Skill, Empleado
+from i18n import t
+from fitz_liveviews import flv
+
+component empleado_form {
+  state {
+    edit_id: Int = 0
+    deptos: List<Departamento> = []
+    paises: List<Pais> = []
+    provincias: List<Provincia> = []
+    ciudades: List<Ciudad> = []
+    permisos: List<Permiso> = []
+    skills: List<Skill> = []
+    colegas: List<Empleado> = []
+    f_nombre: Str = ""
+    f_email: Str = ""
+    f_cargo: Str = ""
+    f_depto: Int = 0
+    f_pais: Int = 0
+    f_provincia: Int = 0
+    f_ciudad: Int = 0
+    f_reporta: Int = 0
+    f_fecha: Str = ""
+    f_notas: Str = ""
+    f_nivel: Int = 0
+    f_permisos: Str = ""
+    f_skills: Str = ""
+    f_activo: Bool = true
+    f_tab: Str = "datos"
+    error: Str = ""
+    locale: Str = "es"
+  }
+
+  <template>
+    <div id="empleados-live" class="grid-wrap">
+      <div class="page-head">
+        <h2>{#if edit_id == 0}{flv(t(locale, "form.title.new"))}{#else}{flv(t(locale, "form.title.edit"))}{/if}</h2>
+        <p>{flv(t(locale, "form.subtitle"))}</p>
+      </div>
+      <div class="grid-card form-card">
+        {form_banner(error)}
+        <form class="abm-form" data-flv-submit="save_empleado">
+          <input type="hidden" name="id" value="{edit_id}" />
+          {form_header_nav(edit_id, f_tab, locale)}
+
+          <div class="{panel_cls_datos(f_tab)}">
+            <div class="form-row">
+              <label>{flv(t(locale, "form.nombre"))}</label>
+              <input name="nombre" value="{flv(f_nombre)}" placeholder="{ph_nombre(locale)}" autocomplete="off" />
+            </div>
+            <div class="form-row">
+              <label>{flv(t(locale, "form.email"))}</label>
+              <input name="email" type="email" value="{flv(f_email)}" placeholder="persona@empresa.com" autocomplete="off" />
+            </div>
+            <div class="form-grid-2">
+              <div class="form-row">
+                <label>{flv(t(locale, "form.cargo"))}</label>
+                <input name="cargo" value="{flv(f_cargo)}" placeholder="{ph_cargo(locale)}" autocomplete="off" />
+              </div>
+              <div class="form-row">
+                <label>{flv(t(locale, "form.fecha"))}</label>
+                <input name="fecha_ingreso" type="date" value="{flv(f_fecha)}" />
+              </div>
+            </div>
+            <div class="form-grid-2">
+              <div class="form-row">
+                <label>{flv(t(locale, "form.estado"))}</label>
+                <div class="radio-group">
+                  <label class="radio">{#if f_activo}<input type="radio" name="activo" value="true" checked />{#else}<input type="radio" name="activo" value="true" />{/if} {flv(t(locale, "badge.active"))}</label>
+                  <label class="radio">{#if f_activo}<input type="radio" name="activo" value="false" />{#else}<input type="radio" name="activo" value="false" checked />{/if} {flv(t(locale, "badge.inactive"))}</label>
+                </div>
+              </div>
+              <div class="form-row">
+                <label>{flv(t(locale, "form.desempeno"))}</label>
+                <div class="rating">{rating_input(f_nivel)}</div>
+              </div>
+            </div>
+            <div class="form-row">
+              <label>{flv(t(locale, "form.notas"))}</label>
+              <textarea name="notas" rows="3" placeholder="{ph_notas(locale)}">{flv(f_notas)}</textarea>
+            </div>
+          </div>
+
+          <div class="{panel_cls_org(f_tab)}">
+            <div class="form-grid-2">
+              <div class="form-row">
+                <label>{flv(t(locale, "form.depto"))}</label>
+                <select name="departamento_id">{depto_options(deptos, f_depto, locale)}</select>
+              </div>
+              <div class="form-row">
+                <label>{flv(t(locale, "form.reporta"))}</label>
+                <select name="reporta_a">{reporta_options(colegas, deptos, edit_id, f_reporta, locale)}</select>
+              </div>
+            </div>
+            <div class="form-grid-3">
+              <div class="form-row">
+                <label>{flv(t(locale, "form.pais"))}</label>
+                <select name="pais_id" data-flv-change="cascade_pais">{pais_options(paises, f_pais)}</select>
+              </div>
+              <div class="form-row">
+                <label>{flv(t(locale, "form.provincia"))}</label>
+                <select name="provincia_id" data-flv-change="cascade_provincia">{provincia_options(provincias, f_provincia)}</select>
+              </div>
+              <div class="form-row">
+                <label>{flv(t(locale, "form.ciudad"))}</label>
+                <select name="ciudad_id" data-flv-change="cascade_ciudad">{ciudad_options(ciudades, f_ciudad)}</select>
+              </div>
+            </div>
+          </div>
+
+          <div class="{panel_cls_accesos(f_tab)}">
+            <div class="form-row">
+              <label>{flv(t(locale, "form.permisos"))}</label>
+              <div class="perm-groups">{permisos_html(permisos, f_permisos)}</div>
+            </div>
+            <div class="form-row">
+              <label>{flv(t(locale, "form.skills"))}</label>
+              <div class="skill-list">{skills_html(skills, f_skills)}</div>
+            </div>
+          </div>
+
+          {form_footer_nav(edit_id, f_tab, locale)}
+        </form>
+      </div>
+    </div>
+  </template>
+}

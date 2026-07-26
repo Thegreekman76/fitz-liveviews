@@ -1,0 +1,19 @@
+// Helpers puros para EmpleadoRow.fitzv. Módulo aparte para evitar el ciclo
+// (empleados.fitz importa EmpleadoRow). Envuelven lo que el DSL no expresa
+// inline: la clase de fila (match) y los tooltips (t() en atributo → comillas
+// anidadas rompen; el helper mueve la comilla adentro).
+from i18n import t
+
+fn row_class(checked: Bool, expanded: Bool) -> Str {
+    return match checked {
+        true => "row-selected",
+        false => match expanded {
+            true => "row-expanded",
+            false => "",
+        },
+    }
+}
+
+fn row_tip_detail(locale: Str) -> Str => t(locale, "grid.tip.detail")
+fn row_tip_edit(locale: Str) -> Str => t(locale, "grid.tip.edit")
+fn row_tip_delete(locale: Str) -> Str => t(locale, "grid.tip.delete")
