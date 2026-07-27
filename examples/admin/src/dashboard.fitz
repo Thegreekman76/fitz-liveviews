@@ -113,20 +113,6 @@ async fn render_dashboard(locale: Str) -> Result<Html> {
     </div>"""))
 }
 
-// Placeholder body for screens not built yet.
-fn placeholder_body(titulo: Str) -> Html {
-    return html("""<div class="page-head">
-      <h2>{flv(titulo)} <span class="badge-soon">Slice 2</span></h2>
-      <p>Pantalla en construcción.</p>
-    </div>
-    <div class="panel">
-      <h3>Próximamente</h3>
-      <p>Esta sección se implementa en el próximo slice del showcase. El shell,
-      la navegación, el tema y la sesión ya funcionan — es la misma estructura
-      que va a envolver la grilla y los formularios.</p>
-    </div>""")
-}
-
 // --- Routes ---------------------------------------------------------------
 
 @header(name="cookie")
@@ -145,15 +131,4 @@ async fn dashboard_page(cookie: Str?) -> Response {
 }
 
 // NOTE: `/empleados` moved to empleados.fitz in Slice 2 — it's now the live
-// DataGrid (WebSocket + real SQL pagination), no longer a placeholder.
-
-@header(name="cookie")
-@get("/departamentos")
-async fn departamentos_page(cookie: Str?) -> Response {
-    let user: User = match user_from_cookie(cookie).await {
-        Ok(u) => u,
-        Err(_) => return redirect_to("/login"),
-    }
-    let loc = locale_from_cookie(cookie)
-    return html_response(page_layout(t(loc, "nav.departamentos"), "departamentos", user.name, placeholder_body("Departamentos"), loc))
-}
+// DataGrid. `/departamentos` moved to departamentos.fitz — the live ABM.

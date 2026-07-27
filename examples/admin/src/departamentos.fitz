@@ -1,0 +1,395 @@
+// departamentos.fitz — the Departamentos ABM (completes the sidebar menu).
+//
+// The "Departamentos" nav item used to open a placeholder ("en construcción").
+// This is the real screen, following the same shape as the Empleados DataGrid
+// (empleados.fitz) but simpler: `Departamento` has three fields (id, nombre,
+// codigo) plus a computed "# empleados" per area.
+//
+// Same live architecture as Empleados: an SSR first paint on `GET /departamentos`
+// (embedded in the shell via `live_embed`) + a live layer over
+// `@ws("/live/departamentos")` that re-queries Postgres on every event and
+// diff-patches back to THIS socket only. All state (search, sort, form) is
+// per-connection in the `@ws` loop.
+//
+// It REUSES two LiveComponents per connection — the ConfirmDialog and the Toast
+// (both keyed by a per-socket uuid, `component_with(...)`) — exactly like
+// Empleados. That's the companion-library payoff: the same delete-confirm + toast
+// widgets serve a second screen with no changes.
+//
+// The dataset is small (a handful of areas), so search is filtered in memory;
+// the sort is real SQL (`.order_by(col, ascending:)`), same as Empleados.
+
+from config import db_url
+from models import Departamento, Empleado, User
+from session import user_from_cookie
+from shell import page_layout, redirect_to
+from i18n import t, pick, locale_from_cookie
+from fitz_liveviews import Html, html, flv, html_response, live_embed, LiveFrame, diff_html, component_with, dispatch_component_events, dispatch_to, component_state
+from ConfirmDialog import confirm_dialog, confirm_dialog_render, confirm_dialog_ask, confirm_dialog_cancel
+from Toast import toast, toast_render, toast_show, toast_dismiss
+
+// --- payload helpers (Map<Str, Str>) --------------------------------------
+
+fn pget(p: Map<Str, Str>, k: Str, dflt: Str) -> Str {
+    return match p.get(k) {
+        Ok(v) => v,
+        Err(_) => dflt,
+    }
+}
+
+fn pget_int(p: Map<Str, Str>, k: Str, dflt: Int) -> Int {
+    return match pget(p, k, "").to_int() {
+        Ok(n) => n,
+        Err(_) => dflt,
+    }
+}
+
+// --- small render helpers -------------------------------------------------
+
+// A sortable column header — clicking it sends `sort` with the column key; the
+// active column shows an ▲/▼ arrow.
+fn sort_th(label: Str, col: Str, cls: Str, sort_col: Str, sort_dir: Str) -> Str {
+    let arrow = match col == sort_col {
+        true => match sort_dir == "desc" {
+            true => " ▼",
+            false => " ▲",
+        },
+        false => "",
+    }
+    return """<th class="{cls} th-sort" data-flv-click="sort" data-flv-value-col="{col}">{flv(label)}{arrow}</th>"""
+}
+
+// Count the employees assigned to a department (linear over the preloaded list —
+// the demo has a handful of areas).
+fn emp_count(all_emp: List<Empleado>, depto_id: Int) -> Int {
+    return all_emp.filter(fn(e) => e.departamento_id == depto_id).len()
+}
+
+// Case-insensitive substring match of the search term against name + code.
+fn dep_matches(d: Departamento, q: Str) -> Bool {
+    if (q == "") {
+        return true
+    }
+    let needle = q.lower()
+    return d.nombre.lower().contains(needle) or d.codigo.lower().contains(needle)
+}
+
+// One grid row.
+fn dep_row(d: Departamento, n_emp: Int, locale: Str) -> Str {
+    return """<tr>
+      <td data-label="ID" class="col-id">{d.id}</td>
+      <td data-label="Nombre"><strong>{flv(d.nombre)}</strong></td>
+      <td data-label="Código"><span class="chip">{flv(d.codigo)}</span></td>
+      <td data-label="Empleados" class="col-num" data-tooltip="{n_emp} {t(locale, "dep.tip.empleados")}">{n_emp}</td>
+      <td data-label="Acciones" class="col-actions">
+        <button class="btn-icon" data-tooltip="{t(locale, "grid.tip.edit")}" data-flv-click="edit_departamento" data-flv-value-id="{d.id}">✎</button>
+        <button class="btn-icon btn-danger" data-tooltip="{t(locale, "grid.tip.delete")}" data-flv-click="ask_delete_one" data-flv-value-id="{d.id}">🗑</button>
+      </td>
+    </tr>"""
+}
+
+fn grid_error(e: Str, locale: Str) -> Html {
+    return html("""<div id="departamentos-live" class="grid-wrap">
+      <div class="grid-card"><div class="panel">
+        <h3>{flv(t(locale, "dash.db_error"))}</h3><p>{flv(e)}</p>
+      </div></div>
+    </div>""")
+}
+
+// --- grid render ----------------------------------------------------------
+
+fn render_grid(body: Html, total: Int, q: Str, sort_col: Str, sort_dir: Str, cid: Str, locale: Str) -> Html {
+    // Toolbar — search + "new" button. (A dedicated inline toolbar; GridToolbar
+    // is Empleados-specific with its estado pills + CSV export.)
+    let ph = t(locale, "dep.search.ph")
+    let toolbar = """<div class="grid-toolbar">
+      <form class="grid-search" data-flv-submit="search">
+        <input name="q" value="{flv(q)}" placeholder="{ph}" autocomplete="off" />
+        <button type="submit" class="btn-clear">{t(locale, "grid.search")}</button>
+      </form>
+      <div class="grid-actions">
+        <button class="btn-primary" data-flv-click="new_departamento">+ {t(locale, "dep.new")}</button>
+      </div>
+    </div>"""
+    // Reused per-connection LiveComponents (same instance id `cid` as Empleados).
+    let toast_c = component_with("toast", cid, toast { locale: locale })
+    let toast_html: Str = toast_c.raw
+    let dlg = component_with("confirm_dialog", cid, confirm_dialog { locale: locale })
+    let modal: Str = dlg.raw
+    // Sortable headers.
+    let th_id = sort_th("ID", "id", "col-id", sort_col, sort_dir)
+    let th_nombre = sort_th(t(locale, "dep.col.nombre"), "nombre", "", sort_col, sort_dir)
+    let th_codigo = sort_th(t(locale, "dep.col.codigo"), "codigo", "", sort_col, sort_dir)
+    let th_emp = t(locale, "dep.col.empleados")
+    let th_acc = t(locale, "dep.col.acciones")
+    let g_title = t(locale, "nav.departamentos")
+    let g_sub = t(locale, "dep.subtitle")
+    return html("""<div id="departamentos-live" class="grid-wrap">
+      <div class="page-head">
+        <h2>{flv(g_title)}</h2>
+        <p>{flv(g_sub)} · {total}</p>
+      </div>
+      {toolbar}
+      <div class="grid-card">
+        <div class="grid-scroll">
+          <table class="grid">
+            <thead>
+              <tr>
+                {th_id}
+                {th_nombre}
+                {th_codigo}
+                <th class="col-num">{flv(th_emp)}</th>
+                <th class="col-actions">{flv(th_acc)}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {body.raw}
+            </tbody>
+          </table>
+        </div>
+        <div class="grid-foot"><span class="grid-info">{total}</span></div>
+      </div>
+      {toast_html}
+      {modal}
+    </div>""")
+}
+
+// Query Postgres (sort in SQL, search filtered in memory), build the tbody, and
+// render the grid. Same shape as Empleados' grid_html but no pagination.
+async fn grid_html(q: Str, sort_col: Str, sort_dir: Str, cid: Str, locale: Str) -> Html {
+    let conn = match db.connect(db_url()).await {
+        Ok(c) => c,
+        Err(e) => return grid_error(e, locale),
+    }
+    let asc = sort_dir == "asc"
+    let ordered = match sort_col {
+        "nombre" => Departamento.where(fn(d) => d.id > 0).order_by(fn(d) => d.nombre, ascending: asc),
+        "codigo" => Departamento.where(fn(d) => d.id > 0).order_by(fn(d) => d.codigo, ascending: asc),
+        _ => Departamento.where(fn(d) => d.id > 0).order_by(fn(d) => d.id, ascending: asc),
+    }
+    let all_deptos: List<Departamento> = match ordered.all(conn).await {
+        Ok(ds) => ds,
+        Err(e) => return grid_error(e, locale),
+    }
+    let all_emp: List<Empleado> = match Empleado.where(fn(e) => e.id > 0).all(conn).await {
+        Ok(es) => es,
+        Err(e) => return grid_error(e, locale),
+    }
+    let rows = all_deptos.filter(fn(d) => dep_matches(d, q))
+    let body_str = ""
+    if (rows.len() == 0) {
+        let empty_msg = t(locale, "dep.empty")
+        body_str = """<tr><td colspan="5" class="grid-empty">{empty_msg}</td></tr>"""
+    } else {
+        for d in rows {
+            body_str = body_str + dep_row(d, emp_count(all_emp, d.id), locale)
+        }
+    }
+    let body = html(body_str)
+    return render_grid(body, rows.len(), q, sort_col, sort_dir, cid, locale)
+}
+
+// --- create / edit form ---------------------------------------------------
+
+fn form_html(edit_id: Int, f_nombre: Str, f_codigo: Str, error: Str, locale: Str) -> Html {
+    let title = match edit_id == 0 {
+        true => t(locale, "dep.form.title.new"),
+        false => t(locale, "dep.form.title.edit"),
+    }
+    let banner = match error == "" {
+        true => "",
+        false => """<div class="form-error">{flv(error)}</div>""",
+    }
+    let l_nombre = t(locale, "dep.form.nombre")
+    let ph_nombre = t(locale, "dep.form.nombre.ph")
+    let l_codigo = t(locale, "dep.form.codigo")
+    let ph_codigo = t(locale, "dep.form.codigo.ph")
+    let l_save = t(locale, "form.save")
+    let l_cancel = t(locale, "form.cancel")
+    let f_sub = t(locale, "dep.form.subtitle")
+    return html("""<div id="departamentos-live" class="grid-wrap">
+      <div class="page-head">
+        <h2>{flv(title)}</h2>
+        <p>{flv(f_sub)}</p>
+      </div>
+      <div class="grid-card form-card">
+        {banner}
+        <form class="abm-form" data-flv-submit="save_departamento">
+          <input type="hidden" name="id" value="{edit_id}" />
+          <div class="form-row">
+            <label>{flv(l_nombre)}</label>
+            <input name="nombre" value="{flv(f_nombre)}" placeholder="{flv(ph_nombre)}" autocomplete="off" />
+          </div>
+          <div class="form-row">
+            <label>{flv(l_codigo)}</label>
+            <input name="codigo" value="{flv(f_codigo)}" placeholder="{flv(ph_codigo)}" autocomplete="off" />
+          </div>
+          <div class="form-actions">
+            <button class="btn-primary" type="submit">{flv(l_save)}</button>
+            <button class="btn-clear" type="button" data-flv-click="cancel_form">{flv(l_cancel)}</button>
+          </div>
+        </form>
+      </div>
+    </div>""")
+}
+
+// --- persistence ----------------------------------------------------------
+
+// INSERT when edit_id == 0, UPDATE otherwise. Returns the row id.
+async fn save_departamento_db(edit_id: Int, nombre: Str, codigo: Str) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    if (edit_id == 0) {
+        let created = Departamento.insert(conn, Departamento { nombre: nombre, codigo: codigo }).await?
+        return Ok(created.id)
+    }
+    let _ = Departamento.where(fn(d) => d.id == edit_id).update(conn, { "nombre": nombre, "codigo": codigo }).await?
+    return Ok(edit_id)
+}
+
+// Delete a department. First clear the FK on its employees (set to 0 = "no
+// department") so no employee ends up pointing at a deleted area, then delete
+// the row. Returns 1 on success.
+async fn delete_departamento(id: Int) -> Result<Int> {
+    let conn = db.connect(db_url()).await?
+    let _ = Empleado.where(fn(e) => e.departamento_id == id).update(conn, { "departamento_id": 0 }).await?
+    let _ = Departamento.where(fn(d) => d.id == id).delete(conn).await?
+    return Ok(1)
+}
+
+// --- routes ---------------------------------------------------------------
+
+@header(name="cookie")
+@get("/departamentos")
+async fn departamentos_page(cookie: Str?) -> Response {
+    let user: User = match user_from_cookie(cookie).await {
+        Ok(u) => u,
+        Err(_) => return redirect_to("/login"),
+    }
+    let loc = locale_from_cookie(cookie)
+    // "ssr" is the shared placeholder instance id for the reused LiveComponents
+    // (closed dialog / hidden toast render identically for everyone; events only
+    // travel over the socket). The WS loop mints a per-connection uuid.
+    let grid = grid_html("", "id", "asc", "ssr", loc).await
+    let live = live_embed("/live/departamentos", "departamentos-live", grid)
+    return html_response(page_layout(t(loc, "nav.departamentos"), "departamentos", user.name, live, loc))
+}
+
+@header(name="cookie")
+@ws("/live/departamentos")
+async fn departamentos_socket(ws: WsConn<LiveFrame>, cookie: Str?) {
+    let locale = locale_from_cookie(cookie)
+    let cid = Uuid.v4().to_str()
+    // Grid + form state (per-connection).
+    let mode = "grid"
+    let q = ""
+    let sort_col = "id"
+    let sort_dir = "asc"
+    let edit_id = 0
+    let f_nombre = ""
+    let f_codigo = ""
+    let form_error = ""
+    let last = grid_html(q, sort_col, sort_dir, cid, locale).await.raw
+    loop {
+        let frame = ws.recv()?
+        let ev = frame.event
+        // A toast lives for one render: any next event clears it (unless a
+        // branch below re-opens it via dispatch_to(..., "show", ...)).
+        let _ = dispatch_to("toast", cid, "dismiss", { })
+        // Route events the reused components handle (the dialog's Cancel).
+        let _ = dispatch_component_events(frame)
+        if (ev == "search") {
+            q = pget(frame.payload, "q", "")
+        }
+        if (ev == "sort") {
+            let col = pget(frame.payload, "col", "id")
+            if (col == sort_col) {
+                sort_dir = match sort_dir == "asc" {
+                    true => "desc",
+                    false => "asc",
+                }
+            } else {
+                sort_col = col
+                sort_dir = "asc"
+            }
+        }
+        if (ev == "new_departamento") {
+            mode = "form"
+            edit_id = 0
+            f_nombre = ""
+            f_codigo = ""
+            form_error = ""
+        }
+        if (ev == "edit_departamento") {
+            let id = pget_int(frame.payload, "id", 0)
+            match load_departamento(id).await {
+                Ok(d) => {
+                    mode = "form"
+                    edit_id = d.id
+                    f_nombre = d.nombre
+                    f_codigo = d.codigo
+                    form_error = ""
+                },
+                Err(_) => {
+                    let _ = dispatch_to("toast", cid, "show", { "message": t(locale, "dash.db_error"), "kind": "error" })
+                },
+            }
+        }
+        if (ev == "cancel_form") {
+            mode = "grid"
+            form_error = ""
+        }
+        if (ev == "save_departamento") {
+            edit_id = pget_int(frame.payload, "id", 0)
+            f_nombre = pget(frame.payload, "nombre", "")
+            f_codigo = pget(frame.payload, "codigo", "")
+            if (f_nombre == "") {
+                form_error = t(locale, "dep.form.required")
+            } else {
+                match save_departamento_db(edit_id, f_nombre, f_codigo).await {
+                    Ok(_) => {
+                        mode = "grid"
+                        form_error = ""
+                        let _ = dispatch_to("toast", cid, "show", { "message": t(locale, "dep.toast.saved"), "kind": "success" })
+                    },
+                    Err(er) => {
+                        form_error = er
+                    },
+                }
+            }
+        }
+        if (ev == "ask_delete_one") {
+            let del_one = pget_int(frame.payload, "id", 0)
+            let _ = dispatch_to("confirm_dialog", cid, "ask", { "ids": "{del_one}", "count": "1" })
+        }
+        if (ev == "confirm_delete") {
+            let dlg_state: confirm_dialog = component_state("confirm_dialog", cid)
+            let del_id = match dlg_state.ids.to_int() {
+                Ok(n) => n,
+                Err(_) => 0,
+            }
+            match delete_departamento(del_id).await {
+                Ok(_) => {
+                    let _ = dispatch_to("toast", cid, "show", { "message": pick(locale, "Departamento eliminado", "Department deleted"), "kind": "success" })
+                },
+                Err(e) => {
+                    let _ = dispatch_to("toast", cid, "show", { "message": t(locale, "toast.del_error") + " " + e, "kind": "error" })
+                },
+            }
+            let _ = dispatch_to("confirm_dialog", cid, "cancel", { })
+        }
+        let screen: Html = match mode {
+            "form" => form_html(edit_id, f_nombre, f_codigo, form_error, locale),
+            _ => grid_html(q, sort_col, sort_dir, cid, locale).await,
+        }
+        let new_html = screen.raw
+        let patches = diff_html(last, new_html)
+        ws.send(LiveFrame { html: new_html, patches: patches })?
+        last = new_html
+    }
+}
+
+// Load one department by id (for the edit form).
+async fn load_departamento(id: Int) -> Result<Departamento> {
+    let conn = db.connect(db_url()).await?
+    return Departamento.where(fn(d) => d.id == id).first(conn).await
+}

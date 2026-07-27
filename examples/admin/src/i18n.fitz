@@ -58,9 +58,11 @@ fn pick(locale: Str, es: Str, en: Str) -> Str {
 
 // Delete-confirmation message with the count interpolated. Lives here (not in
 // the ConfirmDialog SFC template) because the count goes INSIDE the localized
-// sentence — word order differs per language.
+// sentence — word order differs per language. Kept ENTITY-NEUTRAL ("record(s)")
+// so the ConfirmDialog LiveComponent is reusable across screens (empleados,
+// departamentos, …) — the companion-library convention.
 fn confirm_msg(locale: Str, n: Str) -> Str {
-    return pick(locale, "¿Eliminar {n} empleado(s)? Esta acción no se puede deshacer.", "Delete {n} employee(s)? This can't be undone.")
+    return pick(locale, "¿Eliminar {n} registro(s)? Esta acción no se puede deshacer.", "Delete {n} record(s)? This action can't be undone.")
 }
 
 // The dictionary. One entry per user-facing string, grouped by area.
@@ -189,6 +191,25 @@ fn t(locale: Str, key: Str) -> Str {
         "form.next" => pick(locale, "Siguiente →", "Next →"),
         "form.finish" => pick(locale, "Finalizar", "Finish"),
         "form.required" => pick(locale, "Nombre y email son obligatorios.", "Name and email are required."),
+        // Departamentos ABM
+        "dep.subtitle" => pick(locale, "Áreas de la organización — en vivo sobre WebSocket.", "Areas of the organization — live over WebSocket."),
+        "dep.search.ph" => pick(locale, "Buscar por nombre o código…", "Search by name or code…"),
+        "dep.new" => pick(locale, "Nuevo departamento", "New department"),
+        "dep.col.nombre" => pick(locale, "Nombre", "Name"),
+        "dep.col.codigo" => pick(locale, "Código", "Code"),
+        "dep.col.empleados" => pick(locale, "Empleados", "Employees"),
+        "dep.col.acciones" => pick(locale, "Acciones", "Actions"),
+        "dep.empty" => pick(locale, "No hay departamentos que coincidan con la búsqueda.", "No departments match the search."),
+        "dep.form.title.new" => pick(locale, "Nuevo departamento", "New department"),
+        "dep.form.title.edit" => pick(locale, "Editar departamento", "Edit department"),
+        "dep.form.subtitle" => pick(locale, "Completá los datos y guardá — se persiste en Postgres vía el ORM.", "Fill in the fields and save — persisted to Postgres via the ORM."),
+        "dep.form.nombre" => pick(locale, "Nombre", "Name"),
+        "dep.form.nombre.ph" => pick(locale, "Nombre del área", "Area name"),
+        "dep.form.codigo" => pick(locale, "Código", "Code"),
+        "dep.form.codigo.ph" => pick(locale, "Ej: RRHH, IT, VENTAS", "e.g. HR, IT, SALES"),
+        "dep.form.required" => pick(locale, "El nombre es obligatorio.", "Name is required."),
+        "dep.toast.saved" => pick(locale, "Departamento guardado", "Department saved"),
+        "dep.tip.empleados" => pick(locale, "empleado(s) en esta área", "employee(s) in this area"),
         _ => key,
     }
 }

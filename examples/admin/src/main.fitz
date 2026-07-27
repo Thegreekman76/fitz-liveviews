@@ -20,6 +20,7 @@
 import auth
 import dashboard
 import empleados
+import departamentos
 
 // LiveComponents — the SFC must be imported by THIS entry file (and
 // `flv_register` must be in scope) for the compiler's auto-registration
@@ -37,4 +38,4 @@ fn main() => 0
 
 print("[ready] Admin ABM — http://127.0.0.1:3000/")
 print("[ready] login demo: admin@fitz.dev / admin1234")
-print("[ready] routes: /login  /  /empleados (live)  /departamentos  /logout")
+print("[ready] routes: /login  /  /empleados (live)  /departamentos (live)  /logout")

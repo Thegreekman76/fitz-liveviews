@@ -60,8 +60,9 @@ One small module per concern — the same shape a real Fitz service takes:
 | `i18n.fitz` | `t(locale, key)` dictionary (ES/EN, ~120 keys) + `locale_from_cookie` |
 | `shell.fitz` | the chrome: `page_layout` (sidebar + topbar + breadcrumbs + theme) |
 | `auth.fitz` | `GET/POST /login`, `/logout`, `/lang/{code}` |
-| `dashboard.fitz` | `/` (stat cards + bar chart + progress) and `/departamentos` |
-| `empleados.fitz` | the DataGrid + the rich forms, SSR first paint + `@ws` live layer |
+| `dashboard.fitz` | `/` (stat cards + bar chart + progress) |
+| `empleados.fitz` | the Empleados DataGrid + the rich forms, SSR first paint + `@ws` live layer |
+| `departamentos.fitz` | the Departamentos ABM (grid + create/edit/delete), SSR + `@ws`; reuses the ConfirmDialog + Toast LiveComponents |
 | `main.fitz` | `import`s the modules + `@server(3000, "0.0.0.0")` |
 
 The grid is served twice: an SSR first paint on `GET /empleados` (embedded in the

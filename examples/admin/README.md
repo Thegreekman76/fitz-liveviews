@@ -86,8 +86,11 @@ serves.
 | `POST /login`     | public      | Validate creds → set session cookie       |
 | `GET  /logout`    | public      | Clear cookie → redirect to `/login`       |
 | `GET  /`          | cookie      | Dashboard (stat cards from Postgres)      |
-| `GET  /empleados` | cookie      | Employees screen (placeholder — Slice 2)  |
-| `GET  /departamentos` | cookie  | Departments screen (placeholder — Slice 2)|
+| `GET  /empleados` | cookie      | Employees DataGrid (SSR first paint)      |
+| `WS   /live/empleados` | cookie | Employees live layer (search/filter/sort/CRUD) |
+| `GET  /empleados/export.csv` | cookie | CSV export of the filtered set     |
+| `GET  /departamentos` | cookie  | Departments ABM (SSR first paint)         |
+| `WS   /live/departamentos` | cookie | Departments live layer (search/sort/CRUD) |
 
 Unauthenticated requests to a protected route return `303 → /login`.
 
@@ -102,11 +105,16 @@ examples/admin/
 ├── Dockerfile           multi-stage: fitz build → distroless
 └── src/
     ├── config.fitz      env-var helpers (DATABASE_URL, JWT_SECRET, cookie name)
-    ├── models.fitz      @table types: User, Departamento, Empleado
+    ├── models.fitz      @table types: User, Departamento, Empleado, ubicaciones…
+    ├── i18n.fitz        server-side ES/EN dictionary (t(locale, key))
     ├── session.fitz     cookie → JWT → user lookup (browser-style auth)
     ├── auth.fitz        login page + POST /login (Set-Cookie) + logout
     ├── shell.fitz       full HTML document, responsive shell, theme CSS + JS
-    ├── dashboard.fitz   protected screens; dashboard counts from the ORM
+    ├── dashboard.fitz   the dashboard (stat cards + chart from the ORM)
+    ├── empleados.fitz   the Empleados DataGrid + rich forms (SSR + @ws)
+    ├── departamentos.fitz  the Departamentos ABM (SSR + @ws)
+    ├── *.fitzv          LiveComponents: ConfirmDialog, Toast, Pager,
+    │                    GridToolbar, GridFilters, EmpleadoRow, EmpleadoForm
     └── main.fitz        imports the modules + @server; serves
 ```
 
