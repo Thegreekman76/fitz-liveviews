@@ -199,6 +199,24 @@ fn shell_css() -> Str {
     --sidebar-active-text: #ffffff;
     --topbar-bg: #ffffff;
     --shadow: 0 1px 3px rgba(0,0,0,.08);
+    /* Companion UI library tokens (fitz_liveviews.ui.*) — aliased to the
+       admin's design tokens so the shared Pager / Toast / ConfirmDialog
+       inherit the same light/dark/auto theming. Aliasing to var(--...) means
+       these resolve lazily and follow the theme across all three states with
+       one block. Semantic colors are literal (the admin has no
+       danger/success/info tokens of its own; they match the old inline toast). */
+    --flv-color-primary: var(--primary);
+    --flv-color-success: #16a34a;
+    --flv-color-danger:  #ef4444;
+    --flv-color-info:    #1565c0;
+    --flv-color-muted:   var(--muted);
+    --flv-surface:    var(--surface);
+    --flv-surface-2:  var(--surface-2);
+    --flv-border:     var(--border);
+    --flv-text:       var(--text);
+    --flv-text-muted: var(--muted);
+    --flv-radius-md:   8px;
+    --flv-shadow-card: 0 10px 30px rgba(0,0,0,.25);
   \}
   :root[data-theme="dark"] \{
     --bg: #0f1319;
@@ -567,19 +585,6 @@ fn shell_css() -> Str {
   .breadcrumbs a:hover \{ text-decoration: underline; \}
   .crumb-sep \{ opacity: .5; \}
   .crumb-current \{ color: var(--text); font-weight: 600; \}
-  /* Toast / flash (Slice 7) — floats bottom-right, cleared on next action */
-  .toast \{
-    position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 60;
-    display: flex; align-items: center; gap: .75rem;
-    padding: .7rem 1rem; border-radius: 10px; color: #fff;
-    box-shadow: 0 10px 30px rgba(0,0,0,.25); font-size: .9rem;
-    animation: toast-in .2s ease;
-  \}
-  @keyframes toast-in \{ from \{ opacity: 0; transform: translateY(8px); \} to \{ opacity: 1; transform: none; \} \}
-  .toast-success \{ background: #16a34a; \}
-  .toast-error \{ background: #ef4444; \}
-  .toast-x \{ background: none; border: none; color: #fff; font-size: 1.15rem; cursor: pointer; line-height: 1; opacity: .85; \}
-  .toast-x:hover \{ opacity: 1; \}
   /* Column grouping (Slice 6) */
   .grid-group \{ align-items: center; \}
   tr.grp-row \{ background: color-mix(in srgb, var(--primary) 8%, var(--surface)); \}

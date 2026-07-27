@@ -23,10 +23,10 @@ from config import db_url
 from models import Departamento, Empleado, User
 from session import user_from_cookie
 from shell import page_layout, redirect_to
-from i18n import t, pick, locale_from_cookie
+from i18n import t, pick, confirm_msg, locale_from_cookie
 from fitz_liveviews import Html, html, flv, html_response, live_embed, LiveFrame, diff_html, component_with, dispatch_component_events, dispatch_to, component_state
-from ConfirmDialog import confirm_dialog, confirm_dialog_render, confirm_dialog_ask, confirm_dialog_cancel
-from Toast import toast, toast_render, toast_show, toast_dismiss
+from fitz_liveviews.ui.ConfirmDialog import confirm_dialog, confirm_dialog_render, confirm_dialog_ask, confirm_dialog_cancel
+from fitz_liveviews.ui.Toast import toast, toast_render, toast_show, toast_dismiss
 
 // --- payload helpers (Map<Str, Str>) --------------------------------------
 
@@ -111,10 +111,16 @@ fn render_grid(body: Html, total: Int, q: Str, sort_col: Str, sort_dir: Str, cid
         <button class="btn-primary" data-flv-click="new_departamento">+ {t(locale, "dep.new")}</button>
       </div>
     </div>"""
-    // Reused per-connection LiveComponents (same instance id `cid` as Empleados).
-    let toast_c = component_with("toast", cid, toast { locale: locale })
+    // Reused per-connection library components (same instance id `cid` as
+    // Empleados). i18n stays out of the library: Toast takes already-localized
+    // `message` payloads; ConfirmDialog gets its static labels seeded here.
+    let toast_c = component_with("toast", cid, toast { })
     let toast_html: Str = toast_c.raw
-    let dlg = component_with("confirm_dialog", cid, confirm_dialog { locale: locale })
+    let dlg = component_with("confirm_dialog", cid, confirm_dialog {
+        title: t(locale, "confirm.title"),
+        cancel_label: t(locale, "confirm.cancel"),
+        confirm_label: t(locale, "confirm.delete")
+    })
     let modal: Str = dlg.raw
     // Sortable headers.
     let th_id = sort_th("ID", "id", "col-id", sort_col, sort_dir)
@@ -359,7 +365,7 @@ async fn departamentos_socket(ws: WsConn<LiveFrame>, cookie: Str?) {
         }
         if (ev == "ask_delete_one") {
             let del_one = pget_int(frame.payload, "id", 0)
-            let _ = dispatch_to("confirm_dialog", cid, "ask", { "ids": "{del_one}", "count": "1" })
+            let _ = dispatch_to("confirm_dialog", cid, "ask", { "ids": "{del_one}", "message": confirm_msg(locale, "1") })
         }
         if (ev == "confirm_delete") {
             let dlg_state: confirm_dialog = component_state("confirm_dialog", cid)

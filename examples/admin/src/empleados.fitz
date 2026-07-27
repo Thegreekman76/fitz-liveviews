@@ -24,11 +24,11 @@ from config import db_url
 from models import Empleado, Departamento, User, Pais, Provincia, Ciudad, Permiso, EmpleadoPermiso, Skill, EmpleadoSkill
 from session import user_from_cookie
 from shell import page_layout, redirect_to
-from i18n import t, pick, locale_from_cookie
+from i18n import t, pick, confirm_msg, locale_from_cookie
 from fitz_liveviews import Html, html, flv, h_join, html_response, live_embed, LiveFrame, diff_html, flv_register, component_with, dispatch_component_events, dispatch_to, component_state
-from ConfirmDialog import confirm_dialog, confirm_dialog_render, confirm_dialog_ask, confirm_dialog_cancel
-from Toast import toast, toast_render, toast_show, toast_dismiss
-from Pager import pager, pager_render
+from fitz_liveviews.ui.ConfirmDialog import confirm_dialog, confirm_dialog_render, confirm_dialog_ask, confirm_dialog_cancel
+from fitz_liveviews.ui.Toast import toast, toast_render, toast_show, toast_dismiss
+from fitz_liveviews.ui.Pager import pager, pager_render
 from GridToolbar import grid_toolbar, grid_toolbar_render
 from GridFilters import grid_filters, grid_filters_render
 from EmpleadoRow import empleado_row, empleado_row_render
@@ -366,23 +366,29 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
     }
     // Export link — respects the active filters (not the selection).
     let export_href = "/empleados/export.csv?q={url_enc(q)}&estado={estado}&depto={depto}"
-    // Toast — a per-connection LiveComponent (Toast.fitzv), same `cid` instance
-    // id as the ConfirmDialog. The parent dispatches `show` after a save/delete
-    // and `dismiss` at the top of every loop iteration, so the flash stays
-    // transient (one render) — see the @ws loop. Renders closed for the "ssr"
-    // placeholder; `component_with` (lib v0.11.0) seeds the connection's locale
-    // on the instance's first render.
-    let toast_c = component_with("toast", cid, toast { locale: locale })
+    // Toast — the companion UI library's per-connection Toast component
+    // (fitz_liveviews.ui.Toast), same `cid` instance id as the ConfirmDialog.
+    // The parent dispatches `show` after a save/delete and `dismiss` at the top
+    // of every loop iteration, so the flash stays transient (one render) — see
+    // the @ws loop. Renders closed for the "ssr" placeholder. The library
+    // component is i18n-agnostic: the host passes already-localized `message`
+    // strings in the `show` payload, so there's no locale to seed.
+    let toast_c = component_with("toast", cid, toast { })
     let toast: Str = toast_c.raw
-    // Confirm dialog — a LiveComponent instance scoped to this connection
-    // (ConfirmDialog.fitzv). `cid` is the per-socket instance id; the SSR
-    // first paint passes the shared placeholder "ssr" (dialog closed, and
-    // events only travel over the socket, so it can never be mutated).
-    // `component_with` (lib v0.11.0) seeds the instance with this
-    // connection's locale on its first render.
-    let dlg = component_with("confirm_dialog", cid, confirm_dialog { locale: locale })
+    // Confirm dialog — the library's per-connection ConfirmDialog component
+    // (fitz_liveviews.ui.ConfirmDialog). `cid` is the per-socket instance id;
+    // the SSR first paint passes the shared placeholder "ssr" (dialog closed,
+    // events only travel over the socket, so it can never be mutated). i18n
+    // stays out of the library: the host seeds the already-localized static
+    // labels here and passes the formatted body in the `ask` payload.
+    let dlg = component_with("confirm_dialog", cid, confirm_dialog {
+        title: t(locale, "confirm.title"),
+        cancel_label: t(locale, "confirm.cancel"),
+        confirm_label: t(locale, "confirm.delete")
+    })
     let modal: Str = dlg.raw
-    // Pager — a stateless presentational LiveComponent (Pager.fitzv). `page`
+    // Pager — the library's stateless presentational Pager component
+    // (fitz_liveviews.ui.Pager). `page`
     // and `total_pages` are the grid's query state (owned by the @ws loop, not
     // the pager), passed as props: the render fn is called directly with a
     // fresh `pager { ... }` every frame, so there's no per-connection store.
@@ -1334,12 +1340,12 @@ async fn empleados_socket(ws: WsConn<LiveFrame>, cookie: Str?) {
         if (ev == "ask_delete_selected") {
             if (sel != "") {
                 let n_ask = csv_count(sel)
-                let _ = dispatch_to("confirm_dialog", cid, "ask", { "ids": sel, "count": "{n_ask}" })
+                let _ = dispatch_to("confirm_dialog", cid, "ask", { "ids": sel, "message": confirm_msg(locale, "{n_ask}") })
             }
         }
         if (ev == "ask_delete_one") {
             let del_one = pget_int(frame.payload, "id", 0)
-            let _ = dispatch_to("confirm_dialog", cid, "ask", { "ids": "{del_one}", "count": "1" })
+            let _ = dispatch_to("confirm_dialog", cid, "ask", { "ids": "{del_one}", "message": confirm_msg(locale, "1") })
         }
         // The dialog's Delete button fires `confirm_delete`, which the
         // component deliberately does NOT declare — it needs the DB and

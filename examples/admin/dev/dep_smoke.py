@@ -109,7 +109,12 @@ assert f'value="{MARKER}"' in he, "CRUD: edit form did not prefill the name"
 send_recv("cancel_form", {})
 # delete it: ask -> dialog opens -> confirm
 hd = send_recv("ask_delete_one", {"id": new_id})
-assert 'class="modal-overlay"' in hd, "CRUD: confirm dialog did not open"
+# The confirm dialog is now the companion-library component
+# (fitz_liveviews.ui.ConfirmDialog). Its `<style scoped>` suffixes the
+# class token, so the element renders as
+# `class="cd-overlay cd-overlay-confirm-dialog-c-<hash>"` — match the base
+# token as a substring. The old vendored copy used a plain `modal-overlay`.
+assert 'cd-overlay' in hd, "CRUD: confirm dialog did not open"
 hc = send_recv("confirm_delete", {})
 assert MARKER not in hc, "CRUD: department still present after delete"
 
