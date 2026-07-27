@@ -1,0 +1,16 @@
+// pager_helpers.fitz — internal helper for the Pager UI component.
+//
+// `page_range(total_pages)` returns `[1, 2, ..., total_pages]` as a
+// `List<Int>` so the Pager template can loop the numbered buttons with
+// `{#for n in page_range(total_pages)}`. The SSR `{#for}` directive lowers
+// to `<iter>.map(...)`, and classic Fitz `Range` has no `.map` (only List
+// does) — so the range is materialised to a list here, which lets the
+// numbered buttons live INSIDE the template so `<style scoped>` reaches them.
+
+fn page_range(total_pages: Int) -> List<Int> {
+    let out: List<Int> = []
+    for n in 1..(total_pages + 1) {
+        out.push(n)
+    }
+    return out
+}

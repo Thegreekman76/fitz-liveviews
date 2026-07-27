@@ -1,0 +1,34 @@
+// ui-gallery — smoke for the companion UI library (Phase 9, corte 1).
+//
+// Validates that a host app pulls the generalized components straight from
+// the package via dotted sub-path imports — `from fitz_liveviews.ui.<Comp>
+// import ...` — instead of vendoring the `.fitzv` files. Renders each
+// component to HTML and prints it, so `fitz run` exercises the whole
+// resolution + SSR path without a WebSocket server.
+
+from fitz_liveviews.ui.Pager import pager, pager_render
+from fitz_liveviews.ui.Toast import toast, toast_render
+from fitz_liveviews.ui.ConfirmDialog import confirm_dialog, confirm_dialog_render
+from fitz_liveviews.ui.theme import ui_theme
+
+print("=== Theme tokens ===")
+print(ui_theme().raw)
+
+print("=== Pager (page 2 of 5) ===")
+let pager_html = pager_render(pager { page: 2, total_pages: 5 })
+print(pager_html.raw)
+
+print("=== Toast (success) ===")
+let toast_html = toast_render(toast { open: true, message: "Guardado", kind: "success" })
+print(toast_html.raw)
+
+print("=== ConfirmDialog (open) ===")
+let cd_html = confirm_dialog_render(confirm_dialog {
+  open: true,
+  ids: "1,2,3",
+  message: "¿Eliminar 3 empleados?",
+  title: "Confirmar borrado",
+  cancel_label: "Cancelar",
+  confirm_label: "Eliminar"
+})
+print(cd_html.raw)

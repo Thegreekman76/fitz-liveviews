@@ -1,0 +1,11 @@
+[package]
+name = "ui-gallery"
+version = "0.1.0"
+edition = "2026"
+description = "Companion UI library gallery — renders the shared UI components (Phase 9 corte 1)."
+
+[bin]
+main = "src/main.fitz"
+
+[dependencies]
+fitz_liveviews = { path = "../.." }

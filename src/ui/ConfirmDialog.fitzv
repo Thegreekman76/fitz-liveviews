@@ -1,0 +1,102 @@
+// ConfirmDialog.fitzv — a confirm/cancel modal as a stateful LiveComponent.
+//
+// Companion UI library component (Phase 9). Stateful, per-connection: the
+// host renders ONE instance per socket (`component_with("confirm_dialog",
+// cid, confirm_dialog { ... })`) and drives it with `dispatch_to(...)`.
+//
+// i18n stays OUT of the library. The host seeds the static labels
+// (`title` / `cancel_label` / `confirm_label`) at init — already localized
+// — and passes the dynamic, already-formatted `message` in the `ask`
+// payload (e.g. "Delete 3 items?"). Defaults are neutral so the dialog
+// still reads without seeding.
+//
+// Event contract:
+//   - `ask`    — fired by the host to open the dialog. Payload carries
+//                `ids` (an opaque token the host reads back on confirm)
+//                and `message` (the formatted body).
+//   - `cancel` — fired from the Cancel button (routed by
+//                `dispatch_component_events`) or by the host.
+//   - the confirm button fires `confirm_delete`, which this component
+//     does NOT declare: it falls through to the host loop, which does the
+//     real work (reads the pending `ids` via `component_state(...)` and
+//     closes the dialog with a `cancel` dispatch afterwards).
+
+from fitz_liveviews import flv
+
+component confirm_dialog {
+  state {
+    open: Bool = false
+    ids: Str = ""
+    message: Str = ""
+    title: Str = "Confirmar"
+    cancel_label: Str = "Cancelar"
+    confirm_label: Str = "Eliminar"
+  }
+
+  event ask() {
+    if (payload.has("ids")) {
+      ids = payload["ids"]
+    }
+    if (payload.has("message")) {
+      message = payload["message"]
+    }
+    open = true
+  }
+
+  event cancel() {
+    open = false
+    ids = ""
+    message = ""
+  }
+
+  <template>
+    <div class="cd-slot">
+      {#if open}
+        <div class="cd-overlay">
+          <div class="cd-modal">
+            <h3 class="cd-title">{flv(title)}</h3>
+            <p class="cd-body">{flv(message)}</p>
+            <div class="cd-actions">
+              <button class="cd-btn cd-btn-ghost" data-flv-click="cancel">{flv(cancel_label)}</button>
+              <button class="cd-btn cd-btn-danger" data-flv-click="confirm_delete">{flv(confirm_label)}</button>
+            </div>
+          </div>
+        </div>
+      {/if}
+    </div>
+  </template>
+
+  <style scoped>
+    .cd-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(0, 0, 0, .45); padding: 1rem;
+    }
+    .cd-modal {
+      width: 100%; max-width: 26rem;
+      background: var(--flv-surface, #ffffff);
+      color: var(--flv-text, #1a1a1a);
+      border-radius: var(--flv-radius-md, 8px);
+      box-shadow: var(--flv-shadow-card, 0 10px 40px rgba(0, 0, 0, .25));
+      padding: 1.25rem;
+    }
+    .cd-title { margin: 0 0 .5rem; font-size: 1.05rem; font-weight: 700; }
+    .cd-body { margin: 0 0 1.25rem; font-size: .92rem; color: var(--flv-text-muted, #55555c); }
+    .cd-actions { display: flex; justify-content: flex-end; gap: .6rem; }
+    .cd-btn {
+      border-radius: var(--flv-radius-md, 8px);
+      padding: .5rem .95rem; font-size: .85rem; font-weight: 600; cursor: pointer;
+      border: 1px solid transparent;
+    }
+    .cd-btn-ghost {
+      background: var(--flv-surface, #ffffff);
+      color: var(--flv-text, #1a1a1a);
+      border-color: var(--flv-border, #d9d9e0);
+    }
+    .cd-btn-ghost:hover { background: var(--flv-surface-2, #f5f5f7); }
+    .cd-btn-danger {
+      background: var(--flv-color-danger, #c62828); color: #fff;
+    }
+    .cd-btn-danger:hover { filter: brightness(.94); }
+  </style>
+}

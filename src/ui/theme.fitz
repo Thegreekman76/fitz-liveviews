@@ -1,0 +1,43 @@
+// theme.fitz — the companion UI library theme (Phase 9).
+//
+// `ui_theme()` returns a `<style>` block that defines the `--flv-*`
+// design tokens the UI components read. Drop it once in the host's
+// `<head>` (e.g. `{ui_theme().raw}`). The components carry literal
+// fallbacks, so they render without it; including the theme lets the
+// host re-theme everything by overriding a variable, and enables dark
+// mode via `data-theme="dark"` on the root element (toggled per-browser,
+// never over the WebSocket).
+//
+// Design direction A (custom minimalist / Radix-style neutral): tokens
+// carry no strong aesthetic, so a host restyles the whole kit by
+// redefining the variables.
+
+from fitz_liveviews import html, Html
+
+fn ui_theme() -> Html {
+    return html("""<style>
+:root \{
+  --flv-color-primary: #ce412b;
+  --flv-color-success: #2e7d32;
+  --flv-color-danger:  #c62828;
+  --flv-color-info:    #1565c0;
+  --flv-color-muted:   #8b8b93;
+  --flv-surface:   #ffffff;
+  --flv-surface-2: #f5f5f7;
+  --flv-border:    #d9d9e0;
+  --flv-text:       #1a1a1a;
+  --flv-text-muted: #55555c;
+  --flv-radius-md:   8px;
+  --flv-shadow-card: 0 6px 20px rgba(0, 0, 0, .12);
+\}
+:root[data-theme="dark"] \{
+  --flv-color-muted: #7a7a82;
+  --flv-surface:   #1e1e22;
+  --flv-surface-2: #2a2a30;
+  --flv-border:    #3a3a42;
+  --flv-text:       #e8e8ea;
+  --flv-text-muted: #a0a0a8;
+  --flv-shadow-card: 0 6px 20px rgba(0, 0, 0, .5);
+\}
+</style>""")
+}

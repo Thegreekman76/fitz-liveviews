@@ -1,0 +1,83 @@
+// Toast.fitzv — transient flash message as a stateful LiveComponent.
+//
+// Companion UI library component (Phase 9). A stateful, per-connection
+// component: the host renders ONE instance per socket, keyed by the
+// connection id (`component_with("toast", cid, toast {})`), and drives
+// it with `dispatch_to(...)`. Transient semantics: dispatch `dismiss`
+// at the top of every loop iteration and `show` in the branch that
+// produced the message, so the toast appears for the frame that
+// created it and clears on the next action.
+//
+// Event contract:
+//   - `show`    — fired by the host after a save/delete. Payload carries
+//                 `message` (already localized by the host) + `kind`
+//                 ("success" | "error" | "info").
+//   - `dismiss` — fired from the × button (routed by
+//                 `dispatch_component_events`) and by the host to keep
+//                 the flash transient.
+//
+// i18n stays OUT of the library: the host passes an already-localized
+// `message`. Styling is `<style scoped>` with `--flv-*` theme tokens
+// (literal fallbacks), and the per-kind accent uses a `data-kind`
+// attribute so the scoped selector reaches the runtime value.
+
+from fitz_liveviews import flv
+
+component toast {
+  state {
+    open: Bool = false
+    message: Str = ""
+    kind: Str = "success"
+  }
+
+  event show() {
+    if (payload.has("message")) {
+      message = payload["message"]
+    }
+    if (payload.has("kind")) {
+      kind = payload["kind"]
+    }
+    open = true
+  }
+
+  event dismiss() {
+    open = false
+    message = ""
+  }
+
+  <template>
+    <div class="toast-slot">
+      {#if open}
+        <div class="toast" data-kind="{kind}">
+          <span class="toast-msg">{flv(message)}</span>
+          <button class="toast-x" data-flv-click="dismiss">×</button>
+        </div>
+      {/if}
+    </div>
+  </template>
+
+  <style scoped>
+    .toast-slot { position: fixed; right: 1rem; bottom: 1rem; z-index: 1000; }
+    .toast {
+      display: flex; align-items: center; gap: .75rem;
+      min-width: 16rem; max-width: 90vw;
+      padding: .7rem 1rem;
+      border-radius: var(--flv-radius-md, 8px);
+      box-shadow: var(--flv-shadow-card, 0 6px 20px rgba(0, 0, 0, .15));
+      background: var(--flv-surface, #ffffff);
+      color: var(--flv-text, #1a1a1a);
+      border-left: 4px solid var(--flv-color-muted, #8b8b93);
+      font-size: .9rem;
+    }
+    .toast[data-kind="success"] { border-left-color: var(--flv-color-success, #2e7d32); }
+    .toast[data-kind="error"] { border-left-color: var(--flv-color-danger, #c62828); }
+    .toast[data-kind="info"] { border-left-color: var(--flv-color-info, #1565c0); }
+    .toast-msg { flex: 1; }
+    .toast-x {
+      margin-left: auto; border: none; background: transparent;
+      color: var(--flv-color-muted, #8b8b93);
+      font-size: 1.15rem; line-height: 1; cursor: pointer; padding: 0 .2rem;
+    }
+    .toast-x:hover { color: var(--flv-text, #1a1a1a); }
+  </style>
+}

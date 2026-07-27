@@ -1,0 +1,74 @@
+// Pager.fitzv — pagination controls as a stateless, presentational
+// LiveComponent with SCOPED styles (self-contained, drop-in reusable).
+//
+// Companion UI library component (Phase 9). Unlike stateful components,
+// the pager is CONTROLLED: `page` and `total_pages` are owned by the
+// parent's `@ws` loop and arrive as "props" — the parent renders the pager
+// fresh every frame with `pager_render(pager { page: page,
+// total_pages: total_pages }).raw`, calling the generated render fn
+// directly (NOT `component_with`), so there is no per-connection store.
+//
+// The component declares NO event handlers, so every button event
+// (`page_prev` / `page_next` / `goto_page`) falls through to the parent's
+// loop. The parent mutates `page`, re-queries, and re-renders.
+//
+// Styling: `<style scoped>` — every styled element carries the component's
+// scope suffix, so the CSS never leaks. Colors come from `--flv-*` theme
+// tokens with literal fallbacks, so the pager looks right even when no
+// theme stylesheet is loaded, and a host app re-themes it by defining the
+// `--flv-*` variables (see themes/default.css).
+
+from pager_helpers import page_range
+
+component pager {
+  state {
+    page: Int = 1
+    total_pages: Int = 1
+  }
+
+  <template>
+    <div class="pager">
+      {#if page > 1}
+        <button class="pg-btn" data-flv-click="page_prev">‹</button>
+      {#else}
+        <button class="pg-btn" disabled>‹</button>
+      {/if}
+      {#for n in page_range(total_pages)}
+        {#if n == page}
+          <button class="pg-btn pg-num pg-active" data-flv-click="goto_page" data-flv-value-page="{n}">{n}</button>
+        {#else}
+          <button class="pg-btn pg-num" data-flv-click="goto_page" data-flv-value-page="{n}">{n}</button>
+        {/if}
+      {/for}
+      {#if page < total_pages}
+        <button class="pg-btn" data-flv-click="page_next">›</button>
+      {#else}
+        <button class="pg-btn" disabled>›</button>
+      {/if}
+    </div>
+  </template>
+
+  <style scoped>
+    .pager { display: flex; gap: .4rem; flex-wrap: wrap; }
+    .pg-btn {
+      border: 1px solid var(--flv-border, #d9d9e0);
+      background: var(--flv-surface, #ffffff);
+      color: var(--flv-text, #1a1a1a);
+      border-radius: var(--flv-radius-md, 8px);
+      padding: .4rem .7rem;
+      cursor: pointer; font-size: .82rem; font-weight: 600;
+    }
+    .pg-btn:hover:not(:disabled) {
+      background: var(--flv-surface-2, #f5f5f7);
+      border-color: var(--flv-color-primary, #ce412b);
+    }
+    .pg-btn:disabled { opacity: .45; cursor: default; }
+    .pg-num { min-width: 2.1rem; text-align: center; }
+    .pg-active {
+      background: var(--flv-color-primary, #ce412b);
+      color: #fff;
+      border-color: var(--flv-color-primary, #ce412b);
+    }
+    .pg-active:hover { background: var(--flv-color-primary, #ce412b); }
+  </style>
+}
