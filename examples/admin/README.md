@@ -1,39 +1,45 @@
 # Admin ABM — flagship showcase
 
-A complete back-office **admin panel** built entirely in Fitz: login,
-responsive shell, light/dark/auto theme switch, and a dashboard — on
-**PostgreSQL**, dockerized, server-rendered with Fitz LiveViews. No JS build.
+A complete back-office **admin panel** built entirely in Fitz: login, a
+responsive shell with a light/dark/auto theme switch, a dashboard, and two live
+CRUD screens (Empleados + Departamentos) — on **PostgreSQL**, dockerized,
+server-rendered with Fitz LiveViews, internationalized ES/EN. No JS build.
 
-This is the flagship demo for Fitz + fitz-liveviews. It exercises the whole
-stack in one recognizable app (an admin panel over a **People & Access**
-domain) and grows slice by slice into a full ABM/CRUD.
+This is the flagship demo for Fitz + fitz-liveviews: it exercises the whole
+stack (ORM + Postgres + HTTP + WebSockets + auth + `Response{}` export) in one
+recognizable app over a **People & Access** domain.
 
-> **This is Slice 1** — the navigable skeleton. See
-> [`docs/showcase-admin-abm-plan.md`](../../docs/showcase-admin-abm-plan.md)
-> for the full plan (slices S1–S6) and the component inventory.
+> Built slice by slice (S1–S10). The full plan and component inventory are in
+> [`docs/showcase-admin-abm-plan.md`](../../docs/showcase-admin-abm-plan.md).
 
 ---
 
-## What Slice 1 gives you
+## What it gives you
 
 - **Login** — a real session: credentials → Argon2id verify → signed JWT in
   an `HttpOnly` cookie. Unauthenticated page requests **redirect** to `/login`
   (browser-correct, not a JSON 401).
 - **Responsive shell** — collapsible sidebar on desktop, off-canvas drawer on
-  mobile (works down to 320px), topbar with the current user, and a
-  **light / dark / auto** theme switch (persisted per-browser, applied before
-  first paint — no flash).
+  mobile (works down to 320px), topbar with the current user, a 🌐 **ES/EN**
+  language switch, and a **light / dark / auto** theme switch (persisted
+  per-browser, applied before first paint — no flash).
 - **Dashboard** — stat cards with **real counts from Postgres** (employees,
-  active, inactive, departments) via the Fitz ORM.
+  active, inactive, departments) + a pure-CSS bar chart, via the Fitz ORM.
+- **Empleados DataGrid** — the flagship live view: SSR first paint + a `@ws`
+  socket that re-queries Postgres and diff-and-patches on every event (search,
+  estado + department filters, sort, pagination, rich tabbed/stepped forms,
+  cascade selects, row selection + multi-delete, group-by, per-row expand,
+  CSV export). All grid state is per-connection.
+- **Departamentos ABM** — the same live architecture, kept simple: grid +
+  create/edit/delete + an employee count per area.
+- **LiveComponents** — reusable SFCs (`ConfirmDialog`, `Toast`, `Pager`,
+  `GridToolbar`, `GridFilters`, `EmpleadoRow`, `EmpleadoForm`). The
+  per-connection widgets (ConfirmDialog, Toast) mint a uuid per socket via
+  `component_with(...)` and are **shared across both CRUD screens** — the seed
+  of a companion UI library.
 - **Postgres + Docker** — one `docker compose up` brings up the database
-  (schema + seed) and the app.
-
-The employees grid is a **live view**: SSR first paint + a `@ws` socket that
-re-queries Postgres and diff-and-patches on every event (search, filters,
-sort, pages, forms, tree, selection, grouping, i18n — slices S2-S9). Since
-S10 the delete-confirm modal is a **LiveComponent** (`ConfirmDialog.fitzv`)
-with one instance per connection (uuid per socket) seeded via
-`component_with(...)` — the blueprint for migrating the remaining widgets.
+  (schema + seed) and the app. Bit-for-bit identical under `fitz run` and the
+  native `fitz build` binary.
 
 Demo login: **`admin@fitz.dev`** / **`admin1234`**
 
@@ -137,7 +143,11 @@ gone by the time requests arrive.
 
 ## What's next
 
-Slice 2 adds the employees **DataGrid** (columns, pagination) over the live
-WebSocket layer, then filters/sort/search (S3), rich edit forms (S4),
-selection + multi-delete + export (S5), and column grouping + tree view (S6).
+The stack is complete (auth + ORM + live grids + forms + LiveComponents + i18n
++ Docker). The remaining direction is **extracting the LiveComponents into a
+reusable companion UI library** — the widgets under `src/*.fitzv` (ConfirmDialog,
+Toast, Pager, GridToolbar, …) are already shared across the Empleados and
+Departamentos screens; the next step is packaging them so any Fitz LiveViews
+app can install and compose them. See
+[`docs/showcase-admin-abm-plan.md`](../../docs/showcase-admin-abm-plan.md).
 Each slice is deployable on its own.
