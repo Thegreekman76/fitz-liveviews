@@ -1,0 +1,101 @@
+// Companion UI library — unit tests for the packaged components.
+//
+// Run with `fitz test` from `examples/ui-gallery/`. The gallery imports
+// the components as a DEPENDENCY (`from fitz_liveviews.ui.<Comp> import
+// ...`), so these tests exercise them exactly the way a host app does:
+// the render fns (state -> Html) and the event handlers (state, payload
+// -> state). No server, no database — pure functions.
+
+from fitz_liveviews.ui.Pager import pager, pager_render
+from fitz_liveviews.ui.Toast import toast, toast_render, toast_show, toast_dismiss
+from fitz_liveviews.ui.ConfirmDialog import confirm_dialog, confirm_dialog_render, confirm_dialog_ask, confirm_dialog_cancel
+from fitz_liveviews.ui.theme import ui_theme
+
+// --- Pager (presentational / controlled) ---
+
+@test fn pager_marks_the_current_page_active() {
+    let h = pager_render(pager { page: 2, total_pages: 5 }).raw
+    assert(h.contains("pg-active"))
+    // every page number 1..total_pages is a button
+    assert(h.contains("data-flv-value-page=\"5\""))
+}
+
+@test fn pager_disables_prev_on_first_page() {
+    let h = pager_render(pager { page: 1, total_pages: 3 }).raw
+    // prev is a disabled button; next is an active fall-through event
+    assert(h.contains("disabled"))
+    assert(h.contains("data-flv-click=\"page_next\""))
+}
+
+@test fn pager_single_page_disables_both_arrows() {
+    let h = pager_render(pager { page: 1, total_pages: 1 }).raw
+    assert(not h.contains("data-flv-click=\"page_prev\""))
+    assert(not h.contains("data-flv-click=\"page_next\""))
+}
+
+// --- Toast (stateful, transient) ---
+
+@test fn toast_closed_by_default_renders_nothing() {
+    let h = toast_render(toast { }).raw
+    // the scoped <style> block always renders (it names data-kind in its
+    // selectors), so key on the dismiss button, which lives inside {#if open}
+    assert(not h.contains("data-flv-click=\"dismiss\""))
+}
+
+@test fn toast_show_opens_with_message_and_kind() {
+    let t = toast_show(toast { }, { "message": "Saved", "kind": "error" })
+    assert_eq(t.open, true)
+    assert_eq(t.message, "Saved")
+    assert_eq(t.kind, "error")
+    let h = toast_render(t).raw
+    assert(h.contains("Saved"))
+    assert(h.contains("data-kind=\"error\""))
+}
+
+@test fn toast_dismiss_closes_and_clears_message() {
+    let opened = toast_show(toast { }, { "message": "Hi", "kind": "success" })
+    let closed = toast_dismiss(opened, { })
+    assert_eq(closed.open, false)
+    assert_eq(closed.message, "")
+}
+
+// --- ConfirmDialog (stateful) ---
+
+@test fn confirm_dialog_closed_by_default() {
+    let h = confirm_dialog_render(confirm_dialog { }).raw
+    // the scoped <style> names .cd-overlay in its selectors, so key on the
+    // cancel button, which only renders inside {#if open}
+    assert(not h.contains("data-flv-click=\"cancel\""))
+}
+
+@test fn confirm_dialog_ask_opens_with_seeded_labels_and_message() {
+    let d = confirm_dialog_ask(
+        confirm_dialog { title: "Delete?", cancel_label: "No", confirm_label: "Yes" },
+        { "ids": "1,2,3", "message": "Delete 3 items?" }
+    )
+    assert_eq(d.open, true)
+    assert_eq(d.ids, "1,2,3")
+    let h = confirm_dialog_render(d).raw
+    assert(h.contains("cd-overlay"))
+    assert(h.contains("Delete 3 items?"))
+    assert(h.contains("Yes"))
+    // the confirm button fires an event the component does NOT declare,
+    // so it falls through to the host loop
+    assert(h.contains("data-flv-click=\"confirm_delete\""))
+}
+
+@test fn confirm_dialog_cancel_closes_and_clears_ids() {
+    let opened = confirm_dialog_ask(confirm_dialog { }, { "ids": "9", "message": "x" })
+    let closed = confirm_dialog_cancel(opened, { })
+    assert_eq(closed.open, false)
+    assert_eq(closed.ids, "")
+}
+
+// --- theme ---
+
+@test fn ui_theme_emits_flv_tokens_and_dark_override() {
+    let css = ui_theme().raw
+    assert(css.contains("--flv-color-primary"))
+    assert(css.contains("--flv-surface"))
+    assert(css.contains("data-theme=\"dark\""))
+}

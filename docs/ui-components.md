@@ -5,9 +5,12 @@ Every one is **SSR-first** (server-rendered, reactive over a WebSocket),
 needs **zero JS build**, and works identically under `fitz run` and the
 native binary from `fitz build`.
 
-These aren't a separate library you install — they're **patterns** built on
-the [HTML primitives](html.md) and the [LiveView core](live.md). This page is
-the reference. Two runnable companions:
+Most of these are **patterns** built on the [HTML primitives](html.md) and the
+[LiveView core](live.md) — you build them in your app. But the three most
+reusable — **Pager**, **Toast** and **ConfirmDialog** — plus a **theme** ship as
+an importable sub-library (`fitz_liveviews.ui.*`) you can drop straight in
+without copying any `.fitzv`. See [Packaged components](#packaged-components)
+right below. This page is the reference. Two runnable companions:
 
 - the **[Component gallery](examples/gallery.md)** renders each component **on
   its own** — no database, no auth — so you can lift a single pattern straight
@@ -24,6 +27,137 @@ the reference. Two runnable companions:
       root. User actions fire `data-flv-*` events; the `@ws` handler re-queries
       / re-renders and diff-patches the DOM. State lives per-connection in the
       handler loop.
+
+---
+
+## Packaged components
+
+Three components — **Pager**, **Toast** and **ConfirmDialog** — plus a **theme**
+ship as an importable sub-library. Instead of copying the `.fitzv` into your
+project, pull them straight from the dependency by dotted sub-path:
+
+```
+from fitz_liveviews.ui.Pager import pager, pager_render
+from fitz_liveviews.ui.Toast import toast, toast_render, toast_show, toast_dismiss
+from fitz_liveviews.ui.ConfirmDialog import confirm_dialog, confirm_dialog_render, confirm_dialog_ask, confirm_dialog_cancel
+from fitz_liveviews.ui.theme import ui_theme
+```
+
+They're **i18n-agnostic** (the host passes already-localized text), styled with
+`<style scoped>` that reads `--flv-*` theme tokens (with literal fallbacks), and
+render identically under `fitz run` and the `fitz build` binary. The
+[Admin ABM](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/admin)
+consumes all three; the [gallery](examples/gallery.md) renders each in isolation.
+
+!!! note "Register once, in your entry file"
+    Import each component you use in your project's **entry** file (the one with
+    `@server`) so the compiler auto-registers it (`flv_register`). Import `Html`
+    from `fitz_liveviews` there too, so the cross-module render-fn signature
+    resolves to `Html` and not a degraded `Any`.
+
+### Pager — controlled pagination
+
+Presentational and **controlled**: `page` / `total_pages` are your grid's query
+state, not the component's. Render it directly every frame — no per-connection
+store:
+
+```
+let pager_html = pager_render(pager { page: page, total_pages: total_pages }).raw
+```
+
+It declares no event handlers; its buttons fire `page_prev` / `page_next` /
+`goto_page` (the numbered button carries `data-flv-value-page="{n}"`), which
+**fall through** to your `@ws` loop. You mutate `page`, re-query, re-render.
+
+| field | type | default |
+|---|---|---|
+| `page` | `Int` | `1` |
+| `total_pages` | `Int` | `1` |
+
+### Toast — transient flash
+
+Stateful, one instance **per connection**. Seed it once, drive it with
+`dispatch_to`:
+
+```
+let toast_html = component_with("toast", cid, toast { }).raw
+// ...in the @ws loop:
+let _ = dispatch_to("toast", cid, "dismiss", { })          // top of every iteration
+let _ = dispatch_to("toast", cid, "show",
+    { "message": t(locale, "toast.saved"), "kind": "success" })  // after a save
+```
+
+Transient by convention: dispatch `dismiss` at the top of each loop iteration and
+`show` in the branch that produced the message, so the flash lives for exactly
+one render.
+
+| event | payload | effect |
+|---|---|---|
+| `show` | `message`, `kind` (`success` / `error` / `info`) | opens with the message |
+| `dismiss` | — | closes and clears |
+
+Fields: `open: Bool`, `message: Str`, `kind: Str = "success"`. The × button fires
+`dismiss` from inside the component (routed by `dispatch_component_events`).
+
+### ConfirmDialog — confirm / cancel modal
+
+Stateful, one instance **per connection**. **Seed the labels** at init (already
+localized) and pass the formatted body in the `ask` payload:
+
+```
+let modal = component_with("confirm_dialog", cid, confirm_dialog {
+    title: t(locale, "confirm.title"),
+    cancel_label: t(locale, "confirm.cancel"),
+    confirm_label: t(locale, "confirm.delete")
+}).raw
+// ...to open it from a toolbar / row button:
+let _ = dispatch_to("confirm_dialog", cid, "ask",
+    { "ids": selected, "message": confirm_msg(locale, count) })
+```
+
+| event | payload | effect |
+|---|---|---|
+| `ask` | `ids`, `message` | opens; stores `ids` for the host to read back |
+| `cancel` | — | closes and clears |
+
+The Cancel button fires `cancel` (handled by the component). The **Delete** button
+fires `confirm_delete`, which the component deliberately does **not** declare — it
+falls through to your loop, where you read the pending ids
+(`component_state("confirm_dialog", cid).ids`), run the delete, then close the
+dialog with a `cancel` dispatch.
+
+Fields: `open`, `ids`, `message`, `title` (`"Confirmar"`), `cancel_label`
+(`"Cancelar"`), `confirm_label` (`"Eliminar"`).
+
+### Theme — `--flv-*` tokens
+
+Every packaged component reads `--flv-*` design tokens (with literal fallbacks, so
+they render un-themed too). Two ways to theme them:
+
+- **Drop in the default theme** — `{ui_theme().raw}` in your `<head>` defines the
+  `--flv-*` tokens for light plus a `[data-theme="dark"]` override.
+- **Alias to your own tokens** — if your app already has a design system, map the
+  `--flv-*` names to your variables once. Aliasing to `var(--...)` means they
+  resolve lazily and follow your theme across every state (this is what the Admin
+  ABM does, so the components inherit its light / dark / auto theming):
+
+```css
+:root {
+  --flv-color-primary: var(--primary);
+  --flv-color-success: #16a34a;
+  --flv-color-danger:  #ef4444;
+  --flv-surface:       var(--surface);
+  --flv-surface-2:     var(--surface-2);
+  --flv-border:        var(--border);
+  --flv-text:          var(--text);
+  --flv-radius-md:     8px;
+  --flv-shadow-card:   0 10px 30px rgba(0, 0, 0, .25);
+}
+```
+
+Unit tests for all three live in
+[`examples/ui-gallery/tests/components_test.fitz`](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/ui-gallery/tests)
+(`fitz test` from the gallery).
 
 ---
 
@@ -166,8 +300,11 @@ A `<form data-flv-submit="search">` sends the query; filter pills send a
 
 ### Pagination
 
-Numbered page buttons + first/prev/next. `.limit(PAGE_SIZE).offset(offset)`.
-The page number rides in the payload and is parsed with `str.to_int()`.
+The numbered page buttons + prev/next ship as
+[`fitz_liveviews.ui.Pager`](#pager-controlled-pagination) — a controlled
+component you render with your grid's `page` / `total_pages`. On the query side:
+`.limit(PAGE_SIZE).offset(offset)`; the page number rides in the payload and is
+parsed with `str.to_int()`.
 
 ### Selection · multi-delete
 
@@ -256,6 +393,11 @@ event (`toggle_pais` / `toggle_prov`), expanded ids tracked as comma-joined sets
 
 ### Modal · ConfirmDialog
 
+!!! tip "Packaged"
+    ConfirmDialog ships as [`fitz_liveviews.ui.ConfirmDialog`](#confirmdialog-confirm-cancel-modal)
+    — import it instead of hand-rolling the markup below. The snippet is the
+    underlying pattern.
+
 ```
 <div class="modal-overlay"><div class="modal">
   <h3>{t(locale, "confirm.title")}</h3><p>{confirm_q}</p>
@@ -266,6 +408,10 @@ event (`toggle_pais` / `toggle_prov`), expanded ids tracked as comma-joined sets
 ```
 
 ### Toast / Alert
+
+!!! tip "Packaged"
+    Toast ships as [`fitz_liveviews.ui.Toast`](#toast-transient-flash) — import it
+    instead of the inline snippet below, which is the underlying pattern.
 
 A transient flash after a save / delete. It lives for exactly one render — the
 handler clears it at the top of the loop, so any next event dismisses it.
