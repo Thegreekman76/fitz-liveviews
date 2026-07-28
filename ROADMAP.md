@@ -446,6 +446,21 @@ con la filosofía "un lenguaje con HTTP + DB + auth + WS + jobs +
 recortado, foco y disciplina. Full kit crece por PR con demand
 real, no por completeness.
 
+> **✅ Cut 1 shipped — v0.12.0 (2026-07-28).** Rather than start with the 8
+> generic primitives (9.B), the first cut generalized the **3 most reusable
+> components already proven in the Admin ABM** — **Pager**, **Toast**,
+> **ConfirmDialog** — plus the **theme** (`--flv-*` tokens, light/dark) into the
+> importable sub-package `fitz_liveviews.ui.*`, imported by dotted sub-path
+> (enabled by Fitz core v0.29.0). Design decisions locked from 9.A: **direction
+> A** (custom minimalist / Radix-neutral, `--flv-*` re-themable) and
+> **placement** as a sub-package imported by dotted sub-path (a re-export from
+> `lib.fitz` isn't possible — it cycles, because the component depends on the
+> framework). The Admin ABM now consumes them (−203 LoC), aliasing `--flv-*` to
+> its own tokens. Shipped alongside: docs (`docs/ui-components.md` §Packaged
+> components), tests (`examples/ui-gallery/tests/components_test.fitz`, 12
+> `@test`) and 8 VSCode snippets. **Cut 2** = the 8 generic primitives below
+> (9.B).
+
 - [ ] **9.A** **Extract & design decisions** (~1 sesión, docs-only):
     - Consolidar `docs/components-candidates.md` (poblado en 8.6)
       en el shortlist final de **8 componentes MVP**: `Button` /

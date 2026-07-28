@@ -249,5 +249,71 @@
       "}"
     ],
     "description": "Route a LiveFrame to the matching component handler before your own event branches"
+  },
+
+  "Import packaged UI components": {
+    "prefix": "ui-import",
+    "body": [
+      "from fitz_liveviews.ui.Pager import pager, pager_render",
+      "from fitz_liveviews.ui.Toast import toast, toast_render, toast_show, toast_dismiss",
+      "from fitz_liveviews.ui.ConfirmDialog import confirm_dialog, confirm_dialog_render, confirm_dialog_ask, confirm_dialog_cancel",
+      "from fitz_liveviews.ui.theme import ui_theme"
+    ],
+    "description": "Import the packaged companion UI kit (Pager / Toast / ConfirmDialog / theme) by dotted sub-path"
+  },
+
+  "Pager — packaged, controlled": {
+    "prefix": "ui-pager",
+    "body": ["let ${1:pager_html} = pager_render(pager { page: ${2:page}, total_pages: ${3:total_pages} }).raw"],
+    "description": "Render the packaged Pager (controlled). Its buttons page_prev/page_next/goto_page fall through to your @ws loop"
+  },
+
+  "Toast — seed the per-connection instance": {
+    "prefix": "ui-toast-seed",
+    "body": ["let ${1:toast_html} = component_with(\"toast\", ${2:cid}, toast { }).raw"],
+    "description": "Seed the per-connection Toast instance in your render (pair with `let cid = Uuid.v4().to_str()`)"
+  },
+
+  "Toast — show a flash": {
+    "prefix": "ui-toast-show",
+    "body": ["let _ = dispatch_to(\"toast\", ${1:cid}, \"show\", { \"message\": ${2:message}, \"kind\": \"${3:success}\" })"],
+    "description": "Show a transient toast (kind: success / error / info). Pair with a `dismiss` dispatch at the top of the loop"
+  },
+
+  "ConfirmDialog — seed with labels": {
+    "prefix": "ui-dialog-seed",
+    "body": [
+      "let ${1:modal} = component_with(\"confirm_dialog\", ${2:cid}, confirm_dialog {",
+      "  title: ${3:t(locale, \"confirm.title\")},",
+      "  cancel_label: ${4:t(locale, \"confirm.cancel\")},",
+      "  confirm_label: ${5:t(locale, \"confirm.delete\")}",
+      "}).raw"
+    ],
+    "description": "Seed the per-connection ConfirmDialog with already-localized labels"
+  },
+
+  "ConfirmDialog — open it (ask)": {
+    "prefix": "ui-dialog-ask",
+    "body": ["let _ = dispatch_to(\"confirm_dialog\", ${1:cid}, \"ask\", { \"ids\": ${2:ids}, \"message\": ${3:message} })"],
+    "description": "Open the ConfirmDialog with the ids to act on + a formatted body message"
+  },
+
+  "ConfirmDialog — handle confirm (fall-through)": {
+    "prefix": "ui-dialog-confirm",
+    "body": [
+      "if (frame.event == \"confirm_delete\") {",
+      "  let ${1:dlg} = component_state(\"confirm_dialog\", ${2:cid})",
+      "  $0",
+      "  // ...run the delete over $1.ids, then close the dialog:",
+      "  let _ = dispatch_to(\"confirm_dialog\", $2, \"cancel\", { })",
+      "}"
+    ],
+    "description": "Handle the ConfirmDialog's confirm_delete (falls through to the host loop): read the pending ids, act, then close"
+  },
+
+  "Theme — drop in the default --flv-* tokens": {
+    "prefix": "ui-theme",
+    "body": ["{ui_theme().raw}"],
+    "description": "Emit the default --flv-* theme tokens (light + [data-theme=\"dark\"]) in your <head>"
   }
 }

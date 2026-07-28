@@ -5,6 +5,50 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.12.0] — 2026-07-28 — Companion UI library: Pager / Toast / ConfirmDialog + theme (cut 1)
+
+**Minor bump** — ships the first cut of a companion UI component library: the
+three most reusable LiveComponents, generalized out of the Admin ABM into an
+importable sub-package, plus a re-themable design-token layer.
+
+### Added — packaged UI components (`fitz_liveviews.ui.*`)
+
+- **Pager**, **Toast** and **ConfirmDialog** live in `src/ui/*.fitzv`, imported
+  by dotted sub-path — `from fitz_liveviews.ui.Pager import pager, pager_render`
+  — instead of vendoring the `.fitzv` into your app. Enabled by Fitz core
+  **v0.29.0** (dep-subpath imports + `@live_component` auto-registration for
+  imported components).
+- **i18n stays out of the library**: the host passes already-localized text —
+  Toast takes a `message`; ConfirmDialog seeds its labels at init and takes a
+  formatted body in the `ask` payload.
+- **Theme** (`fitz_liveviews.ui.theme`) — `ui_theme()` emits `--flv-*` design
+  tokens (light + a `[data-theme="dark"]` override). Every component reads
+  `--flv-*` with literal fallbacks, so a host re-themes them either by dropping
+  in `ui_theme()` or by aliasing `--flv-*` to its own tokens.
+- Scoped, self-contained `<style scoped>`; parity `fitz run` ↔ `fitz build`.
+
+### Changed — the Admin ABM consumes the library
+
+The Admin ABM example drops its vendored Pager / Toast / ConfirmDialog copies
+(−220 LoC of components, −203 LoC net) and imports them from
+`fitz_liveviews.ui.*`, aliasing `--flv-*` to its own tokens so the components
+inherit its light / dark / auto theming.
+
+### Added — docs, tests, editor snippets
+
+- `docs/ui-components.md` — a "Packaged components" section documenting the three
+  plus the theme (state, events, wiring, theming).
+- `examples/ui-gallery/tests/components_test.fitz` — 12 `@test` covering the
+  render fns, the event handlers, and the theme (`fitz test` from the gallery).
+- VSCode extension — 8 new snippets (`ui-import`, `ui-pager`, `ui-toast-seed`,
+  `ui-toast-show`, `ui-dialog-seed`, `ui-dialog-ask`, `ui-dialog-confirm`,
+  `ui-theme`).
+
+### Requires
+
+Fitz core **v0.29.0** — dep-subpath imports, `@live_component` auto-registration
+for imported components, and the 16 MB worker stack for real-world WS renders.
+
 ## [v0.11.0] — 2026-07-24 — `component_with`: per-instance init payload + the per-connection instance pattern
 
 **Minor bump** — closes the "per-instance init payload" item that was open on
