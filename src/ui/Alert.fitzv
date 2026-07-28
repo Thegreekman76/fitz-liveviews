@@ -1,0 +1,71 @@
+// Alert.fitzv — packaged companion UI primitive (Phase 9, corte 2).
+//
+// Pure presentational / SSR: `alert_render(alert { ... }).raw`. A colored callout
+// for a message the page wants to surface. `title` and `body` are escaped text.
+// The `variant` (info/success/warning/danger) drives a colored left accent + a
+// subtle tint. `dismissible: true` shows an × that fires the fall-through event
+// named by `on_dismiss` (your @ws loop removes the alert from its state). Style it
+// by aliasing the --flv-* tokens (see src/ui/theme.fitz); each token carries a
+// literal fallback.
+
+from fitz_liveviews import flv
+
+component alert {
+  state {
+    variant: Str = "info"
+    title: Str = ""
+    body: Str = ""
+    dismissible: Bool = false
+    on_dismiss: Str = ""
+  }
+
+  <template>
+    <div class="flv-alert" data-variant="{variant}" role="alert">
+      <div class="flv-alert-content">
+        {#if title != ""}<div class="flv-alert-title">{flv(title)}</div>{/if}
+        <div class="flv-alert-body">{flv(body)}</div>
+      </div>
+      {#if dismissible}
+        <button class="flv-alert-x" data-flv-click="{on_dismiss}" aria-label="Close">×</button>
+      {/if}
+    </div>
+  </template>
+
+  <style scoped>
+    .flv-alert {
+      display: flex; align-items: flex-start; gap: .75rem;
+      padding: .8rem 1rem;
+      border-radius: var(--flv-radius-md, 8px);
+      border: 1px solid var(--flv-border, #d9d9e0);
+      border-left-width: 4px;
+      background: var(--flv-surface-2, #f5f5f7);
+      color: var(--flv-text, #1a1a1a);
+      font-size: .9rem;
+    }
+    .flv-alert[data-variant="info"] {
+      border-left-color: var(--flv-color-info, #1565c0);
+      background: color-mix(in srgb, var(--flv-color-info, #1565c0) 8%, var(--flv-surface, #ffffff));
+    }
+    .flv-alert[data-variant="success"] {
+      border-left-color: var(--flv-color-success, #2e7d32);
+      background: color-mix(in srgb, var(--flv-color-success, #2e7d32) 8%, var(--flv-surface, #ffffff));
+    }
+    .flv-alert[data-variant="warning"] {
+      border-left-color: var(--flv-color-warning, #ed6c02);
+      background: color-mix(in srgb, var(--flv-color-warning, #ed6c02) 8%, var(--flv-surface, #ffffff));
+    }
+    .flv-alert[data-variant="danger"] {
+      border-left-color: var(--flv-color-danger, #c62828);
+      background: color-mix(in srgb, var(--flv-color-danger, #c62828) 8%, var(--flv-surface, #ffffff));
+    }
+    .flv-alert-content { flex: 1; }
+    .flv-alert-title { font-weight: 700; margin-bottom: .15rem; }
+    .flv-alert-body { color: var(--flv-text-muted, #55555c); }
+    .flv-alert-x {
+      margin-left: auto; border: none; background: transparent;
+      color: var(--flv-color-muted, #8b8b93);
+      font-size: 1.15rem; line-height: 1; cursor: pointer; padding: 0 .2rem;
+    }
+    .flv-alert-x:hover { color: var(--flv-text, #1a1a1a); }
+  </style>
+}

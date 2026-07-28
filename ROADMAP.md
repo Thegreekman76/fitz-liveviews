@@ -461,6 +461,18 @@ real, no por completeness.
 > `@test`) and 8 VSCode snippets. **Cut 2** = the 8 generic primitives below
 > (9.B).
 
+> **✅ Cut 2 shipped — v0.13.0 (2026-07-28).** The **8 generic primitives (9.B)** —
+> **Button**, **Card**, **Badge**, **Alert**, **Input**, **Spinner**, **Icon** and
+> **Modal** — land in `fitz_liveviews.ui.*`, same dotted-sub-path style, same
+> direction A / `--flv-*` re-themable tokens. Seven are pure presentational / SSR
+> render fns; **Modal** is stateful per-connection (like ConfirmDialog). Shipped in
+> two tandas of 4 with docs (`docs/ui-components.md`), 26 new `@test` (128 total in
+> the gallery) and 10 VSCode snippets; the theme gained a `--flv-color-warning`
+> token. **Deferred from the 9.B spec** (render-fn / SSR model): icon slots on
+> Button/Card/Input (compose `icon(...)` in the host instead), Modal focus-trap +
+> ESC-to-close (need client JS the SSR path doesn't inject); the token layer stays
+> `ui_theme()` rather than separate `themes/*.css` files.
+
 - [ ] **9.A** **Extract & design decisions** (~1 sesión, docs-only):
     - Consolidar `docs/components-candidates.md` (poblado en 8.6)
       en el shortlist final de **8 componentes MVP**: `Button` /
@@ -491,7 +503,7 @@ real, no por completeness.
       o **path dep hermano** — decisión de packaging en 9.A.
     - Snippet `flv-uibtn`/`flv-uicard`/etc para VSCode extension.
 
-- [ ] **9.B** **Build MVP — 8 componentes + tema** (~2-3 sesiones):
+- [x] **9.B** **Build MVP — 8 componentes + tema** — ✅ shipped v0.13.0 (see the Cut 2 callout above for what landed + what deferred):
     - `Button` — variants primary/secondary/danger/ghost, size
       sm/md/lg, disabled + loading states, icon slot.
     - `Card` — header/body/footer slots, elevation levels,

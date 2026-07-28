@@ -6,10 +6,24 @@
 // component to HTML and prints it, so `fitz run` exercises the whole
 // resolution + SSR path without a WebSocket server.
 
+// main.fitz is the entry file ([bin].main), so it imports `flv_register` plus
+// the event handlers of every stateful component it pulls in — the implicit
+// @live_component boot registrations need those names in scope to compile
+// (pure-presentational components like Pager/Button/Badge/Spinner only need
+// `flv_register`). A `fitz run` renders each component to stdout.
+from fitz_liveviews import flv_register
 from fitz_liveviews.ui.Pager import pager, pager_render
-from fitz_liveviews.ui.Toast import toast, toast_render
-from fitz_liveviews.ui.ConfirmDialog import confirm_dialog, confirm_dialog_render
+from fitz_liveviews.ui.Toast import toast, toast_render, toast_show, toast_dismiss
+from fitz_liveviews.ui.ConfirmDialog import confirm_dialog, confirm_dialog_render, confirm_dialog_ask, confirm_dialog_cancel
 from fitz_liveviews.ui.theme import ui_theme
+from fitz_liveviews.ui.Button import button, button_render
+from fitz_liveviews.ui.Badge import badge, badge_render
+from fitz_liveviews.ui.Spinner import spinner, spinner_render
+from fitz_liveviews.ui.icon import icon
+from fitz_liveviews.ui.Card import card, card_render
+from fitz_liveviews.ui.Alert import alert, alert_render
+from fitz_liveviews.ui.Input import input, input_render
+from fitz_liveviews.ui.Modal import modal, modal_render, modal_show, modal_close
 
 print("=== Theme tokens ===")
 print(ui_theme().raw)
@@ -32,3 +46,73 @@ let cd_html = confirm_dialog_render(confirm_dialog {
   confirm_label: "Eliminar"
 })
 print(cd_html.raw)
+
+print("=== Button (primary) ===")
+print(button_render(button { label: "Guardar", variant: "primary", on_click: "save" }).raw)
+
+print("=== Button (danger, loading) ===")
+print(button_render(button { label: "Eliminando", variant: "danger", on_click: "del", loading: true }).raw)
+
+print("=== Button (ghost, disabled) ===")
+print(button_render(button { label: "Sin permiso", variant: "ghost", on_click: "noop", disabled: true }).raw)
+
+print("=== Badge (success) ===")
+print(badge_render(badge { label: "activo", variant: "success" }).raw)
+
+print("=== Badge (count, primary, sm) ===")
+print(badge_render(badge { label: "12", variant: "primary", size: "sm" }).raw)
+
+print("=== Spinner (indeterminate, md) ===")
+print(spinner_render(spinner { size: "md", label: "Cargando" }).raw)
+
+print("=== Spinner (determinate 65%) ===")
+print(spinner_render(spinner { size: "lg", progress: 65, label: "65 por ciento" }).raw)
+
+print("=== Icon (check) ===")
+print(icon("check").raw)
+
+print("=== Icon (unknown → empty svg) ===")
+print(icon("nope").raw)
+
+print("=== Card (title + raw body + footer, elevation md) ===")
+print(card_render(card {
+  title: "Perfil",
+  body: "<p>Contenido <strong>rico</strong> en HTML</p>",
+  footer: "<small>Actualizado hoy</small>",
+  elevation: "md"
+}).raw)
+
+print("=== Alert (warning, dismissible) ===")
+print(alert_render(alert {
+  variant: "warning",
+  title: "Atención",
+  body: "El disco está casi lleno.",
+  dismissible: true,
+  on_dismiss: "dismiss_alert"
+}).raw)
+
+print("=== Input (with error) ===")
+print(input_render(input {
+  name: "email",
+  label: "Correo",
+  value: "no-es-un-mail",
+  input_type: "email",
+  placeholder: "vos@ejemplo.com",
+  error: "Correo inválido"
+}).raw)
+
+print("=== Input (with hint, disabled) ===")
+print(input_render(input {
+  name: "user",
+  label: "Usuario",
+  value: "ada",
+  hint: "No se puede cambiar",
+  disabled: true
+}).raw)
+
+print("=== Modal (open) ===")
+print(modal_render(modal {
+  open: true,
+  title: "Editar empleado",
+  body: "<p>Formulario acá</p>"
+}).raw)

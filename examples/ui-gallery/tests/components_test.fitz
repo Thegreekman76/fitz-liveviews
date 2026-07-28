@@ -10,6 +10,14 @@ from fitz_liveviews.ui.Pager import pager, pager_render
 from fitz_liveviews.ui.Toast import toast, toast_render, toast_show, toast_dismiss
 from fitz_liveviews.ui.ConfirmDialog import confirm_dialog, confirm_dialog_render, confirm_dialog_ask, confirm_dialog_cancel
 from fitz_liveviews.ui.theme import ui_theme
+from fitz_liveviews.ui.Button import button, button_render
+from fitz_liveviews.ui.Badge import badge, badge_render
+from fitz_liveviews.ui.Spinner import spinner, spinner_render
+from fitz_liveviews.ui.icon import icon
+from fitz_liveviews.ui.Card import card, card_render
+from fitz_liveviews.ui.Alert import alert, alert_render
+from fitz_liveviews.ui.Input import input, input_render
+from fitz_liveviews.ui.Modal import modal, modal_render, modal_show, modal_close
 
 // --- Pager (presentational / controlled) ---
 
@@ -98,4 +106,202 @@ from fitz_liveviews.ui.theme import ui_theme
     assert(css.contains("--flv-color-primary"))
     assert(css.contains("--flv-surface"))
     assert(css.contains("data-theme=\"dark\""))
+}
+
+// === corte 2 — presentational primitives (Button / Badge / Spinner / Icon) ===
+// These have no state and no events: the render fn maps props -> Html. Because
+// the scoped <style> block always emits every selector, "absence" tests key on
+// markup that only appears in the rendered element (e.g. `disabled=""`, or a
+// space-joined class list `flv-btn-spin flv-btn-spin-`), never on class names.
+
+// --- Button ---
+
+@test fn button_primary_is_clickable_and_not_disabled() {
+    let h = button_render(button { label: "Guardar", variant: "primary", on_click: "save" }).raw
+    assert(h.contains("data-flv-click=\"save\""))
+    assert(h.contains("data-variant=\"primary\""))
+    assert(h.contains("Guardar"))
+    assert(not h.contains("disabled=\"\""))
+}
+
+@test fn button_loading_is_disabled_and_shows_spinner() {
+    let h = button_render(button { label: "x", on_click: "e", loading: true }).raw
+    assert(h.contains("disabled=\"\""))
+    // the spinner <span> is HTML-only (the CSS names `.flv-btn-spin-...`, not
+    // the space-joined `flv-btn-spin flv-btn-spin-` that the class attr emits)
+    assert(h.contains("flv-btn-spin flv-btn-spin-"))
+}
+
+@test fn button_disabled_blocks_click_without_spinner() {
+    let h = button_render(button { label: "x", on_click: "e", disabled: true }).raw
+    assert(h.contains("disabled=\"\""))
+    assert(not h.contains("flv-btn-spin flv-btn-spin-"))
+}
+
+// --- Badge ---
+
+@test fn badge_renders_label_variant_and_size() {
+    let h = badge_render(badge { label: "activo", variant: "success", size: "sm" }).raw
+    assert(h.contains("data-variant=\"success\""))
+    assert(h.contains("data-size=\"sm\""))
+    assert(h.contains(">activo</span>"))
+}
+
+@test fn badge_defaults_to_muted_md() {
+    let h = badge_render(badge { label: "7" }).raw
+    assert(h.contains("data-variant=\"muted\""))
+    assert(h.contains("data-size=\"md\""))
+}
+
+// --- Spinner ---
+
+@test fn spinner_indeterminate_renders_ring_no_svg() {
+    let h = spinner_render(spinner { size: "md", label: "Cargando" }).raw
+    assert(h.contains("flv-spin-ring flv-spin-ring-"))
+    assert(not h.contains("<svg"))
+    assert(h.contains("Cargando"))
+}
+
+@test fn spinner_determinate_renders_svg_and_percent_var() {
+    let h = spinner_render(spinner { size: "lg", progress: 65, label: "x" }).raw
+    assert(h.contains("<svg"))
+    assert(h.contains("style=\"--flv-p: 65\""))
+    assert(h.contains("data-size=\"lg\""))
+}
+
+@test fn spinner_inline_sets_data_inline_true() {
+    let h = spinner_render(spinner { inline: true }).raw
+    assert(h.contains("data-inline=\"true\""))
+}
+
+// --- Icon ---
+
+@test fn icon_known_renders_svg_with_currentcolor() {
+    let h = icon("check").raw
+    assert(h.contains("<svg"))
+    assert(h.contains("stroke=\"currentColor\""))
+    assert(h.contains("<polyline points=\"20 6 9 17 4 12\""))
+}
+
+@test fn icon_unknown_renders_empty_svg() {
+    let h = icon("does-not-exist").raw
+    assert(h.contains("<svg"))
+    // empty body: the <svg> closes right after its class attribute
+    assert(h.contains("class=\"flv-icon\"></svg>"))
+}
+
+// === corte 2 — Card / Alert / Input (presentational) + Modal (stateful) ===
+
+// --- Card ---
+
+@test fn card_renders_title_raw_body_and_footer() {
+    let h = card_render(card {
+        title: "Perfil", body: "<p>rico</p>", footer: "<small>pie</small>", elevation: "md"
+    }).raw
+    assert(h.contains("data-elevation=\"md\""))
+    assert(h.contains(">Perfil</div>"))
+    assert(h.contains("<p>rico</p>"))         // body is RAW
+    assert(h.contains("<small>pie</small>"))  // footer is RAW
+}
+
+@test fn card_omits_head_and_foot_when_empty() {
+    let h = card_render(card { body: "<p>x</p>" }).raw
+    // HTML-only markers (the CSS names `.flv-card-head-...`, not the
+    // space-joined class attr the element would emit)
+    assert(not h.contains("flv-card-head flv-card-head-"))
+    assert(not h.contains("flv-card-foot flv-card-foot-"))
+}
+
+@test fn card_clickable_fires_on_click() {
+    let h = card_render(card { body: "x", clickable: true, on_click: "open_row" }).raw
+    assert(h.contains("data-flv-click=\"open_row\""))
+}
+
+@test fn card_default_is_not_clickable() {
+    let h = card_render(card { body: "x" }).raw
+    assert(not h.contains("data-flv-click"))
+}
+
+// --- Alert ---
+
+@test fn alert_renders_variant_title_and_body() {
+    let h = alert_render(alert { variant: "warning", title: "Atención", body: "casi lleno" }).raw
+    assert(h.contains("data-variant=\"warning\""))
+    assert(h.contains(">Atención</div>"))
+    assert(h.contains(">casi lleno</div>"))
+}
+
+@test fn alert_body_is_escaped() {
+    let h = alert_render(alert { body: "<script>x</script>" }).raw
+    assert(h.contains("&lt;script&gt;"))
+    assert(not h.contains("<script>"))
+}
+
+@test fn alert_dismissible_shows_close_button() {
+    let h = alert_render(alert { body: "x", dismissible: true, on_dismiss: "hide" }).raw
+    assert(h.contains("data-flv-click=\"hide\""))
+}
+
+@test fn alert_not_dismissible_omits_close_button() {
+    let h = alert_render(alert { body: "x" }).raw
+    assert(not h.contains("data-flv-click"))
+}
+
+// --- Input ---
+
+@test fn input_renders_name_value_type_and_label() {
+    let h = input_render(input { name: "email", label: "Correo", value: "a@b.co", input_type: "email" }).raw
+    assert(h.contains("name=\"email\""))
+    assert(h.contains("type=\"email\""))
+    assert(h.contains("value=\"a@b.co\""))
+    assert(h.contains(">Correo</span>"))
+}
+
+@test fn input_error_shows_error_and_hides_hint() {
+    let h = input_render(input { name: "x", error: "requerido", hint: "pista" }).raw
+    assert(h.contains("flv-field-error flv-field-error-"))  // HTML-only marker
+    assert(h.contains("requerido"))
+    assert(not h.contains("pista"))
+}
+
+@test fn input_hint_shows_when_no_error() {
+    let h = input_render(input { name: "x", hint: "pista" }).raw
+    assert(h.contains("pista"))
+    assert(not h.contains("flv-field-error flv-field-error-"))
+}
+
+@test fn input_escapes_value_attribute() {
+    let h = input_render(input { name: "x", value: "\"><img>" }).raw
+    assert(h.contains("&quot;&gt;&lt;img&gt;"))
+    assert(not h.contains("value=\"\"><img>"))
+}
+
+@test fn input_disabled_renders_disabled_attr() {
+    let h = input_render(input { name: "x", disabled: true }).raw
+    assert(h.contains("disabled=\"\""))
+}
+
+// --- Modal (stateful) ---
+
+@test fn modal_closed_by_default_renders_nothing() {
+    // the scoped <style> always renders; key on the close control inside {#if open}
+    let h = modal_render(modal { }).raw
+    assert(not h.contains("data-flv-click=\"close\""))
+}
+
+@test fn modal_show_opens_with_title_and_body_from_payload() {
+    let m = modal_show(modal { }, { "title": "Editar", "body": "<p>form</p>" })
+    assert_eq(m.open, true)
+    assert_eq(m.title, "Editar")
+    let h = modal_render(m).raw
+    assert(h.contains("data-flv-click=\"close\""))
+    assert(h.contains(">Editar</h3>"))
+    assert(h.contains("<p>form</p>"))  // body is RAW
+}
+
+@test fn modal_close_closes_and_clears_body() {
+    let opened = modal_show(modal { }, { "title": "x", "body": "y" })
+    let closed = modal_close(opened, { })
+    assert_eq(closed.open, false)
+    assert_eq(closed.body, "")
 }

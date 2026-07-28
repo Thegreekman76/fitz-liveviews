@@ -257,9 +257,10 @@
       "from fitz_liveviews.ui.Pager import pager, pager_render",
       "from fitz_liveviews.ui.Toast import toast, toast_render, toast_show, toast_dismiss",
       "from fitz_liveviews.ui.ConfirmDialog import confirm_dialog, confirm_dialog_render, confirm_dialog_ask, confirm_dialog_cancel",
+      "from fitz_liveviews.ui.Modal import modal, modal_render, modal_show, modal_close",
       "from fitz_liveviews.ui.theme import ui_theme"
     ],
-    "description": "Import the packaged companion UI kit (Pager / Toast / ConfirmDialog / theme) by dotted sub-path"
+    "description": "Import the packaged stateful companion UI kit (Pager / Toast / ConfirmDialog / Modal / theme) by dotted sub-path"
   },
 
   "Pager — packaged, controlled": {
@@ -315,5 +316,73 @@
     "prefix": "ui-theme",
     "body": ["{ui_theme().raw}"],
     "description": "Emit the default --flv-* theme tokens (light + [data-theme=\"dark\"]) in your <head>"
+  },
+
+  "Import packaged UI primitives": {
+    "prefix": "ui-import-primitives",
+    "body": [
+      "from fitz_liveviews.ui.Button import button, button_render",
+      "from fitz_liveviews.ui.Card import card, card_render",
+      "from fitz_liveviews.ui.Badge import badge, badge_render",
+      "from fitz_liveviews.ui.Alert import alert, alert_render",
+      "from fitz_liveviews.ui.Input import input, input_render",
+      "from fitz_liveviews.ui.Spinner import spinner, spinner_render",
+      "from fitz_liveviews.ui.icon import icon"
+    ],
+    "description": "Import the packaged presentational primitives (Button / Card / Badge / Alert / Input / Spinner / Icon) by dotted sub-path"
+  },
+
+  "Button — packaged, presentational": {
+    "prefix": "ui-button",
+    "body": ["let ${1:btn_html} = button_render(button { label: ${2:label}, variant: \"${3:primary}\", on_click: \"${4:event}\" }).raw"],
+    "description": "Render the packaged Button (variant primary/secondary/danger/ghost). Its click fires the on_click event, which falls through to your @ws loop"
+  },
+
+  "Card — packaged, presentational": {
+    "prefix": "ui-card",
+    "body": ["let ${1:card_html} = card_render(card { title: ${2:title}, body: ${3:body_html}, elevation: \"${4:sm}\" }).raw"],
+    "description": "Render the packaged Card (title escaped; body/footer are RAW HTML; elevation none/sm/md/lg; clickable variant)"
+  },
+
+  "Badge — packaged, presentational": {
+    "prefix": "ui-badge",
+    "body": ["let ${1:badge_html} = badge_render(badge { label: ${2:label}, variant: \"${3:muted}\" }).raw"],
+    "description": "Render the packaged Badge (variant primary/success/danger/info/muted, size sm/md)"
+  },
+
+  "Alert — packaged, presentational": {
+    "prefix": "ui-alert",
+    "body": ["let ${1:alert_html} = alert_render(alert { variant: \"${2:info}\", title: ${3:title}, body: ${4:body} }).raw"],
+    "description": "Render the packaged Alert (variant info/success/warning/danger; dismissible fires on_dismiss)"
+  },
+
+  "Input — packaged, controlled": {
+    "prefix": "ui-input",
+    "body": ["let ${1:input_html} = input_render(input { name: \"${2:field}\", label: ${3:label}, value: ${4:value}, input_type: \"${5:text}\" }).raw"],
+    "description": "Render the packaged Input (controlled: value lives in your form; read it back from the data-flv-submit payload by name)"
+  },
+
+  "Spinner — packaged, presentational": {
+    "prefix": "ui-spinner",
+    "body": ["let ${1:spinner_html} = spinner_render(spinner { size: \"${2:md}\", label: ${3:label} }).raw"],
+    "description": "Render the packaged Spinner (indeterminate by default; pass progress: 0..100 for a determinate ring)"
+  },
+
+  "Icon — packaged SVG": {
+    "prefix": "ui-icon",
+    "body": ["icon(\"${1:check}\").raw"],
+    "description": "Emit a packaged 1em currentColor SVG icon (check/close/edit/trash/plus/search/chevron-*/... 23 baked in)"
+  },
+
+  "Modal — seed the per-connection instance": {
+    "prefix": "ui-modal-seed",
+    "body": ["let ${1:modal_html} = component_with(\"modal\", ${2:cid}, modal { }).raw"],
+    "description": "Seed the per-connection Modal instance in your render (pair with `let cid = Uuid.v4().to_str()`)"
+  },
+
+  "Modal — open it (show)": {
+    "prefix": "ui-modal-show",
+    "body": ["let _ = dispatch_to(\"modal\", ${1:cid}, \"show\", { \"title\": ${2:title}, \"body\": ${3:body_html} })"],
+    "description": "Open the Modal, seeding its title + RAW body HTML. Close it with a `close` dispatch (or the × / backdrop click)"
   }
 }

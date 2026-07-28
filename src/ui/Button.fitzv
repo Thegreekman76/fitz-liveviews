@@ -1,0 +1,76 @@
+// Button.fitzv — packaged companion UI primitive (Phase 9, corte 2).
+//
+// Pure presentational / SSR: `button_render(button { ... }).raw`. No state, no
+// events of its own — a click emits the fall-through event named by the
+// `on_click` prop (routed to your @ws loop, exactly like the Pager's buttons).
+// The parent passes props (label / variant / size / on_click / disabled / loading) and
+// re-renders it inline every frame. `disabled` and `loading` both render a real
+// `disabled` attribute so the click can't fire; `loading` also shows a spinner.
+// Style it with your own theme by aliasing the --flv-* tokens (see
+// src/ui/theme.fitz); each token carries a literal fallback.
+
+from fitz_liveviews import flv
+
+component button {
+  state {
+    label: Str = ""
+    variant: Str = "primary"
+    size: Str = "md"
+    on_click: Str = ""
+    disabled: Bool = false
+    loading: Bool = false
+  }
+
+  <template>
+    <span class="flv-btn-slot">
+      {#if loading}
+        <button class="flv-btn" data-variant="{variant}" data-size="{size}" data-flv-click="{on_click}" disabled>
+          <span class="flv-btn-spin"></span><span class="flv-btn-label">{flv(label)}</span>
+        </button>
+      {#else}
+        {#if disabled}
+          <button class="flv-btn" data-variant="{variant}" data-size="{size}" data-flv-click="{on_click}" disabled>
+            <span class="flv-btn-label">{flv(label)}</span>
+          </button>
+        {#else}
+          <button class="flv-btn" data-variant="{variant}" data-size="{size}" data-flv-click="{on_click}">
+            <span class="flv-btn-label">{flv(label)}</span>
+          </button>
+        {/if}
+      {/if}
+    </span>
+  </template>
+
+  <style scoped>
+    .flv-btn-slot { display: inline-block; }
+    .flv-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+      font-weight: 600; cursor: pointer; white-space: nowrap;
+      border-radius: var(--flv-radius-md, 8px);
+      border: 1px solid transparent;
+      transition: filter .12s ease, background .12s ease;
+    }
+    .flv-btn[data-size="sm"] { font-size: .8rem; padding: .35rem .7rem; }
+    .flv-btn[data-size="md"] { font-size: .88rem; padding: .5rem .95rem; }
+    .flv-btn[data-size="lg"] { font-size: .98rem; padding: .65rem 1.2rem; }
+    .flv-btn:disabled { opacity: .55; cursor: default; }
+    .flv-btn[data-variant="primary"] { background: var(--flv-color-primary, #ce412b); color: #fff; }
+    .flv-btn[data-variant="primary"]:hover:not(:disabled) { filter: brightness(.94); }
+    .flv-btn[data-variant="secondary"] {
+      background: var(--flv-surface, #ffffff);
+      color: var(--flv-text, #1a1a1a);
+      border-color: var(--flv-border, #d9d9e0);
+    }
+    .flv-btn[data-variant="secondary"]:hover:not(:disabled) { background: var(--flv-surface-2, #f5f5f7); }
+    .flv-btn[data-variant="danger"] { background: var(--flv-color-danger, #c62828); color: #fff; }
+    .flv-btn[data-variant="danger"]:hover:not(:disabled) { filter: brightness(.94); }
+    .flv-btn[data-variant="ghost"] { background: transparent; color: var(--flv-text, #1a1a1a); }
+    .flv-btn[data-variant="ghost"]:hover:not(:disabled) { background: var(--flv-surface-2, #f5f5f7); }
+    .flv-btn-spin {
+      width: 1em; height: 1em; border-radius: 50%;
+      border: 2px solid currentColor; border-right-color: transparent;
+      animation: flv-btn-spin .6s linear infinite;
+    }
+    @keyframes flv-btn-spin { to { transform: rotate(360deg); } }
+  </style>
+}

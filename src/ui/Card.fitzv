@@ -1,0 +1,64 @@
+// Card.fitzv — packaged companion UI primitive (Phase 9, corte 2).
+//
+// Pure presentational / SSR: `card_render(card { ... }).raw`. No state, no events
+// of its own. `title` is escaped header text; `body` and `footer` are RAW HTML you
+// build in the host (so a card can hold anything — a table, a form, other
+// components). Header and footer are omitted when their prop is empty. `elevation`
+// picks a shadow level; `clickable: true` turns the whole card into a fall-through
+// button that fires `on_click`. Style it by aliasing the --flv-* tokens (see
+// src/ui/theme.fitz); each token carries a literal fallback.
+
+from fitz_liveviews import flv
+
+component card {
+  state {
+    title: Str = ""
+    body: Str = ""
+    footer: Str = ""
+    elevation: Str = "sm"
+    clickable: Bool = false
+    on_click: Str = ""
+  }
+
+  <template>
+    {#if clickable}
+      <div class="flv-card flv-card-clickable" data-elevation="{elevation}" data-flv-click="{on_click}">
+        {#if title != ""}<div class="flv-card-head">{flv(title)}</div>{/if}
+        <div class="flv-card-body">{body}</div>
+        {#if footer != ""}<div class="flv-card-foot">{footer}</div>{/if}
+      </div>
+    {#else}
+      <div class="flv-card" data-elevation="{elevation}">
+        {#if title != ""}<div class="flv-card-head">{flv(title)}</div>{/if}
+        <div class="flv-card-body">{body}</div>
+        {#if footer != ""}<div class="flv-card-foot">{footer}</div>{/if}
+      </div>
+    {/if}
+  </template>
+
+  <style scoped>
+    .flv-card {
+      background: var(--flv-surface, #ffffff);
+      color: var(--flv-text, #1a1a1a);
+      border: 1px solid var(--flv-border, #d9d9e0);
+      border-radius: var(--flv-radius-md, 8px);
+      overflow: hidden;
+    }
+    .flv-card[data-elevation="none"] { box-shadow: none; }
+    .flv-card[data-elevation="sm"] { box-shadow: 0 1px 3px rgba(0, 0, 0, .08); }
+    .flv-card[data-elevation="md"] { box-shadow: var(--flv-shadow-card, 0 6px 20px rgba(0, 0, 0, .12)); }
+    .flv-card[data-elevation="lg"] { box-shadow: 0 12px 40px rgba(0, 0, 0, .18); }
+    .flv-card-clickable { cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; }
+    .flv-card-clickable:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(0, 0, 0, .18); }
+    .flv-card-head {
+      padding: .9rem 1.1rem; font-weight: 700; font-size: 1rem;
+      border-bottom: 1px solid var(--flv-border, #d9d9e0);
+    }
+    .flv-card-body { padding: 1.1rem; }
+    .flv-card-foot {
+      padding: .8rem 1.1rem;
+      border-top: 1px solid var(--flv-border, #d9d9e0);
+      background: var(--flv-surface-2, #f5f5f7);
+    }
+  </style>
+}

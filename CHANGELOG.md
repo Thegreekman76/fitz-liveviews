@@ -5,6 +5,69 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.13.0] — 2026-07-28 — Companion UI library: 8 primitives (cut 2)
+
+**Minor bump** — ships cut 2 of the companion UI library: the eight generic
+primitives from roadmap 9.B, added to `fitz_liveviews.ui.*` in the same
+dotted-sub-path style as cut 1. Seven are pure presentational / SSR (render fn:
+props in, HTML out, no state); **Modal** is stateful, one instance per connection
+(like ConfirmDialog).
+
+### Added — packaged UI primitives (`fitz_liveviews.ui.*`)
+
+- **Button** — `variant` (primary / secondary / danger / ghost), `size` (sm / md /
+  lg), `disabled` + `loading` (both render a real `disabled`; loading shows an
+  inline spinner). A click fires the fall-through event named by `on_click`.
+- **Card** — escaped `title` header; `body` and `footer` are **RAW HTML** (a card
+  holds anything — a table, a form, other components), omitted when empty;
+  `elevation` (none / sm / md / lg); `clickable` variant firing `on_click`.
+- **Badge** — count or status pill; `variant` (primary / success / danger / info /
+  muted), `size` (sm / md).
+- **Alert** — colored callout; `variant` (info / success / warning / danger) drives
+  a left accent + tint; escaped `title` / `body`; `dismissible` fires `on_dismiss`.
+- **Input** — labeled, **controlled** form field (its `value` lives in your form);
+  `input_type` (text / email / password / number), `label` / `placeholder` / `hint`,
+  `error` (switches to the invalid style via CSS `:has()`), `disabled`. Every
+  attribute value is escaped.
+- **Spinner** — indeterminate rotating ring by default; `progress: 0..100` for a
+  determinate ring (filled via the `--flv-p` custom property, no client JS); sizes
+  sm / md / lg; `inline` vs block.
+- **Icon** (`fitz_liveviews.ui.icon`) — `icon(name).raw` returns a 1em,
+  `currentColor` SVG; 23 baked-in outline icons; unknown names render an empty
+  `<svg>` so a typo degrades gracefully.
+- **Modal** — stateful, per-connection generic dialog: `show` (seeds `title` /
+  `body` from the payload) / `close`. The × button and a backdrop click both close
+  it; content clicks don't (a `pointer-events` layering trick, no JS).
+- **Theme** — `ui_theme()` gains a `--flv-color-warning` token (for the Alert
+  `warning` variant); every primitive reads `--flv-*` with literal fallbacks, so it
+  renders un-themed and re-themes by aliasing the tokens. Scoped, self-contained
+  `<style scoped>`; parity `fitz run` ↔ `fitz build`.
+
+### Added — docs, tests, editor snippets
+
+- `docs/ui-components.md` — eight new entries under "Packaged components", plus
+  "Packaged" cross-links from the hand-rolled Button/Input/Alert/Modal/Badge/Spinner
+  patterns.
+- `examples/ui-gallery/tests/components_test.fitz` — 26 new `@test` (128 total),
+  covering render output, escaping vs raw injection, the invalid/disabled states,
+  and Modal's show/close (`fitz test` from the gallery).
+- VSCode extension — new snippets: `ui-import-primitives`, `ui-button`, `ui-card`,
+  `ui-badge`, `ui-alert`, `ui-input`, `ui-spinner`, `ui-icon`, `ui-modal-seed`,
+  `ui-modal-show` (and `ui-import` now includes Modal).
+
+### Notes — not in this cut
+
+Deferred from the 9.B spec (the render-fn / SSR model doesn't support them yet):
+Button/Card/Input **icon slots** (no slots in a render fn — compose `icon(...)` in
+the host), and Modal **focus trap + ESC-to-close** (both need client-side JS the
+SSR path doesn't inject). The theme stays a single `ui_theme()` token layer rather
+than separate `themes/*.css` files.
+
+### Requires
+
+Fitz core **v0.29.0** — dep-subpath imports, `@live_component` auto-registration for
+imported components, and the 16 MB worker stack for real-world WS renders.
+
 ## [v0.12.0] — 2026-07-28 — Companion UI library: Pager / Toast / ConfirmDialog + theme (cut 1)
 
 **Minor bump** — ships the first cut of a companion UI component library: the

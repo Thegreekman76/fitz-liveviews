@@ -32,14 +32,25 @@ right below. This page is the reference. Two runnable companions:
 
 ## Packaged components
 
-Three components — **Pager**, **Toast** and **ConfirmDialog** — plus a **theme**
-ship as an importable sub-library. Instead of copying the `.fitzv` into your
-project, pull them straight from the dependency by dotted sub-path:
+The kit ships as an importable sub-library. Instead of copying the `.fitzv` into
+your project, pull each piece straight from the dependency by dotted sub-path.
+Two groups: **stateful** components, one instance per connection (Toast /
+ConfirmDialog / Modal — plus the controlled Pager), and **presentational
+primitives** (Button / Card / Badge / Alert / Input / Spinner / Icon), plus a
+**theme**:
 
 ```
 from fitz_liveviews.ui.Pager import pager, pager_render
 from fitz_liveviews.ui.Toast import toast, toast_render, toast_show, toast_dismiss
 from fitz_liveviews.ui.ConfirmDialog import confirm_dialog, confirm_dialog_render, confirm_dialog_ask, confirm_dialog_cancel
+from fitz_liveviews.ui.Modal import modal, modal_render, modal_show, modal_close
+from fitz_liveviews.ui.Button import button, button_render
+from fitz_liveviews.ui.Card import card, card_render
+from fitz_liveviews.ui.Badge import badge, badge_render
+from fitz_liveviews.ui.Alert import alert, alert_render
+from fitz_liveviews.ui.Input import input, input_render
+from fitz_liveviews.ui.Spinner import spinner, spinner_render
+from fitz_liveviews.ui.icon import icon
 from fitz_liveviews.ui.theme import ui_theme
 ```
 
@@ -47,7 +58,8 @@ They're **i18n-agnostic** (the host passes already-localized text), styled with
 `<style scoped>` that reads `--flv-*` theme tokens (with literal fallbacks), and
 render identically under `fitz run` and the `fitz build` binary. The
 [Admin ABM](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/admin)
-consumes all three; the [gallery](examples/gallery.md) renders each in isolation.
+consumes the app-level components; the [gallery](examples/gallery.md) renders every
+piece in isolation.
 
 !!! note "Register once, in your entry file"
     Import each component you use in your project's **entry** file (the one with
@@ -128,6 +140,175 @@ dialog with a `cancel` dispatch.
 
 Fields: `open`, `ids`, `message`, `title` (`"Confirmar"`), `cancel_label`
 (`"Cancelar"`), `confirm_label` (`"Eliminar"`).
+
+### Modal — generic dialog
+
+Stateful, one instance **per connection** — a general dialog (unlike ConfirmDialog,
+which is specifically confirm / cancel). Seed it, then `show` / `close` it:
+
+```
+let dialog = component_with("modal", cid, modal { }).raw
+// ...open it, seeding the content in the payload:
+let _ = dispatch_to("modal", cid, "show",
+    { "title": t(locale, "employee.edit"), "body": form_html })
+```
+
+| event | payload | effect |
+|---|---|---|
+| `show` | `title`, `body` (both optional) | opens; `body` is RAW HTML |
+| `close` | — | closes and clears the body |
+
+The × button **and a click on the backdrop** both fire `close`; clicks on the modal
+content don't (the backdrop sits behind a `pointer-events: none` wrapper, so
+background clicks fall through to it — no JS). `title` is escaped; `body` is RAW HTML
+you build in the host. Fields: `open`, `title`, `body`, `close_label` (`"Cerrar"`).
+
+!!! note "Not in this MVP"
+    Focus trap and ESC-to-close need client-side JS the SSR path doesn't inject —
+    pair the modal with your own global key handler if you need them.
+
+### Button — action button
+
+Presentational: props in, HTML out, no state. A click emits the fall-through event
+named by `on_click` (routed to your `@ws` loop, exactly like the Pager's buttons).
+Re-render it every frame:
+
+```
+let save_btn = button_render(button {
+    label: t(locale, "actions.save"), variant: "primary", on_click: "save"
+}).raw
+```
+
+`disabled` and `loading` both render a real `disabled` attribute so the click can't
+fire; `loading` also shows an inline spinner.
+
+| field | type | default | notes |
+|---|---|---|---|
+| `label` | `Str` | `""` | button text (escaped) |
+| `variant` | `Str` | `"primary"` | `primary` / `secondary` / `danger` / `ghost` |
+| `size` | `Str` | `"md"` | `sm` / `md` / `lg` |
+| `on_click` | `Str` | `""` | fall-through click event name |
+| `disabled` | `Bool` | `false` | non-interactive |
+| `loading` | `Bool` | `false` | non-interactive + spinner |
+
+### Card — content container
+
+Presentational. `title` is escaped header text; `body` and `footer` are **RAW HTML**
+you build in the host, so a card can hold anything (a table, a form, other
+components). Header and footer are omitted when empty:
+
+```
+let profile = card_render(card {
+    title: t(locale, "card.profile"),
+    body: profile_html,
+    footer: card_actions_html,
+    elevation: "md"
+}).raw
+```
+
+`clickable: true` turns the whole card into a fall-through button firing `on_click`.
+
+| field | type | default | notes |
+|---|---|---|---|
+| `title` | `Str` | `""` | escaped header text (omitted if empty) |
+| `body` | `Str` | `""` | **RAW** HTML body |
+| `footer` | `Str` | `""` | **RAW** HTML footer (omitted if empty) |
+| `elevation` | `Str` | `"sm"` | `none` / `sm` / `md` / `lg` shadow |
+| `clickable` | `Bool` | `false` | whole card is a fall-through button |
+| `on_click` | `Str` | `""` | click event name (when `clickable`) |
+
+### Badge — count / status pill
+
+Presentational pill for a count or a short status label:
+
+```
+let status = badge_render(badge { label: t(locale, "status.active"), variant: "success" }).raw
+let count = badge_render(badge { label: "12", variant: "primary", size: "sm" }).raw
+```
+
+| field | type | default | notes |
+|---|---|---|---|
+| `label` | `Str` | `""` | text or count (escaped) |
+| `variant` | `Str` | `"muted"` | `primary` / `success` / `danger` / `info` / `muted` |
+| `size` | `Str` | `"md"` | `sm` / `md` |
+
+### Alert — colored callout
+
+Presentational. `title` and `body` are escaped text; the `variant` drives a colored
+left accent plus a subtle tint. `dismissible: true` shows an × that fires the
+fall-through event named by `on_dismiss` (your loop removes the alert from state):
+
+```
+let warn = alert_render(alert {
+    variant: "warning", title: t(locale, "alert.disk"), body: t(locale, "alert.disk.body"),
+    dismissible: true, on_dismiss: "hide_disk_alert"
+}).raw
+```
+
+| field | type | default | notes |
+|---|---|---|---|
+| `variant` | `Str` | `"info"` | `info` / `success` / `warning` / `danger` |
+| `title` | `Str` | `""` | escaped title (omitted if empty) |
+| `body` | `Str` | `""` | escaped message |
+| `dismissible` | `Bool` | `false` | shows a × close button |
+| `on_dismiss` | `Str` | `""` | dismiss event name (when `dismissible`) |
+
+### Input — labeled form field
+
+Presentational and **controlled** — its `value` lives in your form, not the
+component. Give it a `name` and read it back from the form's `data-flv-submit`
+handler (the standard fitz-liveviews form pattern). All attribute values are escaped;
+set `error` to switch to the invalid style, otherwise `hint` shows helper text:
+
+```
+let email = input_render(input {
+    name: "email", label: t(locale, "field.email"), value: form_email,
+    input_type: "email", error: email_error
+}).raw
+```
+
+| field | type | default | notes |
+|---|---|---|---|
+| `name` | `Str` | `""` | form field name (read from the submit payload) |
+| `label` | `Str` | `""` | escaped label (omitted if empty) |
+| `value` | `Str` | `""` | current value (host-controlled) |
+| `input_type` | `Str` | `"text"` | `text` / `email` / `password` / `number` |
+| `placeholder` | `Str` | `""` | escaped placeholder |
+| `hint` | `Str` | `""` | helper text (shown when no error) |
+| `error` | `Str` | `""` | error message; non-empty ⇒ invalid style |
+| `disabled` | `Bool` | `false` | disables the input |
+
+### Spinner — loading indicator
+
+Presentational. Indeterminate by default (a rotating ring); pass `progress: 0..100`
+for a determinate ring, filled via the `--flv-p` custom property (no client JS):
+
+```
+let loading = spinner_render(spinner { size: "md", label: t(locale, "loading") }).raw
+let uploaded = spinner_render(spinner { progress: 65, label: "65%" }).raw
+```
+
+| field | type | default | notes |
+|---|---|---|---|
+| `size` | `Str` | `"md"` | `sm` / `md` / `lg` |
+| `label` | `Str` | `""` | screen-reader status text |
+| `inline` | `Bool` | `false` | `true` sits it on the text baseline |
+| `progress` | `Int` | `-1` | `-1` indeterminate; `0..100` determinate |
+
+### Icon — SVG icon set
+
+Stateless: `icon(name).raw` returns a 1em, `currentColor` SVG. Size it with
+`font-size`, color it with `color` (the paths use `stroke="currentColor"`). Unknown
+names render an empty `<svg>` so a typo degrades gracefully:
+
+```
+let trash = icon("trash").raw
+```
+
+23 baked-in icons: `check` `close` `plus` `minus` `edit` `trash` `warning` `info`
+`success` `download` `upload` `search` `home` `user` `cog` `dashboard` `menu`
+`chevron-left` `chevron-right` `chevron-up` `chevron-down` `arrow-left`
+`arrow-right`.
 
 ### Theme — `--flv-*` tokens
 
@@ -264,6 +445,11 @@ fn progress_bar(label: Str, value: Int, max: Int, accent: Str) -> Str {
 
 ### Spinner
 
+!!! tip "Packaged"
+    Spinner ships as [`fitz_liveviews.ui.Spinner`](#spinner-loading-indicator) with
+    sizes + a determinate mode — import it instead of the inline ring below, which
+    is the underlying pattern.
+
 A CSS keyframes ring, used as a small "live" indicator.
 
 ```
@@ -344,6 +530,11 @@ serializes every field regardless of the visible tab.
 
 ### FormLayout · Input · Textarea · DatePicker
 
+!!! tip "Packaged"
+    Input ships as [`fitz_liveviews.ui.Input`](#input-labeled-form-field) with a
+    label, hint, error state and escaped attributes — import it instead of
+    hand-rolling the `<input>` below, which is the underlying pattern.
+
 ```
 <div class="form-row"><label>{flv(l_nombre)}</label>
   <input name="nombre" value="{flv(f_nombre)}" placeholder="{flv(ph)}" /></div>
@@ -394,8 +585,9 @@ event (`toggle_pais` / `toggle_prov`), expanded ids tracked as comma-joined sets
 ### Modal · ConfirmDialog
 
 !!! tip "Packaged"
-    ConfirmDialog ships as [`fitz_liveviews.ui.ConfirmDialog`](#confirmdialog-confirm-cancel-modal)
-    — import it instead of hand-rolling the markup below. The snippet is the
+    ConfirmDialog ships as [`fitz_liveviews.ui.ConfirmDialog`](#confirmdialog-confirm-cancel-modal),
+    and a generic dialog as [`fitz_liveviews.ui.Modal`](#modal-generic-dialog) —
+    import them instead of hand-rolling the markup below. The snippet is the
     underlying pattern.
 
 ```
@@ -410,8 +602,9 @@ event (`toggle_pais` / `toggle_prov`), expanded ids tracked as comma-joined sets
 ### Toast / Alert
 
 !!! tip "Packaged"
-    Toast ships as [`fitz_liveviews.ui.Toast`](#toast-transient-flash) — import it
-    instead of the inline snippet below, which is the underlying pattern.
+    Toast ships as [`fitz_liveviews.ui.Toast`](#toast-transient-flash), and a static
+    inline callout as [`fitz_liveviews.ui.Alert`](#alert-colored-callout) — import
+    them instead of the inline snippet below, which is the underlying pattern.
 
 A transient flash after a save / delete. It lives for exactly one render — the
 handler clears it at the top of the loop, so any next event dismisses it.
@@ -422,6 +615,11 @@ let toast = match flash == "" { true => "", false => """<div class="toast toast-
 ```
 
 ### Badge · CountBadge · Chip
+
+!!! tip "Packaged"
+    Badge ships as [`fitz_liveviews.ui.Badge`](#badge-count-status-pill) with color
+    variants + sizes — import it instead of hand-rolling the pill below, which is the
+    underlying pattern.
 
 ```
 <span class="badge badge-ok">{t(locale, "badge.active")}</span>   <!-- status -->

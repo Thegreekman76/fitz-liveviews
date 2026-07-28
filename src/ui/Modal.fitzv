@@ -1,0 +1,89 @@
+// Modal.fitzv — packaged companion UI primitive (Phase 9, corte 2).
+//
+// Stateful, one instance PER CONNECTION (seed with `component_with("modal", cid,
+// modal { ... })`, drive with `dispatch_to`). A generic dialog: `show` opens it
+// (optionally seeding `title` / `body` from the payload), `close` closes it. The
+// × button and a click on the backdrop both fire `close`; content clicks don't
+// (the backdrop sits behind a pointer-events:none wrapper, so background clicks
+// fall through to it while the modal stays interactive — no JS needed). `title` is
+// escaped; `body` is RAW HTML you build in the host. Style it by aliasing the
+// --flv-* tokens (see src/ui/theme.fitz); each token carries a literal fallback.
+//
+// Not in this MVP: focus trap and ESC-to-close (both need client-side JS the SSR
+// path doesn't inject) — pair with your own global key handler if you need them.
+
+from fitz_liveviews import flv
+
+component modal {
+  state {
+    open: Bool = false
+    title: Str = ""
+    body: Str = ""
+    close_label: Str = "Cerrar"
+  }
+
+  event show() {
+    if (payload.has("title")) {
+      title = payload["title"]
+    }
+    if (payload.has("body")) {
+      body = payload["body"]
+    }
+    open = true
+  }
+
+  event close() {
+    open = false
+    body = ""
+  }
+
+  <template>
+    <div class="flv-modal-slot">
+      {#if open}
+        <div class="flv-modal-backdrop" data-flv-click="close"></div>
+        <div class="flv-modal-wrap">
+          <div class="flv-modal" role="dialog">
+            <div class="flv-modal-head">
+              <h3 class="flv-modal-title">{flv(title)}</h3>
+              <button class="flv-modal-x" data-flv-click="close" aria-label="{flv(close_label)}">×</button>
+            </div>
+            <div class="flv-modal-body">{body}</div>
+          </div>
+        </div>
+      {/if}
+    </div>
+  </template>
+
+  <style scoped>
+    .flv-modal-backdrop {
+      position: fixed; inset: 0; z-index: 1000;
+      background: rgba(0, 0, 0, .45);
+    }
+    .flv-modal-wrap {
+      position: fixed; inset: 0; z-index: 1001;
+      display: flex; align-items: center; justify-content: center;
+      padding: 1rem; pointer-events: none;
+    }
+    .flv-modal {
+      pointer-events: auto;
+      width: 100%; max-width: 32rem; max-height: 90vh; overflow: auto;
+      background: var(--flv-surface, #ffffff);
+      color: var(--flv-text, #1a1a1a);
+      border-radius: var(--flv-radius-md, 8px);
+      box-shadow: var(--flv-shadow-card, 0 10px 40px rgba(0, 0, 0, .25));
+    }
+    .flv-modal-head {
+      display: flex; align-items: center; gap: .75rem;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--flv-border, #d9d9e0);
+    }
+    .flv-modal-title { margin: 0; font-size: 1.05rem; font-weight: 700; flex: 1; }
+    .flv-modal-x {
+      border: none; background: transparent;
+      color: var(--flv-color-muted, #8b8b93);
+      font-size: 1.4rem; line-height: 1; cursor: pointer; padding: 0 .2rem;
+    }
+    .flv-modal-x:hover { color: var(--flv-text, #1a1a1a); }
+    .flv-modal-body { padding: 1.25rem; }
+  </style>
+}

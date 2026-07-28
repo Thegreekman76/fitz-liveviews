@@ -20,6 +20,7 @@ fn ui_theme() -> Html {
   --flv-color-primary: #ce412b;
   --flv-color-success: #2e7d32;
   --flv-color-danger:  #c62828;
+  --flv-color-warning: #ed6c02;
   --flv-color-info:    #1565c0;
   --flv-color-muted:   #8b8b93;
   --flv-surface:   #ffffff;

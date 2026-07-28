@@ -1,0 +1,55 @@
+// Badge.fitzv — packaged companion UI primitive (Phase 9, corte 2).
+//
+// Pure presentational / SSR: `badge_render(badge { ... }).raw`. Renders a small
+// pill for a count or a status label. No state, no events — the parent passes
+// props (label / variant / size) and re-renders it inline every frame. Style it
+// with your own theme by aliasing the --flv-* tokens (see src/ui/theme.fitz);
+// each token carries a literal fallback so it looks right with no theme loaded.
+
+from fitz_liveviews import flv
+
+component badge {
+  state {
+    label: Str = ""
+    variant: Str = "muted"
+    size: Str = "md"
+  }
+
+  <template>
+    <span class="flv-badge" data-variant="{variant}" data-size="{size}">{flv(label)}</span>
+  </template>
+
+  <style scoped>
+    .flv-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      font-weight: 600; line-height: 1; white-space: nowrap;
+      border-radius: 999px;
+      background: var(--flv-surface-2, #f5f5f7);
+      color: var(--flv-text, #1a1a1a);
+      border: 1px solid var(--flv-border, #d9d9e0);
+    }
+    .flv-badge[data-size="sm"] { font-size: .7rem; padding: .12rem .5rem; }
+    .flv-badge[data-size="md"] { font-size: .78rem; padding: .2rem .6rem; }
+    .flv-badge[data-variant="primary"] {
+      background: var(--flv-color-primary, #ce412b); color: #fff;
+      border-color: var(--flv-color-primary, #ce412b);
+    }
+    .flv-badge[data-variant="success"] {
+      background: var(--flv-color-success, #2e7d32); color: #fff;
+      border-color: var(--flv-color-success, #2e7d32);
+    }
+    .flv-badge[data-variant="danger"] {
+      background: var(--flv-color-danger, #c62828); color: #fff;
+      border-color: var(--flv-color-danger, #c62828);
+    }
+    .flv-badge[data-variant="info"] {
+      background: var(--flv-color-info, #1565c0); color: #fff;
+      border-color: var(--flv-color-info, #1565c0);
+    }
+    .flv-badge[data-variant="muted"] {
+      background: var(--flv-surface-2, #f5f5f7);
+      color: var(--flv-text-muted, #55555c);
+      border-color: var(--flv-border, #d9d9e0);
+    }
+  </style>
+}
