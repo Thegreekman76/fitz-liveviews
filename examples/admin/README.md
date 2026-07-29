@@ -151,10 +151,16 @@ gone by the time requests arrive.
 ## What's next
 
 The stack is complete (auth + ORM + live grids + forms + LiveComponents + i18n
-+ Docker). The remaining direction is **extracting the LiveComponents into a
-reusable companion UI library** — the widgets under `src/*.fitzv` (ConfirmDialog,
-Toast, Pager, GridToolbar, …) are already shared across the Empleados and
-Departamentos screens; the next step is packaging them so any Fitz LiveViews
-app can install and compose them. See
-[`docs/showcase-admin-abm-plan.md`](../../docs/showcase-admin-abm-plan.md).
++ Docker). The companion UI library now ships (`fitz_liveviews.ui.*`) and the
+employee form consumes its `Input` / `Alert` / `Button` primitives.
+
+**Known limitation (framework, next norte): keyed diffing.** Expanding a grid
+row inserts a `<tr class="detail-row">` mid-table; the current `diff_html` is
+positional (keyless), so a mid-list insert shifts every following sibling and
+the patch set is large and fragile — it **intermittently fails to apply on the
+client** (the server output is always correct). The fix is keyed comprehensions
+(`{#for … key=…}`), tracked as the priority next norte in
+[ROADMAP.md](../../ROADMAP.md). For the smoothest experience, run the **native
+binary** (`fitz build`), which is ~9× faster per interaction than `fitz run`.
+See [`docs/showcase-admin-abm-plan.md`](../../docs/showcase-admin-abm-plan.md).
 Each slice is deployable on its own.

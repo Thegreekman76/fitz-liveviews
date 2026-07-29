@@ -141,8 +141,11 @@ Compact patches over the wire, DOM state preserved on the client.
       `{#if cond}...{/if}` — needs a mini template engine
 - [ ] `data-flv-input`, `data-flv-change`, `data-flv-keydown` handlers
 - [ ] Debouncing configuration on inputs (client-side)
-- [ ] Loops with stable keys (`{#for x in xs key=x.id}`) for efficient
-      diff (currently we don't handle reordering well)
+- [ ] **⭐ NEXT NORTE** — Loops with stable keys (`{#for x in xs key=x.id}`)
+      for efficient, robust diff. Currently keyless/positional: reordering and
+      **mid-list insert/remove** (e.g. the Admin ABM's expandable row detail)
+      produce large, fragile patch sets that intermittently misapply on the
+      client. See "Next norte (technical debt) — keyed diffing" under Phase 8.9.
 - [ ] Auth integration (`@authenticated @live(...)`, user injected)
 - [ ] `@on_mount` and `@on_disconnect` lifecycle hooks
 - [ ] `@every(N secs)` for server-pushed periodic updates
@@ -424,6 +427,36 @@ engine that lifts Phase 9's component shortlist from 8 basics to
   becomes a core fix or documented debt.
 
 Full detail in [`docs/showcase-admin-abm-plan.md`](docs/showcase-admin-abm-plan.md).
+
+> **✅ Companion UI adoption + dogfooding (2026-07-29, v0.15.0).** The
+> employee form adopted the packaged primitives — `Input` (nombre / email /
+> cargo / fecha), `Alert` (validation banner) and `Button` (save / finish /
+> cancel) — themed through the `--flv-*` tokens aliased to the admin palette,
+> verified **bit-for-bit `fitz run` ↔ native binary** against Postgres. The
+> **grid stays raw on purpose**: its row buttons render N times per live frame,
+> where a primitive's inline scoped `<style>` would duplicate on every row (the
+> same reason `EmpleadoRow` carries no scoped styles). To let `Button` cover
+> row-action buttons it grew `icon` / `value` / `tooltip` / `aria_label` props
+> (v0.15.0 — still shipped for once-per-frame use).
+
+## Next norte (technical debt) — keyed diffing ⭐
+
+Dogfooding the Admin ABM (2026-07-29) surfaced the **single highest-leverage
+quality gap** for the live-grid UX. Expanding a grid row (inserting a
+`<tr class="detail-row">` mid-tbody) **intermittently fails to apply in the
+browser**. Root cause: `diff_html` (Phase 3b) is **positional / keyless**, so a
+mid-list insertion shifts every following sibling and the diff emits a large,
+fragile patch set — measured **72 patches for one row toggle** (18 `remove` + 2
+`append` + `set_attr`/`text` patches over index paths, including whitespace text
+nodes) instead of "insert one row". The **server is provably correct and
+deterministic** (verified: the emitted HTML alternates cleanly on every toggle);
+the fragility is entirely in applying shifted positional patches on the client.
+
+This is the difference between "impressive" and "production-grade" — Phoenix
+LiveView solves it with **keyed comprehensions**. The fix lives in Phase 3c's
+`{#for x in xs key=x.id}` item (line below), now promoted to the priority next
+norte. Secondary reliability debts to schedule alongside: reconnect with state
+replay, backpressure on the outbox, and multi-instance coordination.
 
 ## Phase 9 — Companion UI library 🧩
 
