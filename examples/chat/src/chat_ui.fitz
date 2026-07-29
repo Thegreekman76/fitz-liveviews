@@ -1,0 +1,29 @@
+// Presentational helpers for ChatRoom.fitzv — wrap the packaged Card,
+// Input and Button primitives so the SFC template can call bare fn refs
+// (the K-4 pattern; a struct literal inside a `{...}` interpolation
+// doesn't round-trip through the SSR emitter, so we hoist it here).
+from fitz_liveviews import Html, flv
+from message import Message
+from fitz_liveviews.ui.Card import card, card_render
+from fitz_liveviews.ui.Input import input, input_render
+from fitz_liveviews.ui.Button import button, button_render
+
+fn message_bubble(m: Message) -> Html {
+  return card_render(card { title: m.author, body: flv(m.text), elevation: "sm" })
+}
+
+fn author_input() -> Html {
+  return input_render(input {
+    name: "author", placeholder: "Your name", required: true, autocomplete: "off"
+  })
+}
+
+fn text_input() -> Html {
+  return input_render(input {
+    name: "text", placeholder: "Your message", required: true, autocomplete: "off", clear: true
+  })
+}
+
+fn send_button() -> Html {
+  return button_render(button { label: "Send", variant: "primary", submit: true })
+}

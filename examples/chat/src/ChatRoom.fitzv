@@ -1,28 +1,15 @@
-// Fitz LiveViews — ChatRoom SFC (Phase 8.4 SFC migration).
-//
-// State + template + event handling live here as a single-file
-// component. The parent `main.fitz` shrinks to just the HTTP GET
-// + WS routes that wire the component into the framework.
-//
-// State: `messages: List<Message>` — the shared chat history.
-// Since `.fitzv` components have singleton state per (component
-// name, instance_id) pair, `component("ChatRoom", "room")` gives
-// EVERY connected client the same history — natural broadcast
-// semantics without a hand-rolled top-level shared `let`.
-//
-// Event: `send_message` — receives the form submission's payload
-// map (`author` + `text`), constructs a Message struct literal,
-// pushes to `messages`. Post Fitz core §9.cc, `messages.push(...)`
-// on the shadow local is accepted as a bare method call (mutation
-// via the underlying `Arc<Mutex<Vec<T>>>` propagates to state).
-// Post §9.dd, `Message { ... }` struct literal with `Message`
-// imported from `message.fitz` sibling works.
-//
-// Template: chat log + submit form with `@click=` / `data-flv-*`
-// conventions. Bare boolean attrs (`required` from HTML5 spec)
-// accepted post §9.ee V-2.
+// Fitz LiveViews — ChatRoom SFC, refactored to the companion UI
+// library (Phase 9.C). Each message is now a packaged `Card`, and the
+// composer row is built from the packaged `Input` and `Button`
+// primitives (`submit: true` drives the `data-flv-submit` form, and the
+// message field's `clear: true` empties it after each send). The
+// primitives come in through thin helper fns in `chat_ui.fitz`, since a
+// struct literal inside a `{...}` template interpolation doesn't
+// round-trip through the SSR emitter.
 
 from message import Message
+from chat_ui import message_bubble, author_input, text_input, send_button
+from fitz_liveviews.ui.theme import ui_theme
 
 component ChatRoom {
   state { messages: List<Message> = [] }
@@ -39,17 +26,33 @@ component ChatRoom {
 
   <template>
     <div id="chat-app">
+      {ui_theme().raw}
       <h1>Fitz LiveViews Chat</h1>
-      <ul>
+      <ul class="chat-log">
         {#for m in messages}
-          <li><strong>{m.author}:</strong> {m.text}</li>
+          <li class="chat-item">{message_bubble(m).raw}</li>
         {/for}
       </ul>
-      <form data-flv-submit="send_message">
-        <input name="author" placeholder="Your name" required autocomplete="off" />
-        <input name="text" placeholder="Your message" required autocomplete="off" data-flv-clear />
-        <button type="submit">Send</button>
+      <form data-flv-submit="send_message" class="chat-form">
+        {author_input().raw}
+        {text_input().raw}
+        {send_button().raw}
       </form>
     </div>
   </template>
+
+  <style scoped>
+    #chat-app {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 1rem;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      color: var(--flv-text, #222);
+    }
+    #chat-app h1 { font-size: 1.4rem; color: #CE412B; }
+    .chat-log { list-style: none; padding: 0; margin: 0 0 1rem 0; display: flex; flex-direction: column; gap: .5rem; }
+    .chat-form { display: flex; gap: .5rem; align-items: flex-end; flex-wrap: wrap; }
+    .chat-form > * { flex: 1 1 8rem; }
+    .chat-form > .flv-btn-slot { flex: 0 0 auto; }
+  </style>
 }

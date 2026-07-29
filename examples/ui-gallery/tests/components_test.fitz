@@ -138,6 +138,22 @@ from fitz_liveviews.ui.Modal import modal, modal_render, modal_show, modal_close
     assert(not h.contains("flv-btn-spin flv-btn-spin-"))
 }
 
+@test fn button_default_is_type_button_not_form_submit() {
+    // a plain action button never submits a form it sits inside
+    let h = button_render(button { label: "x", on_click: "e" }).raw
+    assert(h.contains("type=\"button\""))
+    assert(not h.contains("type=\"submit\""))
+}
+
+@test fn button_submit_is_type_submit_without_flv_click() {
+    // a submit button drives an enclosing <form data-flv-submit>, so it
+    // renders type="submit" and omits its own data-flv-click event
+    let h = button_render(button { label: "Send", variant: "primary", submit: true }).raw
+    assert(h.contains("type=\"submit\""))
+    assert(not h.contains("data-flv-click"))
+    assert(h.contains("Send"))
+}
+
 // --- Badge ---
 
 @test fn badge_renders_label_variant_and_size() {
@@ -279,6 +295,19 @@ from fitz_liveviews.ui.Modal import modal, modal_render, modal_show, modal_close
 @test fn input_disabled_renders_disabled_attr() {
     let h = input_render(input { name: "x", disabled: true }).raw
     assert(h.contains("disabled=\"\""))
+}
+
+@test fn input_required_and_clear_emit_live_form_attrs() {
+    // a live-form field: required for client validation, data-flv-clear so the
+    // client empties it after each successful submit
+    let h = input_render(input { name: "msg", required: true, clear: true }).raw
+    assert(h.contains("required"))
+    assert(h.contains("data-flv-clear"))
+}
+
+@test fn input_autocomplete_is_passed_through() {
+    let h = input_render(input { name: "msg", autocomplete: "off" }).raw
+    assert(h.contains("autocomplete=\"off\""))
 }
 
 // --- Modal (stateful) ---

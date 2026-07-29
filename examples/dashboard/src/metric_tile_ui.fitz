@@ -1,0 +1,19 @@
+// Presentational helpers for MetricTile.fitzv — wrap the packaged
+// Badge + Button primitives so the SFC template can call bare fn refs
+// (the K-4 pattern; a struct literal inside a `{...}` interpolation
+// doesn't round-trip through the SSR emitter, so we hoist it here).
+from fitz_liveviews import Html
+from fitz_liveviews.ui.Button import button, button_render
+from fitz_liveviews.ui.Badge import badge, badge_render
+
+fn live_badge() -> Html {
+  return badge_render(badge { label: "live", variant: "success", size: "sm" })
+}
+
+fn bump_button() -> Html {
+  return button_render(button { label: "+1", variant: "primary", size: "sm", on_click: "bump" })
+}
+
+fn reset_button() -> Html {
+  return button_render(button { label: "reset", variant: "ghost", size: "sm", on_click: "reset" })
+}

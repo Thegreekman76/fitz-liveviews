@@ -25,6 +25,7 @@
 // replace, no lost focus in the form.
 
 from fitz_liveviews import Html, html, live_layout, html_response, LiveFrame, diff_html, component, dispatch_component_events, flv_register
+from fitz_liveviews.ui.theme import ui_theme
 from card import Card, Board
 from Board import Board_render, Board_create_card, Board_move_right, Board_move_left, Board_delete_card
 
@@ -45,13 +46,19 @@ from Board import Board_render, Board_create_card, Board_move_right, Board_move_
 // once; the SFC template stays clean of style noise)
 // -----------------------------------------------------------------------------
 
+// Layout-only CSS. The packaged Card / Input / Button primitives (styled
+// by `ui_theme()`'s --flv-* tokens) now carry the card surface, form
+// field and submit-button styling that used to live here — this block
+// only positions the board grid, the columns and the per-card action
+// buttons (the one bit of hand-rolled markup, since those buttons carry
+// a `data-flv-value-card_id` the Button primitive doesn't model).
 let KANBAN_CSS: Str = """  * \{ box-sizing: border-box; \}
   #kanban-app \{
     max-width: 1200px;
     margin: 0 auto;
     padding: 1rem;
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-    color: #222;
+    color: var(--flv-text, #222);
   \}
   #kanban-app h1 \{
     margin: 0 0 1rem 0;
@@ -59,58 +66,38 @@ let KANBAN_CSS: Str = """  * \{ box-sizing: border-box; \}
     color: #CE412B;
   \}
   #kanban-app .sub \{
-    color: #666;
+    color: var(--flv-text-muted, #666);
     font-size: 0.9rem;
     margin-bottom: 1rem;
   \}
-  #kanban-app form \{
+  .add-form \{
     display: flex;
     gap: 0.5rem;
     margin-bottom: 1.5rem;
     flex-wrap: wrap;
+    align-items: flex-end;
   \}
-  #kanban-app form input \{
-    flex: 1 1 200px;
-    min-width: 0;
-    padding: 0.5rem 0.75rem;
-    font-size: 1rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-  \}
-  #kanban-app form input:focus \{
-    outline: none;
-    border-color: #CE412B;
-  \}
-  #kanban-app form button \{
-    padding: 0.5rem 1rem;
-    font-size: 1rem;
-    font-weight: 600;
-    border: none;
-    border-radius: 4px;
-    background: #CE412B;
-    color: white;
-    cursor: pointer;
-  \}
-  #kanban-app form button:hover \{ background: #A83321; \}
+  .add-form > * \{ flex: 1 1 200px; min-width: 0; \}
+  .add-form > .flv-btn-slot \{ flex: 0 0 auto; \}
   .board \{
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
   \}
   .column \{
-    background: #f4f4f4;
-    border-radius: 8px;
+    background: var(--flv-surface-2, #f4f4f4);
+    border-radius: var(--flv-radius-md, 8px);
     padding: 1rem;
     min-height: 200px;
   \}
   .column h2 \{
     margin: 0 0 1rem 0;
     font-size: 1rem;
-    color: #333;
+    color: var(--flv-text, #333);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   \}
-  .column .count \{ color: #888; font-weight: normal; \}
+  .column .count \{ color: var(--flv-text-muted, #888); font-weight: normal; \}
   .card-list \{
     list-style: none;
     padding: 0;
@@ -119,44 +106,29 @@ let KANBAN_CSS: Str = """  * \{ box-sizing: border-box; \}
     flex-direction: column;
     gap: 0.5rem;
   \}
-  .card \{
-    background: white;
-    border-radius: 6px;
-    padding: 0.75rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-  \}
-  .card-title \{
-    font-weight: 600;
-    word-wrap: break-word;
-    line-height: 1.3;
-  \}
   .card-author \{
     font-size: 0.85rem;
-    color: #666;
+    color: var(--flv-text-muted, #666);
   \}
   .card-actions \{
     display: flex;
     gap: 0.25rem;
     justify-content: flex-end;
-    margin-top: 0.25rem;
+    margin-top: 0.5rem;
   \}
-  #kanban-app .btn \{
+  .card-btn \{
     border: none;
-    padding: 0.35rem 0.6rem;
-    border-radius: 4px;
+    padding: 0.3rem 0.5rem;
+    border-radius: var(--flv-radius-md, 6px);
     cursor: pointer;
-    font-size: 0.9rem;
-    background: #e0e0e0;
-    color: #333;
-    min-width: 2rem;
-    font-weight: normal;
+    display: inline-flex;
+    align-items: center;
+    font-size: 1rem;
+    background: var(--flv-surface-2, #ececef);
+    color: var(--flv-text, #333);
   \}
-  #kanban-app .btn:hover \{ background: #d0d0d0; \}
-  .btn-del \{ background: #f5c6cb; color: #a94442; \}
-  .btn-del:hover \{ background: #eaa0a7; \}
+  .card-btn:hover \{ filter: brightness(0.95); \}
+  .card-btn-del \{ color: var(--flv-color-danger, #c62828); \}
   @media (max-width: 768px) \{
     .board \{ grid-template-columns: 1fr; \}
     #kanban-app \{ padding: 0.5rem; \}
@@ -164,7 +136,7 @@ let KANBAN_CSS: Str = """  * \{ box-sizing: border-box; \}
 
 fn kanban_shell(inner_html: Str) -> Html {
   let css = KANBAN_CSS
-  return html("<style>{css}</style>{inner_html}")
+  return html("{ui_theme().raw}<style>{css}</style>{inner_html}")
 }
 
 

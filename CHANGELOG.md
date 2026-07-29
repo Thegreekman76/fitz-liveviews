@@ -5,6 +5,57 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.14.0] — 2026-07-28 — Examples refactored onto the companion UI (9.C)
+
+**Minor bump** — the four bundled examples (Counter, Dashboard, Chat, Kanban) now
+consume the packaged companion UI primitives (`fitz_liveviews.ui.*`) instead of
+hand-rolling every button, form field and card with local CSS. This is the first
+time the **presentational** primitives (Button / Card / Badge / Icon / Input) run
+inside real apps rather than the isolated gallery — dogfooding them surfaced two
+API gaps (both fixed below) and one Fitz-core limitation (documented).
+
+### Added — primitive API (backward-compatible, motivated by the refactor)
+
+- **Button** gained `submit: Bool` — `submit: true` renders `type="submit"` and
+  omits `data-flv-click`, so it drives an enclosing `<form data-flv-submit="…">`
+  instead of firing its own event. A default button now renders explicit
+  `type="button"`, so a click button never accidentally submits a form it sits in.
+- **Input** gained `required: Bool`, `clear: Bool` and `autocomplete: Str`, making
+  it a first-class **live-form** field: `required` for client validation, `clear`
+  emits `data-flv-clear` (the client empties the field after a successful submit).
+
+### Changed — examples
+
+- **Counter** — the three actions render through `Button` (`on_click` routes to the
+  component's `@on` handler exactly like the raw `@click` did) + `ui_theme()`.
+- **Dashboard** — each tile is a `Card` with an `Icon` header + live `Badge`; `+1` /
+  `reset` are `Button`s; ~22 lines of hand-rolled tile/button CSS deleted.
+- **Chat** — each message is a `Card` (author-escaped, XSS-safe); the composer is
+  two `Input`s + a submit `Button` (the message field's `clear: true` empties it
+  after each send).
+- **Kanban** — each card is a `Card` with baked-in `Icon` action buttons; the
+  add-form is two `Input`s + a submit `Button`; the three columns collapsed to one
+  shared `render_card(c)` helper; ~35 lines of hand-rolled CSS deleted.
+- New sibling presentational-helper modules (`counter_ui.fitz`, `chat_ui.fitz`,
+  `metric_tile_ui.fitz`, `board_ui.fitz`) wrap primitive calls for use inside
+  `.fitzv` templates (see the SSR note below).
+
+### Notes
+
+- **Native-build parity** holds for Counter / Dashboard / Chat (`fitz run` ==
+  `fitz build`). **Kanban stays `fitz run`-only** — its `type Board` (in
+  `card.fitz`) collides with the `Board` module (from `Board.fitzv`) in the
+  Fitz-core codegen (`E0255 / E0573`); the un-refactored Kanban fails identically,
+  so this is a pre-existing Fitz-core limitation, not a regression.
+- **SSR limitation surfaced**: a struct literal inside a `{...}` template
+  interpolation (`{button_render(button { … }).raw}`) passes `fitz check` but fails
+  at `fitz run` (the SSR emitter doesn't round-trip the nested braces), which is why
+  primitives used inside a `.fitzv` template are hoisted into helper fns. Fixing
+  this in Fitz core would let the helper modules go away.
+- New tests: gallery `@test`s 130 → 132 (`button` submit, `input` required/clear/
+  autocomplete). New reference doc: [`docs/companion-ui-benefits.md`](docs/companion-ui-benefits.md).
+  New VSCode snippets `ui-button-submit`, `ui-input-form`.
+
 ## [v0.13.0] — 2026-07-28 — Companion UI library: 8 primitives (cut 2)
 
 **Minor bump** — ships cut 2 of the companion UI library: the eight generic

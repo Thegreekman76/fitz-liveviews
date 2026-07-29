@@ -20,6 +20,8 @@
 //     stacked on mobile, using CSS Grid `auto-fill` with `minmax`.
 
 from fitz_liveviews import Html, html, flv, live_layout, html_response, LiveFrame, h_join, diff_html, component, dispatch_component_events, flv_register
+from fitz_liveviews.ui.Card import card, card_render
+from fitz_liveviews.ui.theme import ui_theme
 from MetricTile import MetricTile, MetricTile_render, MetricTile_bump, MetricTile_reset
 
 
@@ -54,23 +56,26 @@ let TILES: List<TileConfig> = [
 
 fn render_tile(tile: TileConfig) -> Html {
   let inner = component("MetricTile", tile.id)
-  return html("""<article class="tile tile-{tile.accent}">
-    <header class="tile-header">
-      <h3 class="tile-label">{flv(tile.label)}</h3>
-    </header>
-    {inner.raw}
-  </article>""")
+  // The packaged Card primitive supplies the surface, border, radius and
+  // shadow; the parent only adds the per-tile accent stripe + label. The
+  // metric body (icon + count + badge + buttons) comes from MetricTile.
+  let body = card_render(card { title: tile.label, body: inner.raw, elevation: "sm" })
+  return html("""<div class="tile-accent tile-{tile.accent}">{body.raw}</div>""")
 }
 
-// CSS: literal `{`/`}` used by CSS syntax are escaped as `\{`/`\}` so
-// Fitz doesn't parse them as interpolation delimiters.
+// Layout-only CSS. The packaged Card + Button primitives (styled by
+// `ui_theme()`'s --flv-* tokens) carry the surface, borders, shadows and
+// button styling that used to live here — this block now only positions
+// the grid, the per-tile accent stripe and the metric body. Literal
+// `{`/`}` in CSS are escaped as `\{`/`\}` so Fitz doesn't read them as
+// interpolation delimiters.
 let DASHBOARD_CSS: Str = """  * \{ box-sizing: border-box; \}
   #dashboard-app \{
     max-width: 1200px;
     margin: 0 auto;
     padding: 1rem;
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-    color: #222;
+    color: var(--flv-text, #222);
   \}
   #dashboard-app h1 \{
     margin: 0 0 0.25rem 0;
@@ -78,7 +83,7 @@ let DASHBOARD_CSS: Str = """  * \{ box-sizing: border-box; \}
     color: #CE412B;
   \}
   #dashboard-app .sub \{
-    color: #666;
+    color: var(--flv-text-muted, #666);
     font-size: 0.9rem;
     margin-bottom: 1.5rem;
   \}
@@ -87,15 +92,10 @@ let DASHBOARD_CSS: Str = """  * \{ box-sizing: border-box; \}
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 1rem;
   \}
-  .tile \{
-    background: white;
-    border-radius: 10px;
-    padding: 1rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  .tile-accent \{
     border-top: 4px solid #ccc;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
+    border-radius: var(--flv-radius-md, 8px);
+    overflow: hidden;
   \}
   .tile-blue \{ border-top-color: #3b82f6; \}
   .tile-green \{ border-top-color: #10b981; \}
@@ -103,46 +103,29 @@ let DASHBOARD_CSS: Str = """  * \{ box-sizing: border-box; \}
   .tile-purple \{ border-top-color: #8b5cf6; \}
   .tile-orange \{ border-top-color: #f97316; \}
   .tile-teal \{ border-top-color: #14b8a6; \}
-  .tile-header \{ margin: 0; \}
-  .tile-label \{
-    margin: 0;
-    font-size: 0.8rem;
-    color: #666;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-weight: 600;
-  \}
   .tile-body \{
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
   \}
+  .tile-top \{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--flv-text-muted, #888);
+  \}
+  .tile-ico \{ font-size: 1.25rem; \}
   .tile-count \{
     font-size: 2.5rem;
     font-weight: 700;
     line-height: 1;
-    color: #222;
+    color: var(--flv-text, #222);
   \}
   .tile-buttons \{
     display: flex;
     gap: 0.5rem;
     flex-wrap: wrap;
   \}
-  .btn \{
-    border: none;
-    padding: 0.4rem 0.75rem;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: 600;
-    background: #e0e0e0;
-    color: #333;
-  \}
-  .btn:hover \{ background: #d0d0d0; \}
-  .btn-inc \{ background: #dbeafe; color: #1e40af; \}
-  .btn-inc:hover \{ background: #bfdbfe; \}
-  .btn-reset \{ background: #f3f4f6; color: #555; \}
-  .btn-reset:hover \{ background: #e5e7eb; \}
   @media (max-width: 480px) \{
     .tile-grid \{ grid-template-columns: 1fr; \}
     #dashboard-app \{ padding: 0.5rem; \}
@@ -155,6 +138,7 @@ fn render_dashboard() -> Html {
   let tile_items = TILES.map(fn(t) => render_tile(t))
   let css = DASHBOARD_CSS
   return html("""<div id="dashboard-app">
+{ui_theme().raw}
 <style>
 {css}
 </style>

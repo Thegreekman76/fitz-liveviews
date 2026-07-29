@@ -528,7 +528,27 @@ real, no por completeness.
       (~2-3 tests por componente).
     - `docs/components.md` reference API + ejemplos runnable.
 
-- [ ] **9.C** **Refactor 4 examples usando la lib** (~1 sesión):
+> **✅ 9.C shipped — v0.14.0 (2026-07-28).** The four bundled examples
+> (Counter / Dashboard / Chat / Kanban) now consume the packaged primitives
+> instead of hand-rolled markup + CSS. Since the primitives are render fns (not
+> `@click` child components as the sketch below imagined), each `on_click` names a
+> fall-through event that routes to the component's `@on` handler — the primitive
+> emits the same `data-flv-*` protocol the raw markup did. Adoption: **Counter** →
+> `Button`; **Dashboard** → `Card`+`Icon`+`Badge`+`Button`; **Chat** →
+> `Card`+`Input`+`Button`; **Kanban** → `Card`+`Icon`+`Input`+`Button`. Dogfooding
+> surfaced (and fixed) two API gaps — `Button.submit` (form submit buttons) and
+> `Input.required`/`clear`/`autocomplete` (live-form fields) — plus one Fitz-core
+> SSR limitation (nested-brace struct literals don't round-trip in template
+> interpolation, so primitives inside a `.fitzv` template are hoisted into helper
+> fns). `Modal` is **deferred**: its natural fit (a per-card inline editor) is
+> blocked by the `<Child />`-inside-`{#for}` limitation (Phase 11.7). LoC is
+> roughly flat (the win is ~57 fewer CSS lines + theming/dark/a11y/XSS for free);
+> the honest analysis lives in
+> [`docs/companion-ui-benefits.md`](docs/companion-ui-benefits.md). Native-build
+> parity holds for Counter/Dashboard/Chat; Kanban stays `fitz run`-only on a
+> pre-existing `Board` module/type codegen collision (not a regression).
+
+- [x] **9.C** **Refactor 4 examples usando la lib** — ✅ shipped v0.14.0 (see callout above):
     - Counter → usa `<Button variant="primary" @click="increment">
       +1</Button>` en vez de raw `<button>`.
     - Dashboard → MetricTile usa `<Card>` con `<Icon name="chart"/>`

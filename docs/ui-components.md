@@ -180,16 +180,27 @@ let save_btn = button_render(button {
 ```
 
 `disabled` and `loading` both render a real `disabled` attribute so the click can't
-fire; `loading` also shows an inline spinner.
+fire; `loading` also shows an inline spinner. For a form's submit button, set
+`submit: true`: it renders `type="submit"` (and omits `data-flv-click`) so it drives
+an enclosing `<form data-flv-submit="…">` instead of firing its own event. A default
+button renders explicit `type="button"`, so it never accidentally submits a form it
+happens to sit inside.
+
+```
+let submit_btn = button_render(button {
+    label: t(locale, "actions.send"), variant: "primary", submit: true
+}).raw
+```
 
 | field | type | default | notes |
 |---|---|---|---|
 | `label` | `Str` | `""` | button text (escaped) |
 | `variant` | `Str` | `"primary"` | `primary` / `secondary` / `danger` / `ghost` |
 | `size` | `Str` | `"md"` | `sm` / `md` / `lg` |
-| `on_click` | `Str` | `""` | fall-through click event name |
+| `on_click` | `Str` | `""` | fall-through click event name (ignored when `submit`) |
 | `disabled` | `Bool` | `false` | non-interactive |
 | `loading` | `Bool` | `false` | non-interactive + spinner |
+| `submit` | `Bool` | `false` | `type="submit"` form button (no `data-flv-click`) |
 
 ### Card — content container
 
@@ -277,6 +288,14 @@ let email = input_render(input {
 | `hint` | `Str` | `""` | helper text (shown when no error) |
 | `error` | `Str` | `""` | error message; non-empty ⇒ invalid style |
 | `disabled` | `Bool` | `false` | disables the input |
+| `required` | `Bool` | `false` | emits `required` for client-side validation |
+| `clear` | `Bool` | `false` | emits `data-flv-clear` — the client empties it after a successful submit |
+| `autocomplete` | `Str` | `""` | passed through to the `autocomplete` attribute (e.g. `"off"`) |
+
+`required` and `clear` make `Input` a first-class **live-form** field: pair it with a
+`<form data-flv-submit="…">` and a submit `Button`, and the client validates on
+submit and empties `clear` fields after the server accepts the frame (a chat message
+box, a "new item" title box).
 
 ### Spinner — loading indicator
 

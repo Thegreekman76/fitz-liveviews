@@ -338,6 +338,12 @@
     "description": "Render the packaged Button (variant primary/secondary/danger/ghost). Its click fires the on_click event, which falls through to your @ws loop"
   },
 
+  "Button (submit) — packaged, form submit": {
+    "prefix": "ui-button-submit",
+    "body": ["let ${1:submit_html} = button_render(button { label: ${2:label}, variant: \"${3:primary}\", submit: true }).raw"],
+    "description": "Render a packaged Button as a form submit (type=\"submit\", no data-flv-click) to drive an enclosing <form data-flv-submit>"
+  },
+
   "Card — packaged, presentational": {
     "prefix": "ui-card",
     "body": ["let ${1:card_html} = card_render(card { title: ${2:title}, body: ${3:body_html}, elevation: \"${4:sm}\" }).raw"],
@@ -360,6 +366,12 @@
     "prefix": "ui-input",
     "body": ["let ${1:input_html} = input_render(input { name: \"${2:field}\", label: ${3:label}, value: ${4:value}, input_type: \"${5:text}\" }).raw"],
     "description": "Render the packaged Input (controlled: value lives in your form; read it back from the data-flv-submit payload by name)"
+  },
+
+  "Input (live form) — packaged, required + clear": {
+    "prefix": "ui-input-form",
+    "body": ["let ${1:input_html} = input_render(input { name: \"${2:field}\", placeholder: ${3:placeholder}, required: true, clear: true, autocomplete: \"off\" }).raw"],
+    "description": "Render a packaged Input as a live-form field (required + data-flv-clear so the client empties it after a successful submit)"
   },
 
   "Spinner — packaged, presentational": {

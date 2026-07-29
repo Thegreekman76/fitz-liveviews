@@ -1,0 +1,17 @@
+// Pure presentational helpers for Counter.fitzv — wrap the packaged
+// Button primitive so the SFC template can call a bare fn ref
+// (`{inc_button().raw}`), the K-4 pattern the Board example also uses.
+from fitz_liveviews import Html
+from fitz_liveviews.ui.Button import button, button_render
+
+fn inc_button() -> Html {
+  return button_render(button { label: "+1", variant: "primary", on_click: "increment" })
+}
+
+fn dec_button() -> Html {
+  return button_render(button { label: "-1", variant: "secondary", on_click: "decrement" })
+}
+
+fn reset_button() -> Html {
+  return button_render(button { label: "Reset", variant: "ghost", on_click: "reset" })
+}

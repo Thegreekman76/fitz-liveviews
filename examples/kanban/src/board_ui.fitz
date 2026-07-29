@@ -1,0 +1,48 @@
+// Presentational helpers for Board.fitzv — wrap the packaged Card,
+// Icon, Input and Button primitives so the SFC template calls bare fn
+// refs (the K-4 pattern; a struct literal inside a `{...}` template
+// interpolation doesn't round-trip through the SSR emitter). Keeping
+// them here (separate from `board_helpers.fitz`, which holds the pure
+// column-progression logic) splits presentation from business rules.
+from fitz_liveviews import Html, flv
+from card import Card
+from fitz_liveviews.ui.Card import card, card_render
+from fitz_liveviews.ui.Input import input, input_render
+from fitz_liveviews.ui.Button import button, button_render
+from fitz_liveviews.ui.icon import icon
+
+// A single card action button. It carries `data-flv-value-card_id` so
+// the fall-through event knows which card it targets — a per-item value
+// the presentational Button primitive intentionally doesn't model, so
+// these stay hand-rolled with a baked-in Icon.
+fn action_btn(card_id: Str, event: Str, ico: Str, label: Str, extra: Str) -> Str {
+  return "<button type=\"button\" class=\"card-btn " + extra + "\" data-flv-click=\"" + event + "\" data-flv-value-card_id=\"" + flv(card_id) + "\" aria-label=\"" + flv(label) + "\">" + icon(ico).raw + "</button>"
+}
+
+// One kanban card as a packaged Card: title in the header, author +
+// column-aware move/delete actions in the body. `move_left` is omitted
+// in "todo" and `move_right` in "done" (the ends of the pipeline).
+fn render_card(c: Card) -> Html {
+  let left = if (c.column != "todo") { action_btn(c.id, "move_left", "arrow-left", "Move left", "") } else { "" }
+  let right = if (c.column != "done") { action_btn(c.id, "move_right", "arrow-right", "Move right", "") } else { "" }
+  let del = action_btn(c.id, "delete_card", "trash", "Delete card", "card-btn-del")
+  let actions = "<div class=\"card-actions\">" + left + right + del + "</div>"
+  let body = "<div class=\"card-author\">— " + flv(c.author) + "</div>" + actions
+  return card_render(card { title: c.title, body: body, elevation: "sm" })
+}
+
+fn title_input() -> Html {
+  return input_render(input {
+    name: "title", placeholder: "Card title", required: true, autocomplete: "off", clear: true
+  })
+}
+
+fn author_input() -> Html {
+  return input_render(input {
+    name: "author", placeholder: "Your name", required: true, autocomplete: "off"
+  })
+}
+
+fn add_button() -> Html {
+  return button_render(button { label: "Add Card", variant: "primary", submit: true })
+}

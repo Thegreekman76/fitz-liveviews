@@ -56,6 +56,9 @@ print(button_render(button { label: "Eliminando", variant: "danger", on_click: "
 print("=== Button (ghost, disabled) ===")
 print(button_render(button { label: "Sin permiso", variant: "ghost", on_click: "noop", disabled: true }).raw)
 
+print("=== Button (submit — drives an enclosing form) ===")
+print(button_render(button { label: "Enviar", variant: "primary", submit: true }).raw)
+
 print("=== Badge (success) ===")
 print(badge_render(badge { label: "activo", variant: "success" }).raw)
 
@@ -108,6 +111,15 @@ print(input_render(input {
   value: "ada",
   hint: "No se puede cambiar",
   disabled: true
+}).raw)
+
+print("=== Input (live form — required + clear) ===")
+print(input_render(input {
+  name: "message",
+  placeholder: "Escribí un mensaje",
+  required: true,
+  clear: true,
+  autocomplete: "off"
 }).raw)
 
 print("=== Modal (open) ===")
