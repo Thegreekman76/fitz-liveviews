@@ -32,6 +32,14 @@ import departamentos
 from fitz_liveviews import flv_register, Html
 from fitz_liveviews.ui.ConfirmDialog import confirm_dialog, confirm_dialog_render, confirm_dialog_ask, confirm_dialog_cancel
 from fitz_liveviews.ui.Toast import toast, toast_render, toast_show, toast_dismiss
+// Presentational primitives adopted by the grid/form (rendered inline with
+// `_render(...).raw`). Imported HERE — the @server entry — so the compiler
+// auto-registers them (§9.bb one-level pre-scan) and their cross-module render-fn
+// signatures resolve to `-> Html` (ui-components.md wiring gotchas).
+from fitz_liveviews.ui.Button import button, button_render
+from fitz_liveviews.ui.Card import card, card_render
+from fitz_liveviews.ui.Input import input, input_render
+from fitz_liveviews.ui.Alert import alert, alert_render
 
 @server(3000, "0.0.0.0")
 fn main() => 0

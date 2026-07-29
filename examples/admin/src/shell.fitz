@@ -208,6 +208,7 @@ fn shell_css() -> Str {
     --flv-color-primary: var(--primary);
     --flv-color-success: #16a34a;
     --flv-color-danger:  #ef4444;
+    --flv-color-warning: #ed6c02;
     --flv-color-info:    #1565c0;
     --flv-color-muted:   var(--muted);
     --flv-surface:    var(--surface);
@@ -293,16 +294,18 @@ fn shell_css() -> Str {
   .nav-group[open] .nav-caret \{ transform: rotate(180deg); \}
   .nav-sub \{ display: flex; flex-direction: column; gap: .15rem; margin: .15rem 0 .15rem .6rem; padding-left: .55rem; border-left: 1px solid rgba(255,255,255,.1); \}
   .nav-sub .nav-item \{ font-size: .88rem; padding: .45rem .7rem; \}
-  /* Tooltip (Slice 8c) — CSS-only, driven by data-tooltip */
-  [data-tooltip] \{ position: relative; \}
-  [data-tooltip]::after \{
+  /* Tooltip (Slice 8c) — CSS-only, driven by data-tooltip. The :not([...=""])
+     guard means an empty data-tooltip (the companion UI Button always emits one)
+     renders nothing instead of an empty bubble on hover. */
+  [data-tooltip]:not([data-tooltip=""]) \{ position: relative; \}
+  [data-tooltip]:not([data-tooltip=""])::after \{
     content: attr(data-tooltip); position: absolute; bottom: 100%; left: 50%;
     transform: translateX(-50%) translateY(-4px); white-space: nowrap;
     background: #1e293b; color: #fff; font-size: .72rem; font-weight: 500;
     padding: .25rem .5rem; border-radius: 6px; pointer-events: none;
     opacity: 0; transition: opacity .12s; z-index: 40;
   \}
-  [data-tooltip]:hover::after \{ opacity: 1; \}
+  [data-tooltip]:not([data-tooltip=""]):hover::after \{ opacity: 1; \}
   .sidebar-foot \{
     padding: .9rem 1.25rem; font-size: .75rem; color: rgba(255,255,255,.35);
     border-top: 1px solid rgba(255,255,255,.06);

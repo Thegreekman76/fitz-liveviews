@@ -23,7 +23,7 @@
 // CSS stays GLOBAL (shell.fitz): `.abm-form` / `.form-row` / `.tab-panel` / … are
 // shared, so no `<style scoped>`.
 
-from form_helpers import form_banner, form_header_nav, form_footer_nav, panel_cls_datos, panel_cls_org, panel_cls_accesos, ph_nombre, ph_cargo, ph_notas, depto_options, reporta_options, pais_options, provincia_options, ciudad_options, permisos_html, skills_html, rating_input
+from form_helpers import form_banner, form_header_nav, form_footer_nav, panel_cls_datos, panel_cls_org, panel_cls_accesos, ph_notas, field_nombre, field_email, field_cargo, field_fecha, depto_options, reporta_options, pais_options, provincia_options, ciudad_options, permisos_html, skills_html, rating_input
 from models import Departamento, Pais, Provincia, Ciudad, Permiso, Skill, Empleado
 from i18n import t
 from fitz_liveviews import flv
@@ -70,23 +70,11 @@ component empleado_form {
           {form_header_nav(edit_id, f_tab, locale)}
 
           <div class="{panel_cls_datos(f_tab)}">
-            <div class="form-row">
-              <label>{flv(t(locale, "form.nombre"))}</label>
-              <input name="nombre" value="{flv(f_nombre)}" placeholder="{ph_nombre(locale)}" autocomplete="off" />
-            </div>
-            <div class="form-row">
-              <label>{flv(t(locale, "form.email"))}</label>
-              <input name="email" type="email" value="{flv(f_email)}" placeholder="persona@empresa.com" autocomplete="off" />
-            </div>
+            {field_nombre(f_nombre, locale)}
+            {field_email(f_email, locale)}
             <div class="form-grid-2">
-              <div class="form-row">
-                <label>{flv(t(locale, "form.cargo"))}</label>
-                <input name="cargo" value="{flv(f_cargo)}" placeholder="{ph_cargo(locale)}" autocomplete="off" />
-              </div>
-              <div class="form-row">
-                <label>{flv(t(locale, "form.fecha"))}</label>
-                <input name="fecha_ingreso" type="date" value="{flv(f_fecha)}" />
-              </div>
+              {field_cargo(f_cargo, locale)}
+              {field_fecha(f_fecha, locale)}
             </div>
             <div class="form-grid-2">
               <div class="form-row">

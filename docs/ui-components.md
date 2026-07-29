@@ -307,7 +307,7 @@ let email = input_render(input {
 | `name` | `Str` | `""` | form field name (read from the submit payload) |
 | `label` | `Str` | `""` | escaped label (omitted if empty) |
 | `value` | `Str` | `""` | current value (host-controlled) |
-| `input_type` | `Str` | `"text"` | `text` / `email` / `password` / `number` |
+| `input_type` | `Str` | `"text"` | passes through to the `type` attribute — `text` / `email` / `password` / `number` / `date` / … |
 | `placeholder` | `Str` | `""` | escaped placeholder |
 | `hint` | `Str` | `""` | helper text (shown when no error) |
 | `error` | `Str` | `""` | error message; non-empty ⇒ invalid style |

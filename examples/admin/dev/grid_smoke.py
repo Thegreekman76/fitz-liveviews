@@ -163,8 +163,9 @@ has("new_empleado", 'name="permisos"')
 has("new_empleado", 'name="skills"')
 # rating stars present
 has("new_empleado", 'name="nivel"')
-# invalid save -> validation banner, still on the form
-has("save_invalid", 'class="form-error"')
+# invalid save -> validation banner (packaged Alert, danger variant), still on the form
+has("save_invalid", 'data-variant="danger"')
+has("save_invalid", 'role="alert"')
 has("save_invalid", 'data-flv-submit="save_empleado"')
 # edición uses free Tabs, NOT the stepper
 has("edit_empleado", 'class="tab-nav"')

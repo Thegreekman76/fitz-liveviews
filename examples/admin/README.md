@@ -37,6 +37,13 @@ recognizable app over a **People & Access** domain.
   per-connection widgets (ConfirmDialog, Toast) mint a uuid per socket via
   `component_with(...)` and are **shared across both CRUD screens** — the seed
   of a companion UI library.
+- **Companion UI primitives** — the employee form adopts the packaged
+  presentational primitives from `fitz_liveviews.ui.*`: `Input` (text/email/date
+  fields), `Alert` (the validation banner) and `Button` (save/finish/cancel), all
+  themed through the `--flv-*` tokens aliased to the admin's own palette in
+  `shell.fitz`. The grid keeps hand-tuned markup on purpose — its per-row buttons
+  render N times per live frame, where a primitive's inline scoped `<style>` would
+  duplicate on every row.
 - **Postgres + Docker** — one `docker compose up` brings up the database
   (schema + seed) and the app. Bit-for-bit identical under `fitz run` and the
   native `fitz build` binary.

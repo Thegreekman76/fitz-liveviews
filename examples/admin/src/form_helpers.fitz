@@ -14,6 +14,9 @@
 from models import Departamento, Pais, Provincia, Ciudad, Permiso, Skill, Empleado
 from i18n import t
 from fitz_liveviews import Html, flv, html, h_join
+from fitz_liveviews.ui.Alert import alert, alert_render
+from fitz_liveviews.ui.Button import button, button_render
+from fitz_liveviews.ui.Input import input, input_render
 
 // --- set membership (copy of empleados.fitz's; see module header) ------------
 fn id_checked(csv: Str, id: Int) -> Bool {
@@ -188,13 +191,24 @@ fn rating_input(selected: Int) -> Str {
 // The form_html body's dynamic bits, moved out so the SFC template stays
 // declarative. Same logic as the old form_html; the SFC interpolates these raw.
 
-// Validation/DB banner ("" when no error).
+// Validation/DB banner ("" when no error). Uses the packaged Alert (danger
+// variant); Alert escapes `body` itself, so `error` is passed raw.
 fn form_banner(error: Str) -> Str {
     return match error == "" {
         true => "",
-        false => """<div class="form-error">{flv(error)}</div>""",
+        false => alert_render(alert { variant: "danger", body: error }).raw,
     }
 }
+
+// Text fields adopt the packaged Input (label + field + hint/error state). Kept
+// as helpers (not inline in the SFC template) because a struct literal's braces
+// can't sit inside a `.fitzv` interpolation — same reason the <option> builders
+// live here (gotcha #2). Input escapes label/value/placeholder itself, so they
+// pass raw. `fecha` uses input_type="date" (the browser's native date picker).
+fn field_nombre(value: Str, locale: Str) -> Str => input_render(input { name: "nombre", label: t(locale, "form.nombre"), value: value, placeholder: t(locale, "form.nombre.ph"), autocomplete: "off" }).raw
+fn field_email(value: Str, locale: Str) -> Str => input_render(input { name: "email", label: t(locale, "form.email"), value: value, input_type: "email", placeholder: "persona@empresa.com", autocomplete: "off" }).raw
+fn field_cargo(value: Str, locale: Str) -> Str => input_render(input { name: "cargo", label: t(locale, "form.cargo"), value: value, placeholder: t(locale, "form.cargo.ph"), autocomplete: "off" }).raw
+fn field_fecha(value: Str, locale: Str) -> Str => input_render(input { name: "fecha_ingreso", label: t(locale, "form.fecha"), value: value, input_type: "date" }).raw
 
 // Header nav — alta (edit_id == 0) is a guided Stepper; edición uses free Tabs.
 fn form_header_nav(edit_id: Int, f_tab: Str, locale: Str) -> Str {
@@ -225,14 +239,18 @@ fn form_footer_nav(edit_id: Int, f_tab: Str, locale: Str) -> Str {
         true => "",
         false => """<button type="button" class="btn-primary" data-flv-form data-flv-click="form_tab" data-flv-value-tab="{next_val}">{t(locale, "form.next")}</button>""",
     }
+    // Save / Finish / Cancel adopt the packaged Button. Save + Finish are form
+    // submits (submit: true → type="submit", drives the enclosing
+    // <form data-flv-submit>); Cancel is a plain fall-through click.
     let save_last = match f_tab == "accesos" {
-        true => """<button class="btn-primary" type="submit">{t(locale, "form.finish")}</button>""",
+        true => button_render(button { label: t(locale, "form.finish"), variant: "primary", submit: true }).raw,
         false => "",
     }
-    let cancel_btn = """<button class="btn-clear" type="button" data-flv-click="cancel_form">{t(locale, "form.cancel")}</button>"""
+    let cancel_btn = button_render(button { label: t(locale, "form.cancel"), variant: "secondary", on_click: "cancel_form" }).raw
+    let save_btn = button_render(button { label: t(locale, "form.save"), variant: "primary", submit: true }).raw
     return match edit_id == 0 {
         true => """<div class="form-actions">{cancel_btn}{back_btn}{next_btn}{save_last}</div>""",
-        false => """<div class="form-actions"><button class="btn-primary" type="submit">{t(locale, "form.save")}</button>{cancel_btn}</div>""",
+        false => """<div class="form-actions">{save_btn}{cancel_btn}</div>""",
     }
 }
 
@@ -244,6 +262,4 @@ fn panel_cls_accesos(f_tab: Str) -> Str => tab_panel_cls("accesos", f_tab)
 
 // Placeholders with i18n (escaped, matching the old `placeholder="{flv(ph)}"`;
 // the `t(...)` string-key can't sit inside an attribute — gotcha #1).
-fn ph_nombre(locale: Str) -> Str => flv(t(locale, "form.nombre.ph"))
-fn ph_cargo(locale: Str) -> Str => flv(t(locale, "form.cargo.ph"))
 fn ph_notas(locale: Str) -> Str => flv(t(locale, "form.notas.ph"))
