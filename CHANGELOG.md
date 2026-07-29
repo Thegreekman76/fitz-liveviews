@@ -5,6 +5,40 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.15.0] — 2026-07-29 — Button gains icon + click payload + tooltip
+
+**Minor bump** — extends the **Button** primitive so it can stand in for the raw
+`btn-icon` action buttons of a real admin grid (row edit/delete/expand), motivated
+by adopting the companion UI across the Admin ABM showcase. All four additions are
+backward-compatible (default empty/off); every existing `button { ... }` renders the
+same markup plus three inert empty attributes.
+
+### Added — Button API (backward-compatible)
+
+- `icon: Str` — renders an SVG from the [icon set](src/ui/icon.fitz) before the
+  label. `label` is now optional, so `button { icon: "trash" }` is an **icon-only**
+  button. This partially closes the Cut 2 deferral of icon slots (Button only; Card
+  and Input still compose `icon(...)` in the host).
+- `value: Str` — a fall-through click carries `data-flv-value-value="{value}"`, read
+  in the `@ws` loop as `payload["value"]` (e.g. the row id an edit/delete button acts
+  on). Not emitted on `submit` buttons (those drive a form, not a click event).
+- `tooltip: Str` — emitted as `data-tooltip`. The kit ships no tooltip CSS; the host
+  styles `[data-tooltip]:not([data-tooltip=""])` so an unset tooltip renders nothing.
+- `aria_label: Str` — accessible name for icon-only buttons (ignored by AT when
+  empty, so a text button falls back to its visible label).
+
+`value`, `tooltip` and `aria-label` are always emitted with interpolated values;
+their empty defaults are inert, which keeps Button's variant tree flat (no
+combinatorial explosion of conditional attributes).
+
+### Added — gallery, tests, docs, editor
+
+- `examples/ui-gallery` renders an icon+label button and an icon-only button with a
+  value payload + tooltip; 5 new `@test`s in `components_test.fitz` (137 pass).
+- `docs/ui-components.md` — Button section documents the four new props + the
+  icon-only / payload / tooltip pattern.
+- VSCode snippet `ui-button-icon` for the icon-only + payload button.
+
 ## [v0.14.0] — 2026-07-28 — Examples refactored onto the companion UI (9.C)
 
 **Minor bump** — the four bundled examples (Counter, Dashboard, Chat, Kanban) now

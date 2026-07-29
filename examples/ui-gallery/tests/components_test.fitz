@@ -154,6 +154,41 @@ from fitz_liveviews.ui.Modal import modal, modal_render, modal_show, modal_close
     assert(h.contains("Send"))
 }
 
+@test fn button_icon_renders_svg_before_label() {
+    // icon + label: the SVG (from the icon set) sits ahead of the label span
+    let h = button_render(button { label: "Agregar", icon: "plus", on_click: "add" }).raw
+    assert(h.contains("<svg"))
+    assert(h.contains("Agregar"))
+    assert(h.contains("flv-btn-label"))
+}
+
+@test fn button_icon_only_omits_label_and_carries_aria_label() {
+    // no label prop -> icon-only button, named for AT via aria-label
+    let h = button_render(button { icon: "trash", variant: "ghost", size: "sm", on_click: "del", aria_label: "Eliminar" }).raw
+    assert(h.contains("<svg"))
+    assert(h.contains("aria-label=\"Eliminar\""))
+    assert(not h.contains("flv-btn-label"))
+}
+
+@test fn button_value_emits_click_payload() {
+    // a fall-through click carries data-flv-value-value so the loop reads payload["value"]
+    let h = button_render(button { icon: "edit", on_click: "edit_row", value: "42" }).raw
+    assert(h.contains("data-flv-value-value=\"42\""))
+    assert(h.contains("data-flv-click=\"edit_row\""))
+}
+
+@test fn button_tooltip_is_emitted() {
+    let h = button_render(button { icon: "trash", on_click: "del", tooltip: "Eliminar" }).raw
+    assert(h.contains("data-tooltip=\"Eliminar\""))
+}
+
+@test fn button_submit_omits_value_payload() {
+    // submit buttons drive a form, not a click event, so they carry no payload attr
+    let h = button_render(button { label: "Send", submit: true, value: "9" }).raw
+    assert(h.contains("type=\"submit\""))
+    assert(not h.contains("data-flv-value-value"))
+}
+
 // --- Badge ---
 
 @test fn badge_renders_label_variant_and_size() {

@@ -344,6 +344,12 @@
     "description": "Render a packaged Button as a form submit (type=\"submit\", no data-flv-click) to drive an enclosing <form data-flv-submit>"
   },
 
+  "Button (icon) — packaged, icon-only + payload": {
+    "prefix": "ui-button-icon",
+    "body": ["let ${1:btn_html} = button_render(button { icon: \"${2:trash}\", variant: \"${3:ghost}\", size: \"${4:sm}\", on_click: \"${5:event}\", value: \"${6:id}\", tooltip: ${7:tip}, aria_label: ${8:label} }).raw"],
+    "description": "Render a packaged icon-only Button. value → data-flv-value-value (read as payload[\"value\"]); tooltip → data-tooltip; aria_label names it for AT"
+  },
+
   "Card — packaged, presentational": {
     "prefix": "ui-card",
     "body": ["let ${1:card_html} = card_render(card { title: ${2:title}, body: ${3:body_html}, elevation: \"${4:sm}\" }).raw"],

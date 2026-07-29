@@ -472,6 +472,13 @@ real, no por completeness.
 > Button/Card/Input (compose `icon(...)` in the host instead), Modal focus-trap +
 > ESC-to-close (need client JS the SSR path doesn't inject); the token layer stays
 > `ui_theme()` rather than separate `themes/*.css` files.
+>
+> **✅ Partially closed — v0.15.0 (2026-07-29).** **Button** gained an `icon` slot
+> (+ `value` click payload, `tooltip`, `aria_label`), so it can replace the raw
+> `btn-icon` row-action buttons of a real admin grid — motivated by adopting the
+> companion UI across the Admin ABM showcase. Card and Input still compose
+> `icon(...)` in the host; Modal focus-trap / ESC and the `themes/*.css` split remain
+> deferred.
 
 - [ ] **9.A** **Extract & design decisions** (~1 sesión, docs-only):
     - Consolidar `docs/components-candidates.md` (poblado en 8.6)

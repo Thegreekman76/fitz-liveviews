@@ -59,6 +59,12 @@ print(button_render(button { label: "Sin permiso", variant: "ghost", on_click: "
 print("=== Button (submit — drives an enclosing form) ===")
 print(button_render(button { label: "Enviar", variant: "primary", submit: true }).raw)
 
+print("=== Button (icon + label) ===")
+print(button_render(button { label: "Agregar", icon: "plus", variant: "primary", on_click: "add" }).raw)
+
+print("=== Button (icon-only + tooltip + value payload) ===")
+print(button_render(button { icon: "trash", variant: "ghost", size: "sm", on_click: "delete_row", value: "42", tooltip: "Eliminar", aria_label: "Eliminar" }).raw)
+
 print("=== Badge (success) ===")
 print(badge_render(badge { label: "activo", variant: "success" }).raw)
 

@@ -192,15 +192,39 @@ let submit_btn = button_render(button {
 }).raw
 ```
 
+Set `icon` to render an SVG from the [icon set](#icon--svg-icon) before the label.
+Leave `label` empty for an icon-only button — pass `aria_label` so assistive tech
+still has a name. A fall-through click can carry a `value` payload, read back in your
+loop as `payload["value"]` (e.g. the row id an edit/delete button acts on), and
+`tooltip` is emitted as `data-tooltip` for your own hover CSS:
+
+```
+let del_btn = button_render(button {
+    icon: "trash", variant: "ghost", size: "sm",
+    on_click: "delete_row", value: "{row.id}",
+    tooltip: t(locale, "actions.delete"), aria_label: t(locale, "actions.delete")
+}).raw
+```
+
+The kit ships no tooltip CSS — style `[data-tooltip]:not([data-tooltip=""])` in the
+host so an unset tooltip renders nothing. `value`, `tooltip` and `aria-label` are
+always emitted with interpolated values; their empty defaults are inert (an empty
+`aria-label` is ignored by AT, an empty `data-flv-value-value` is ignored by your
+loop), which is why they don't need an on/off flag.
+
 | field | type | default | notes |
 |---|---|---|---|
-| `label` | `Str` | `""` | button text (escaped) |
+| `label` | `Str` | `""` | button text (escaped); optional when `icon` is set |
 | `variant` | `Str` | `"primary"` | `primary` / `secondary` / `danger` / `ghost` |
 | `size` | `Str` | `"md"` | `sm` / `md` / `lg` |
 | `on_click` | `Str` | `""` | fall-through click event name (ignored when `submit`) |
 | `disabled` | `Bool` | `false` | non-interactive |
 | `loading` | `Bool` | `false` | non-interactive + spinner |
 | `submit` | `Bool` | `false` | `type="submit"` form button (no `data-flv-click`) |
+| `icon` | `Str` | `""` | icon name from the icon set, rendered before the label |
+| `value` | `Str` | `""` | click payload → `data-flv-value-value`, read as `payload["value"]` (not on `submit`) |
+| `tooltip` | `Str` | `""` | emitted as `data-tooltip` (host styles the hover) |
+| `aria_label` | `Str` | `""` | accessible name for icon-only buttons |
 
 ### Card — content container
 
