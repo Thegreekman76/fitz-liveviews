@@ -5,6 +5,28 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [Unreleased]
+
+### Added — client-WASM live gallery (CW.1)
+
+- **`examples/wasm-gallery/`** — the first live, client-side component compiled to
+  **WebAssembly** and run in the browser (no server, no WebSocket). A standalone
+  `Counter.fitzv` styled with the companion UI's `--flv-*` tokens, driven by the
+  real `fitz build --target wasm-client` CLI (`[[bin]] target = "wasm-client",
+  mount = "#app"` — the first example in the ecosystem to use the manifest-driven
+  wasm flow). Ships `index.html`, `build.sh`, and a README. Bundle: 29 KB raw /
+  12.4 KB gzipped, well under the core's 40 KB gate.
+- **`docs.yml` extended** — the Pages workflow now builds the wasm gallery in CI
+  and publishes it into the single Pages artifact under `/live/`
+  (<https://thegreekman76.github.io/fitz-liveviews/live/>). GitHub Pages allows one
+  deployment per repo, so mkdocs (`site/`) + the gallery (`site/live/`) deploy
+  together.
+
+> Client-WASM is a **parallel component set**, not a recompile of the SSR
+> companion UI (the core's wasm loader is sibling-file-only, has no `dep_registry`,
+> and uses a DOM-ops render model). See [`docs/client-wasm-plan.md`](docs/client-wasm-plan.md).
+> The formal version bump ships with CW.5.
+
 ## [v0.24.0] — 2026-07-30 — `Chip` + `CountBadge` + `Tooltip` + `Divider` + `ExpansionPanel` (Feedback family)
 
 **Minor bump** — ships the **Feedback family**, extracted from the Admin ABM into

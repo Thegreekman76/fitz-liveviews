@@ -1,0 +1,109 @@
+// Counter.fitzv — the first live client-WASM component (CW.1).
+//
+// This is a STANDALONE client-side component: it imports nothing from
+// `fitz_liveviews`, uses plain `{count}` interpolation (not `{flv(x)}`),
+// and wires local `@click` handlers. It compiles to WebAssembly via the
+// core's client-WASM target:
+//
+//   fitz build --target wasm-client
+//
+// which generates a `wasm-bindgen` + `web-sys` crate under
+// `target/wasm-build/counter/`, runs `wasm-pack build --release
+// --target web`, and copies the browser-ready bundle to
+// `target/wasm/counter/`. The `index.html` next to this file mounts it
+// into `#app` and runs it fully client-side — no server, no WebSocket.
+//
+// The look reuses the companion UI's `--flv-*` design tokens (defined
+// once in the host `index.html` <head>, same values as
+// `src/ui/theme.fitz`), so it renders identically to the SSR kit. The
+// `var(--flv-*, <fallback>)` pattern keeps it presentable even if the
+// tokens are absent.
+//
+// Shape stays inside the wasm-client capability envelope: `Int` state
+// with a literal default, sync no-param events whose body is a single
+// assignment to the state field (RHS is an `Int` literal or arithmetic
+// `BinOp`), a template of Text / Element / Interpolation / static attr /
+// @click, and a class-based `<style scoped>`.
+
+component Counter {
+  state { count: Int = 0 }
+
+  event increment() { count = count + 1 }
+  event decrement() { count = count - 1 }
+  event reset() { count = 0 }
+
+  <template>
+    <div class="card">
+      <div class="title">Contador</div>
+      <div class="row">
+        <button class="btn" @click="decrement">-</button>
+        <span class="value">{count}</span>
+        <button class="btn" @click="increment">+</button>
+      </div>
+      <button class="ghost" @click="reset">reset</button>
+    </div>
+  </template>
+
+  <style scoped>
+    .card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 24px;
+      background: var(--flv-surface, #ffffff);
+      color: var(--flv-text, #1a1a1a);
+      border: 1px solid var(--flv-border, #d9d9e0);
+      border-radius: var(--flv-radius-md, 8px);
+      box-shadow: var(--flv-shadow-card, 0 6px 20px rgba(0, 0, 0, .12));
+      font-family: system-ui, sans-serif;
+      max-width: 280px;
+      margin: 0 auto;
+    }
+    .title {
+      font-weight: 600;
+      font-size: 1.05rem;
+      color: var(--flv-text-muted, #55555c);
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .value {
+      min-width: 3ch;
+      text-align: center;
+      font-weight: 700;
+      font-size: 2rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .btn {
+      width: 44px;
+      height: 44px;
+      font-size: 1.4rem;
+      line-height: 1;
+      cursor: pointer;
+      border: none;
+      border-radius: var(--flv-radius-md, 8px);
+      background: var(--flv-color-primary, #ce412b);
+      color: #ffffff;
+      transition: filter .12s ease;
+    }
+    .btn:hover {
+      filter: brightness(1.08);
+    }
+    .ghost {
+      cursor: pointer;
+      border: 1px solid var(--flv-border, #d9d9e0);
+      border-radius: var(--flv-radius-md, 8px);
+      background: transparent;
+      color: var(--flv-text-muted, #55555c);
+      padding: 6px 16px;
+      font-size: 0.9rem;
+      transition: background .12s ease;
+    }
+    .ghost:hover {
+      background: var(--flv-surface-2, #f5f5f7);
+    }
+  </style>
+}

@@ -1,0 +1,28 @@
+# Standalone manifest for the live client-WASM gallery (CW.1).
+#
+# This example is the FIRST in the ecosystem to drive the real
+# `fitz build --target wasm-client` CLI flow (the core's `examples/view/*`
+# regenerate their crate via a Rust smoke test; fitz-liveviews is a Fitz
+# project, not a Rust crate, so the CLI is the only path).
+#
+# The `[[bin]]` below points at a `.fitzv` with `target = "wasm-client"`
+# and `mount = "#app"` (mount is mandatory for wasm-client — the manifest
+# parser rejects it otherwise). The bin `name` becomes the wasm package
+# name: the bundle lands at `target/wasm/counter/counter.js` +
+# `counter_bg.wasm`. The mounted root is the first component declared in
+# the entry `.fitzv`.
+#
+# There are NO dependencies: a client component imports nothing from
+# `fitz_liveviews` (see docs/client-wasm-plan.md for why).
+
+[package]
+name = "wasm-gallery"
+version = "0.1.0"
+edition = "2026"
+description = "Live client-WASM component gallery for Fitz LiveViews (runs in the browser, no server)."
+
+[[bin]]
+name = "counter"
+main = "Counter.fitzv"
+target = "wasm-client"
+mount = "#app"

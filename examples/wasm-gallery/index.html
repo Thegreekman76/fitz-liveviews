@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fitz LiveViews — galería client-WASM (en vivo)</title>
+
+    <!--
+      The `--flv-*` design tokens, defined ONCE at the host level (same
+      values as `src/ui/theme.fitz`). Every client component reads them
+      via `var(--flv-*)`, so changing a token here re-themes the whole
+      gallery — exactly like the SSR companion UI. Theme-aware out of the
+      box: light by default, dark under `prefers-color-scheme: dark`. The
+      explicit light/dark toggle lands in CW.3.
+    -->
+    <style>
+      :root {
+        --flv-color-primary: #ce412b;
+        --flv-color-success: #2e7d32;
+        --flv-color-danger:  #c62828;
+        --flv-color-warning: #ed6c02;
+        --flv-color-info:    #1565c0;
+        --flv-color-muted:   #8b8b93;
+        --flv-surface:   #ffffff;
+        --flv-surface-2: #f5f5f7;
+        --flv-border:    #d9d9e0;
+        --flv-text:       #1a1a1a;
+        --flv-text-muted: #55555c;
+        --flv-radius-md:   8px;
+        --flv-shadow-card: 0 6px 20px rgba(0, 0, 0, .12);
+
+        --page-bg: #fafafa;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --flv-color-muted: #7a7a82;
+          --flv-surface:   #1e1e22;
+          --flv-surface-2: #2a2a30;
+          --flv-border:    #3a3a42;
+          --flv-text:       #e8e8ea;
+          --flv-text-muted: #a0a0a8;
+          --flv-shadow-card: 0 6px 20px rgba(0, 0, 0, .5);
+
+          --page-bg: #131316;
+        }
+      }
+
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        max-width: 680px;
+        margin: 0 auto;
+        padding: 40px 16px;
+        line-height: 1.6;
+        color: var(--flv-text);
+        background: var(--page-bg);
+        min-height: 100vh;
+        box-sizing: border-box;
+      }
+      h1 { font-size: 1.6rem; margin-bottom: 4px; }
+      .lede { color: var(--flv-text-muted); margin-top: 0; }
+      #app { margin: 32px 0; }
+      code {
+        background: var(--flv-surface-2);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.9em;
+      }
+      .foot { color: var(--flv-text-muted); font-size: 0.9rem; }
+    </style>
+  </head>
+  <body>
+    <h1>Galería client-WASM — Fitz LiveViews</h1>
+    <p class="lede">
+      Un componente <code>Counter.fitzv</code> compilado a WebAssembly con
+      <code>fitz build --target wasm-client</code>. El estado vive en Rust
+      dentro de la instancia WASM; cada click re-renderiza el subárbol.
+      Todo corre en el browser — sin servidor, sin WebSocket.
+    </p>
+
+    <div id="app"><!-- Counter monta acá --></div>
+
+    <p class="foot">
+      Si ves este texto pero no el contador, o el bundle WASM no cargó
+      (mirá la consola de DevTools) o la página se abrió por
+      <code>file://</code>. Los módulos ES necesitan origen HTTP: serví con
+      <code>python -m http.server 8000</code> o equivalente.
+    </p>
+
+    <script type="module">
+      // `fitz build --target wasm-client` copies the bundle to
+      // `target/wasm/counter/`; `build.sh` mirrors it to `./pkg/` next to
+      // this file so local serving and the GitHub Pages layout share one
+      // relative path. The default export (`__wbg_init`) instantiates the
+      // module and runs the `#[wasm_bindgen(start)]` mount automatically.
+      import init from './pkg/counter.js';
+      init().catch((err) => {
+        console.error('Failed to load counter WASM:', err);
+        document.getElementById('app').textContent =
+          'WASM failed to load. Check the DevTools console.';
+      });
+    </script>
+  </body>
+</html>

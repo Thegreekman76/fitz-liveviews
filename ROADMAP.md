@@ -804,6 +804,50 @@ Card · Badge · Alert · Input · Spinner · Icon · **Breadcrumbs** ✅ ·
 > the existing admin `.fitzv` extractions. Reconnect / backpressure / multi-instance
 > reliability debts stay **deferred** (tracked in the Keyed diffing section).
 
+## Phase 10 — Client-WASM live gallery 🌐 (in progress, 2026-07-30)
+
+A **live, interactive component gallery on GitHub Pages** — real components
+running as WebAssembly in the visitor's browser, no install, no server. This is
+the visibility / stars engine: the docs site already lives on Pages, and the
+gallery deploys alongside it under `/live/`.
+
+Client-WASM is a **parallel component set**, not a recompile of the SSR companion
+UI — the core's `.fitzv` → wasm-client loader is sibling-file-only, has no
+`dep_registry`, and uses a different render model (DOM ops, not string-builder
+`Html`), so `from fitz_liveviews import flv` can't resolve. The client set is
+standalone `.fitzv` that import nothing, use plain `{x}` interpolation, wire local
+`@click`, and reuse the **same `--flv-*` tokens** so they look identical. Full
+rationale + capability envelope in [`docs/client-wasm-plan.md`](docs/client-wasm-plan.md).
+
+- [x] **CW.1 — Toolchain + first live example on Pages** (2026-07-30) —
+      `examples/wasm-gallery/`: a standalone `Counter.fitzv` styled with the
+      `--flv-*` tokens, driven by the real `fitz build --target wasm-client` CLI
+      (the first example in either repo to use the manifest-driven wasm flow —
+      `[[bin]] target = "wasm-client", mount = "#app"`). `index.html` +
+      `build.sh` + README. `docs.yml` extended to build the wasm in CI and
+      publish it into the single Pages artifact under `/live/`. Bundle: 29 KB raw
+      / 12.4 KB gzipped (well under the core's 40 KB gate). Verified end-to-end:
+      `wasm-pack` compiles, bundle serves over HTTP with correct MIME
+      (`application/wasm`), generated `lib.rs` wires `mount("#app")` + three click
+      listeners + `{count}` render + scoped `var(--flv-*)` styles.
+- [ ] **CW.2 — The client-side component set** — the genuinely-client-interactive
+      widgets as standalone client `.fitzv` (Counter, Toggle, Tabs, Accordion,
+      Rating, Stepper, Modal, a small TodoList exercising `{#for}` + payload),
+      reusing the SSR look.
+- [ ] **CW.3 — The live gallery page** — compose the components into one
+      interactive gallery (single-root `Gallery.fitzv` via cross-file `<Child/>`,
+      or several bins each mounting its own `#slot`) + client-side theme toggle.
+- [ ] **CW.4 — Docs + SSR-vs-client decision matrix** — `docs/client-wasm.md`,
+      "▶ see it live" links from `docs/ui-components.md`.
+- [ ] **CW.5 — CI + release** — bump + CHANGELOG + `.vsix` (if grammar/snippets
+      changed). Note: `fitz check --target wasm-client` is aspirational — the
+      current fitz (0.29.1) has no such flag and plain `fitz check` lexes a
+      `.fitzv` as classic Fitz, so `fitz build --target wasm-client` is the gate.
+- [ ] **CW.6 — (optional, CORE) dual-target research** — assess whether a subset
+      could share one source across SSR + wasm-client. Needs core work
+      (`dep_registry` in the wasm loader, an `flv` passthrough, a `data-flv-click`
+      → local dispatch bridge). `d:\fitz` Phase 11 territory.
+
 ## Phase 7 — Beyond MVP (deferred, opportunistic) 🔮
 
 Ideas that would land only if there is real demand:

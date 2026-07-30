@@ -1,7 +1,14 @@
-# Builds the MkDocs Material site and deploys it to GitHub Pages.
+# Builds the MkDocs Material site AND the live client-WASM gallery, then
+# deploys the combined bundle to GitHub Pages.
+#
+# GitHub Pages allows ONE deployment per repo (the `pages` concurrency
+# group). So docs + the wasm gallery are assembled into a SINGLE `site/`
+# artifact here — mkdocs into `site/`, the compiled gallery into
+# `site/live/` — and deployed once. The live gallery ends up at
+# https://thegreekman76.github.io/fitz-liveviews/live/.
 #
 # Prerequisite: repo Settings → Pages → Source = "GitHub Actions".
-# Without this, deploy step fails (no target).
+# Without this, the deploy step fails (no target).
 
 name: Docs
 
@@ -14,6 +21,7 @@ on:
       - 'README.md'
       - 'examples/**/README.md'
       - 'examples/**/src/**'
+      - 'examples/wasm-gallery/**'
       - '.github/workflows/docs.yml'
       - '.github/requirements-docs.txt'
   workflow_dispatch:
@@ -33,6 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # --- MkDocs Material site -> site/ ---
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -44,6 +53,48 @@ jobs:
 
       - name: Build site
         run: mkdocs build --strict
+
+      # --- Live client-WASM gallery -> site/live/ ---
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Cargo registry, Fitz + wasm-pack binaries, gallery build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/bin/fitz
+            ~/.cargo/bin/wasm-pack
+            examples/wasm-gallery/target
+          key: pages-wasm-${{ runner.os }}-v1
+
+      - name: Install Fitz (the `fitz` CLI)
+        run: |
+          if [ ! -f ~/.cargo/bin/fitz ]; then
+            cargo install --git https://github.com/Thegreekman76/fitz
+          fi
+          fitz --version
+
+      - name: Install wasm-pack
+        run: |
+          if [ ! -f ~/.cargo/bin/wasm-pack ]; then
+            curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+          fi
+          wasm-pack --version
+
+      - name: Build the wasm gallery
+        working-directory: examples/wasm-gallery
+        run: fitz build --target wasm-client
+
+      - name: Assemble site/live
+        run: |
+          mkdir -p site/live/pkg
+          cp examples/wasm-gallery/index.html site/live/
+          cp examples/wasm-gallery/target/wasm/counter/counter.js site/live/pkg/
+          cp examples/wasm-gallery/target/wasm/counter/counter_bg.wasm site/live/pkg/
+          echo "== site/live ==" && ls -R site/live
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
