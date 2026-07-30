@@ -563,7 +563,7 @@ async fn row_detail(e: Empleado, deptos: List<Departamento>, locale: Str) -> Str
     let k_des = t(locale, "detail.desempeno")
     let k_per = t(locale, "detail.permisos")
     let k_skl = t(locale, "detail.skills")
-    return """<tr class="detail-row"><td colspan="9" class="detail-cell">
+    return """<tr class="detail-row" data-flv-key="detail-{e.id}"><td colspan="9" class="detail-cell">
       <div class="detail-panel">
         <div class="detail-item"><span class="detail-k">{flv(k_dep)}</span><span class="detail-v">{flv(depto)}</span></div>
         <div class="detail-item"><span class="detail-k">{flv(k_ubi)}</span><span class="detail-v">{flv(ubi)}</span></div>

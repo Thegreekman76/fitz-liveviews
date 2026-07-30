@@ -34,7 +34,7 @@ component empleado_row {
   }
 
   <template>
-    <tr class="{row_class(checked, expanded)}">
+    <tr class="{row_class(checked, expanded)}" data-flv-key="emp-{id}">
       <td data-label="" class="col-exp"><button class="btn-icon btn-exp" data-tooltip="{row_tip_detail(locale)}" data-flv-click="toggle_row" data-flv-value-id="{id}">{#if expanded}▾{#else}▸{/if}</button></td>
       <td data-label="" class="col-sel">{#if checked}<input type="checkbox" class="row-sel" data-flv-click="toggle_sel" data-flv-value-id="{id}" checked />{#else}<input type="checkbox" class="row-sel" data-flv-click="toggle_sel" data-flv-value-id="{id}" />{/if}</td>
       <td data-label="ID" class="col-id">{id}</td>

@@ -232,34 +232,74 @@ let LIVE_CLIENT_JS: Str = """(function() \{
     \}
     return node;
   \}
+  // Keyed reconciliation (Phase 3b.3). Elements carry data-flv-key; find one
+  // anywhere under the LiveView root (keys are root-unique).
+  function findByKey(root, key) \{
+    if (root.getAttribute && root.getAttribute('data-flv-key') === key) return root;
+    const esc = (window.CSS && CSS.escape) ? CSS.escape(key) : key;
+    return root.querySelector('[data-flv-key=' + esc + ']');
+  \}
+  // Resolve a CONTENT patch's target. With `key`, `path` is a subpath of
+  // childNode indices relative to that keyed element (empty → the element
+  // itself); without it, the classic root-relative [0, ...] index path.
+  function resolveTarget(root, p) \{
+    if (p.key && p.key.length > 0) \{
+      const base = findByKey(root, p.key);
+      if (!base) throw new Error('flv: key not found ' + p.key);
+      let node = base;
+      for (let i = 0; i < p.path.length; i++) \{
+        node = node.childNodes[p.path[i]];
+        if (!node) throw new Error('flv: subpath not found');
+      \}
+      return node;
+    \}
+    return walk(root, p.path);
+  \}
+  function firstFromHtml(str) \{
+    const tmpl = document.createElement('template');
+    tmpl.innerHTML = str;
+    return tmpl.content.firstChild;
+  \}
   function applyPatches(root, patches) \{
     for (const p of patches) \{
-      const target = walk(root, p.path);
       switch (p.op) \{
         case 'text':
-          target.nodeValue = decodeHtml(p.content);
+          resolveTarget(root, p).nodeValue = decodeHtml(p.content);
           break;
-        case 'replace': \{
-          const tmpl = document.createElement('template');
-          tmpl.innerHTML = p.content;
-          target.replaceWith(tmpl.content.firstChild);
+        case 'replace':
+          resolveTarget(root, p).replaceWith(firstFromHtml(p.content));
           break;
-        \}
-        case 'append': \{
-          const tmpl = document.createElement('template');
-          tmpl.innerHTML = p.content;
-          target.appendChild(tmpl.content.firstChild);
+        case 'append':
+          resolveTarget(root, p).appendChild(firstFromHtml(p.content));
           break;
-        \}
         case 'remove':
-          target.remove();
+          resolveTarget(root, p).remove();
           break;
         case 'set_attr':
-          target.setAttribute(p.name, decodeHtml(p.content));
+          resolveTarget(root, p).setAttribute(p.name, decodeHtml(p.content));
           break;
         case 'remove_attr':
-          target.removeAttribute(p.name);
+          resolveTarget(root, p).removeAttribute(p.name);
           break;
+        case 'insert_keyed': \{
+          const parent = walk(root, p.path);
+          const anchor = (p.before && p.before.length > 0) ? findByKey(root, p.before) : null;
+          parent.insertBefore(firstFromHtml(p.content), anchor);
+          break;
+        \}
+        case 'move_keyed': \{
+          const parent = walk(root, p.path);
+          const el = findByKey(root, p.key);
+          if (!el) throw new Error('flv: move key not found ' + p.key);
+          const anchor = (p.before && p.before.length > 0) ? findByKey(root, p.before) : null;
+          parent.insertBefore(el, anchor);
+          break;
+        \}
+        case 'remove_keyed': \{
+          const el = findByKey(root, p.key);
+          if (el) el.remove();
+          break;
+        \}
       \}
     \}
   \}
@@ -1074,7 +1114,7 @@ fn parse_preserves_html_entities_in_text() {
 // =============================================================================
 //
 // Emits a compact list of Patch operations to turn `old_tree` into
-// `new_tree`. Six op kinds cover the full state space:
+// `new_tree`. The positional op kinds cover the base state space:
 //
 //   text        change a text node's content
 //   replace     replace a node entirely (with `content` as new HTML)
@@ -1085,6 +1125,28 @@ fn parse_preserves_html_entities_in_text() {
 //
 // The `path` is a list of child indices from the root — `[0, 2, 1]`
 // means "root's 1st child, its 3rd child, its 2nd child".
+//
+// Phase 3b.3 — KEYED RECONCILIATION. When the children of a node all carry
+// `data-flv-key="..."` the diff matches them by key instead of by index, so
+// inserting/removing/reordering a list item produces a tiny, robust patch set
+// (Phoenix LiveView's keyed comprehensions) instead of a positional cascade.
+// Three structural ops move keyed elements around; content changes to a
+// matched element are addressed by its key (a document-wide lookup, immune to
+// index drift and whitespace text nodes):
+//
+//   insert_keyed  insert `content` (new element HTML) into the parent at
+//                 `path`, before the element whose key == `before` ("" → end)
+//   move_keyed    move the existing element with key == `key` (within the
+//                 parent at `path`) before the element with key == `before`
+//   remove_keyed  remove the element with key == `key`
+//
+// A level is keyed only when EVERY element child (old and new) has a key and
+// every other child is whitespace-only text; otherwise the diff falls back to
+// the positional path, so views without keys are unaffected (backward-compat).
+// Keys must be unique within the LiveView root. Keyed reconciliation applies
+// at one list level — nested keyed lists inside a keyed element are diffed
+// positionally (relative to the outer key), which is enough for the common
+// table/list case and always backed by the full-`html` fallback.
 
 
 // -----------------------------------------------------------------------------
@@ -1096,6 +1158,14 @@ type Patch {
   path: List<Int> = []
   content: Str = ""
   name: Str = ""
+  // Keyed reconciliation (Phase 3b.3). When `key` is set on a CONTENT op
+  // (text/replace/append/remove/set_attr/remove_attr), `path` is a subpath of
+  // childNode indices RELATIVE to the element found by `data-flv-key == key`
+  // (empty subpath → the keyed element itself). For the structural keyed ops
+  // (insert_keyed/move_keyed/remove_keyed) `key` is the target element's key
+  // and `before` is the anchor key to place it before ("" → append at end).
+  key: Str = ""
+  before: Str = ""
 }
 
 
@@ -1140,10 +1210,142 @@ fn node_to_html(node: Node) -> Str {
 
 
 // -----------------------------------------------------------------------------
+// Keyed reconciliation helpers (Phase 3b.3)
+// -----------------------------------------------------------------------------
+
+// The value of an element's `data-flv-key` attribute, or "" (not an element,
+// or unkeyed).
+fn node_key(n: Node) -> Str {
+  if (n.kind != "elem") { return "" }
+  let k = ""
+  for a in n.attrs {
+    if (a.name == "data-flv-key") { k = a.value }
+  }
+  return k
+}
+
+// True for a text node made of only whitespace. Such nodes are noise at a
+// keyed level (indentation between list items) and are ignored there.
+fn is_ws_text(n: Node) -> Bool {
+  if (n.kind != "text") { return false }
+  let ws = true
+  let cs = n.text.chars()
+  let i = 0
+  while (i < cs.len()) {
+    if (not is_space(cs[i])) { ws = false }
+    i = i + 1
+  }
+  return ws
+}
+
+// A level uses keyed reconciliation only when every element child (across old
+// AND new) carries a key and every other child is whitespace-only text, with
+// at least one key present. Anything else → positional diff (backward-compat).
+fn level_is_keyed(old_list: List<Node>, new_list: List<Node>) -> Bool {
+  let ok = true
+  let saw = false
+  for n in old_list {
+    if (n.kind == "elem") {
+      if (node_key(n) == "") { ok = false } else { saw = true }
+    } else {
+      if (not is_ws_text(n)) { ok = false }
+    }
+  }
+  for n in new_list {
+    if (n.kind == "elem") {
+      if (node_key(n) == "") { ok = false } else { saw = true }
+    } else {
+      if (not is_ws_text(n)) { ok = false }
+    }
+  }
+  return ok and saw
+}
+
+// The element children of a level (whitespace text dropped). At a keyed level
+// every one of these is guaranteed to have a key.
+fn keyed_elems(list: List<Node>) -> List<Node> {
+  let out: List<Node> = []
+  for n in list {
+    if (n.kind == "elem") { out.push(n) }
+  }
+  return out
+}
+
+fn keys_of(nodes: List<Node>) -> List<Str> {
+  let out: List<Str> = []
+  for n in nodes {
+    out.push(node_key(n))
+  }
+  return out
+}
+
+fn find_node_by_key(nodes: List<Node>, k: Str) -> Node {
+  let found = Node { kind: "text", text: "" }
+  for n in nodes {
+    if (node_key(n) == k) { found = n }
+  }
+  return found
+}
+
+// Longest common subsequence of two key lists. The keys shared by `a` and `b`
+// in the same relative order stay put during reconciliation — everything else
+// is a move (or insert/remove). Bottom-up DP over a flat (n+1)*(m+1) table.
+fn lcs_keys(a: List<Str>, b: List<Str>) -> List<Str> {
+  let n = a.len()
+  let m = b.len()
+  let w = m + 1
+  let dp: List<Int> = []
+  let total = (n + 1) * w
+  let t = 0
+  while (t < total) {
+    dp.push(0)
+    t = t + 1
+  }
+  let i = n - 1
+  while (i >= 0) {
+    let j = m - 1
+    while (j >= 0) {
+      let idx = i * w + j
+      if (a[i] == b[j]) {
+        dp[idx] = dp[(i + 1) * w + (j + 1)] + 1
+      } else {
+        let down = dp[(i + 1) * w + j]
+        let right = dp[i * w + (j + 1)]
+        dp[idx] = match down >= right { true => down, false => right }
+      }
+      j = j - 1
+    }
+    i = i - 1
+  }
+  let out: List<Str> = []
+  let x = 0
+  let y = 0
+  loop {
+    if (x >= n) { break }
+    if (y >= m) { break }
+    if (a[x] == b[y]) {
+      out.push(a[x])
+      x = x + 1
+      y = y + 1
+    } else {
+      let d1 = dp[(x + 1) * w + y]
+      let d2 = dp[x * w + (y + 1)]
+      if (d1 >= d2) {
+        x = x + 1
+      } else {
+        y = y + 1
+      }
+    }
+  }
+  return out
+}
+
+
+// -----------------------------------------------------------------------------
 // Attribute diff
 // -----------------------------------------------------------------------------
 
-fn diff_attrs(old: List<Attr>, new: List<Attr>, path: List<Int>) -> List<Patch> {
+fn diff_attrs(old: List<Attr>, new: List<Attr>, path: List<Int>, key_ctx: Str) -> List<Patch> {
   let patches: List<Patch> = []
   // Old attrs missing from new → remove_attr.
   for old_attr in old {
@@ -1154,7 +1356,7 @@ fn diff_attrs(old: List<Attr>, new: List<Attr>, path: List<Int>) -> List<Patch> 
       }
     }
     if (not found) {
-      patches.push(Patch { op: "remove_attr", path: path, name: old_attr.name })
+      patches.push(Patch { op: "remove_attr", path: path, name: old_attr.name, key: key_ctx })
     }
   }
   // Attrs in new that are missing from old, or whose value changed → set_attr.
@@ -1172,7 +1374,8 @@ fn diff_attrs(old: List<Attr>, new: List<Attr>, path: List<Int>) -> List<Patch> 
         op: "set_attr",
         path: path,
         name: new_attr.name,
-        content: new_attr.value
+        content: new_attr.value,
+        key: key_ctx
       })
     } else {
       if (old_value != new_attr.value) {
@@ -1180,7 +1383,8 @@ fn diff_attrs(old: List<Attr>, new: List<Attr>, path: List<Int>) -> List<Patch> 
           op: "set_attr",
           path: path,
           name: new_attr.name,
-          content: new_attr.value
+          content: new_attr.value,
+          key: key_ctx
         })
       }
     }
@@ -1193,7 +1397,104 @@ fn diff_attrs(old: List<Attr>, new: List<Attr>, path: List<Int>) -> List<Patch> 
 // Tree diff (recursive)
 // -----------------------------------------------------------------------------
 
-fn diff_at_level(old_list: List<Node>, new_list: List<Node>, path: List<Int>) -> List<Patch> {
+// Keyed reconciliation of one list level (Phase 3b.3). `parent_path` is the
+// stable index path to the container element; matched elements' internals are
+// addressed by key (a document-wide lookup) so they survive index drift and
+// whitespace text nodes. Produces: remove_keyed for gone keys, content patches
+// for matched keys (recursing into their internals under `key_ctx`), and
+// insert_keyed/move_keyed emitted right-to-left so each anchor is already in
+// place. Keys stable under LCS are left untouched → a pure insert/remove costs
+// exactly one structural patch, no moves.
+fn diff_keyed_level(old_list: List<Node>, new_list: List<Node>, parent_path: List<Int>) -> List<Patch> {
+  let patches: List<Patch> = []
+
+  let old_keyed = keyed_elems(old_list)
+  let new_keyed = keyed_elems(new_list)
+  let old_keys = keys_of(old_keyed)
+  let new_keys = keys_of(new_keyed)
+
+  // Membership sets.
+  let old_set: Map<Str, Bool> = {}
+  for k in old_keys { old_set[k] = true }
+  let new_set: Map<Str, Bool> = {}
+  for k in new_keys { new_set[k] = true }
+
+  // 1) Removes — old keys not present in new.
+  for ok in old_keys {
+    if (not new_set.has(ok)) {
+      patches.push(Patch { op: "remove_keyed", path: parent_path, key: ok })
+    }
+  }
+
+  // 2) Content diff for matched keys (recurse into internals, addressed by key).
+  for ok in old_keys {
+    if (new_set.has(ok)) {
+      let on = find_node_by_key(old_keyed, ok)
+      let nn = find_node_by_key(new_keyed, ok)
+      // The matched element itself (empty subpath under `ok`) — e.g. a class
+      // change on the row.
+      let attr_patches = diff_attrs(on.attrs, nn.attrs, [], ok)
+      for p in attr_patches {
+        patches.push(p)
+      }
+      let child_patches = diff_at_level(on.children, nn.children, [], ok)
+      for p in child_patches {
+        patches.push(p)
+      }
+    }
+  }
+
+  // 3) Structural placement. LCS of the survivors (old order) vs the new order
+  //    restricted to survivors marks the elements that DON'T need to move.
+  let survivors: List<Str> = []
+  for ok in old_keys {
+    if (new_set.has(ok)) { survivors.push(ok) }
+  }
+  let new_existing: List<Str> = []
+  for nk in new_keys {
+    if (old_set.has(nk)) { new_existing.push(nk) }
+  }
+  let stable = lcs_keys(survivors, new_existing)
+  let stable_set: Map<Str, Bool> = {}
+  for k in stable { stable_set[k] = true }
+
+  // Walk new order right-to-left: stable keys become anchors in place, and each
+  // moved/new element is placed immediately before the last-anchored key.
+  let anchor = ""
+  let idx = new_keys.len() - 1
+  while (idx >= 0) {
+    let nk = new_keys[idx]
+    if (stable_set.has(nk)) {
+      anchor = nk
+    } else {
+      if (old_set.has(nk)) {
+        patches.push(Patch { op: "move_keyed", path: parent_path, key: nk, before: anchor })
+      } else {
+        let nn = find_node_by_key(new_keyed, nk)
+        patches.push(Patch {
+          op: "insert_keyed",
+          path: parent_path,
+          content: node_to_html(nn),
+          before: anchor
+        })
+      }
+      anchor = nk
+    }
+    idx = idx - 1
+  }
+
+  return patches
+}
+
+fn diff_at_level(old_list: List<Node>, new_list: List<Node>, path: List<Int>, key_ctx: Str) -> List<Patch> {
+  // Keyed reconciliation only when we are still addressing from the root by
+  // index (key_ctx == "") — once inside a keyed element we diff its internals
+  // positionally relative to that element's key.
+  if (key_ctx == "") {
+    if (level_is_keyed(old_list, new_list)) {
+      return diff_keyed_level(old_list, new_list, path)
+    }
+  }
   let patches: List<Patch> = []
   let old_len = old_list.len()
   let new_len = new_list.len()
@@ -1211,7 +1512,8 @@ fn diff_at_level(old_list: List<Node>, new_list: List<Node>, path: List<Int>) ->
       patches.push(Patch {
         op: "replace",
         path: child_path,
-        content: node_to_html(new_node)
+        content: node_to_html(new_node),
+        key: key_ctx
       })
     } else {
       if (old_node.kind == "text") {
@@ -1219,7 +1521,8 @@ fn diff_at_level(old_list: List<Node>, new_list: List<Node>, path: List<Int>) ->
           patches.push(Patch {
             op: "text",
             path: child_path,
-            content: new_node.text
+            content: new_node.text,
+            key: key_ctx
           })
         }
       } else {
@@ -1228,14 +1531,15 @@ fn diff_at_level(old_list: List<Node>, new_list: List<Node>, path: List<Int>) ->
           patches.push(Patch {
             op: "replace",
             path: child_path,
-            content: node_to_html(new_node)
+            content: node_to_html(new_node),
+            key: key_ctx
           })
         } else {
-          let attr_patches = diff_attrs(old_node.attrs, new_node.attrs, child_path)
+          let attr_patches = diff_attrs(old_node.attrs, new_node.attrs, child_path, key_ctx)
           for p in attr_patches {
             patches.push(p)
           }
-          let child_patches = diff_at_level(old_node.children, new_node.children, child_path)
+          let child_patches = diff_at_level(old_node.children, new_node.children, child_path, key_ctx)
           for p in child_patches {
             patches.push(p)
           }
@@ -1250,7 +1554,8 @@ fn diff_at_level(old_list: List<Node>, new_list: List<Node>, path: List<Int>) ->
     patches.push(Patch {
       op: "append",
       path: path,
-      content: node_to_html(new_list[j])
+      content: node_to_html(new_list[j]),
+      key: key_ctx
     })
     j = j + 1
   }
@@ -1260,7 +1565,8 @@ fn diff_at_level(old_list: List<Node>, new_list: List<Node>, path: List<Int>) ->
   while (k >= min_len) {
     patches.push(Patch {
       op: "remove",
-      path: extend_path(path, k)
+      path: extend_path(path, k),
+      key: key_ctx
     })
     k = k - 1
   }
@@ -1288,7 +1594,7 @@ fn diff_html(old: Str, new: Str) -> List<Patch> {
   if (old_root.kind != "elem") { return [] }
   if (new_root.kind != "elem") { return [] }
   if (old_root.tag != new_root.tag) { return [] }
-  return diff_at_level(old_tree, new_tree, [])
+  return diff_at_level(old_tree, new_tree, [], "")
 }
 
 
@@ -1497,6 +1803,159 @@ fn diff_counter_full_template_with_whitespace() {
     }
   }
   assert(found_text)
+}
+
+
+// -----------------------------------------------------------------------------
+// Keyed reconciliation tests (Phase 3b.3)
+// -----------------------------------------------------------------------------
+
+@test
+fn diff_keyed_insert_in_middle_is_single_insert() {
+  // The bug that motivated keyed diffing: inserting a row in the middle used
+  // to cascade into a huge positional patch set. With keys it is one insert.
+  let old = "<ul><li data-flv-key=\"a\">A</li><li data-flv-key=\"c\">C</li></ul>"
+  let new = "<ul><li data-flv-key=\"a\">A</li><li data-flv-key=\"b\">B</li><li data-flv-key=\"c\">C</li></ul>"
+  let patches = diff_html(old, new)
+  assert_eq(patches.len(), 1)
+  assert_eq(patches[0].op, "insert_keyed")
+  assert_eq(patches[0].content, "<li data-flv-key=\"b\">B</li>")
+  assert_eq(patches[0].before, "c")
+  // Parent path points at the <ul> (root's child 0).
+  assert_eq(patches[0].path.len(), 1)
+  assert_eq(patches[0].path[0], 0)
+}
+
+@test
+fn diff_keyed_append_at_end_uses_empty_anchor() {
+  let old = "<ul><li data-flv-key=\"a\">A</li></ul>"
+  let new = "<ul><li data-flv-key=\"a\">A</li><li data-flv-key=\"b\">B</li></ul>"
+  let patches = diff_html(old, new)
+  assert_eq(patches.len(), 1)
+  assert_eq(patches[0].op, "insert_keyed")
+  assert_eq(patches[0].before, "")
+}
+
+@test
+fn diff_keyed_remove_in_middle_is_single_remove() {
+  let old = "<ul><li data-flv-key=\"a\">A</li><li data-flv-key=\"b\">B</li><li data-flv-key=\"c\">C</li></ul>"
+  let new = "<ul><li data-flv-key=\"a\">A</li><li data-flv-key=\"c\">C</li></ul>"
+  let patches = diff_html(old, new)
+  assert_eq(patches.len(), 1)
+  assert_eq(patches[0].op, "remove_keyed")
+  assert_eq(patches[0].key, "b")
+}
+
+@test
+fn diff_keyed_reorder_reverse_emits_moves_not_replaces() {
+  // Reversing [a,b,c] → [c,b,a]. The LCS keeps one anchor (c) in place; the
+  // other two are moved before their right-hand neighbour.
+  let old = "<ul><li data-flv-key=\"a\">A</li><li data-flv-key=\"b\">B</li><li data-flv-key=\"c\">C</li></ul>"
+  let new = "<ul><li data-flv-key=\"c\">C</li><li data-flv-key=\"b\">B</li><li data-flv-key=\"a\">A</li></ul>"
+  let patches = diff_html(old, new)
+  assert_eq(patches.len(), 2)
+  assert_eq(patches[0].op, "move_keyed")
+  assert_eq(patches[0].key, "a")
+  assert_eq(patches[0].before, "")
+  assert_eq(patches[1].op, "move_keyed")
+  assert_eq(patches[1].key, "b")
+  assert_eq(patches[1].before, "a")
+  // No positional replaces leaked in.
+  for p in patches {
+    assert(p.op != "replace")
+  }
+}
+
+@test
+fn diff_keyed_content_change_addressed_by_key() {
+  // A matched element whose class + text changed: patches carry the element's
+  // key and a subpath relative to it (empty subpath = the element itself), so
+  // they never depend on the element's index.
+  let old = "<ul><li data-flv-key=\"a\" class=\"x\">A</li></ul>"
+  let new = "<ul><li data-flv-key=\"a\" class=\"y\">B</li></ul>"
+  let patches = diff_html(old, new)
+  assert_eq(patches.len(), 2)
+  let saw_attr = false
+  let saw_text = false
+  for p in patches {
+    assert_eq(p.key, "a")
+    if (p.op == "set_attr") {
+      saw_attr = true
+      assert_eq(p.name, "class")
+      assert_eq(p.content, "y")
+      // Attr on the keyed element itself → empty subpath.
+      assert_eq(p.path.len(), 0)
+    }
+    if (p.op == "text") {
+      saw_text = true
+      assert_eq(p.content, "B")
+    }
+  }
+  assert(saw_attr)
+  assert(saw_text)
+}
+
+@test
+fn diff_keyed_insert_ignores_whitespace_between_items() {
+  // Indentation/newlines between keyed items are noise — the diff drops them
+  // so an insert stays a single op even with pretty-printed markup.
+  let old = """<ul>
+  <li data-flv-key="a">A</li>
+  <li data-flv-key="c">C</li>
+</ul>"""
+  let new = """<ul>
+  <li data-flv-key="a">A</li>
+  <li data-flv-key="b">B</li>
+  <li data-flv-key="c">C</li>
+</ul>"""
+  let patches = diff_html(old, new)
+  assert_eq(patches.len(), 1)
+  assert_eq(patches[0].op, "insert_keyed")
+  assert_eq(patches[0].before, "c")
+}
+
+@test
+fn diff_unkeyed_list_still_positional() {
+  // Backward-compat: a list WITHOUT keys keeps the classic positional diff
+  // (no keyed ops), so existing views are unaffected.
+  let old = "<ul><li>a</li><li>c</li></ul>"
+  let new = "<ul><li>a</li><li>b</li><li>c</li></ul>"
+  let patches = diff_html(old, new)
+  for p in patches {
+    assert(p.op != "insert_keyed")
+    assert(p.op != "move_keyed")
+    assert(p.op != "remove_keyed")
+  }
+  // Positional path emits an append for the extra tail child.
+  let saw_append = false
+  for p in patches {
+    if (p.op == "append") {
+      saw_append = true
+    }
+  }
+  assert(saw_append)
+}
+
+@test
+fn diff_keyed_expand_row_pattern_insert_plus_content() {
+  // The admin ABM's toggle_row shape: the toggled row changes (chevron text +
+  // class) and a keyed detail row is inserted right after it. Expect just the
+  // matched row's content patches + one insert — not a positional cascade.
+  let old = "<tbody><tr data-flv-key=\"e1\" class=\"row\"><td>1</td></tr><tr data-flv-key=\"e2\" class=\"row\"><td>2</td></tr></tbody>"
+  let new = "<tbody><tr data-flv-key=\"e1\" class=\"row exp\"><td>1</td></tr><tr data-flv-key=\"d1\" class=\"detail\"><td>x</td></tr><tr data-flv-key=\"e2\" class=\"row\"><td>2</td></tr></tbody>"
+  let patches = diff_html(old, new)
+  // 1 set_attr (e1 class) + 1 insert_keyed (d1). No moves, no removes.
+  let inserts = 0
+  let moves = 0
+  let removes = 0
+  for p in patches {
+    if (p.op == "insert_keyed") { inserts = inserts + 1 }
+    if (p.op == "move_keyed") { moves = moves + 1 }
+    if (p.op == "remove_keyed") { removes = removes + 1 }
+  }
+  assert_eq(inserts, 1)
+  assert_eq(moves, 0)
+  assert_eq(removes, 0)
 }
 
 
