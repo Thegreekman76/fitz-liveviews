@@ -68,6 +68,14 @@ from fitz_liveviews.ui.SortableHeader import sortable_header, sortable_header_re
 from fitz_liveviews.ui.GridToolbar import grid_toolbar, grid_toolbar_render
 from fitz_liveviews.ui.GridFilters import grid_filters, grid_filters_render
 from fitz_liveviews.ui.grid_helpers import Pill, sort_arrow
+from fitz_liveviews.ui.Textarea import textarea, textarea_render
+from fitz_liveviews.ui.Select import select, select_render
+from fitz_liveviews.ui.Checkbox import checkbox, checkbox_render
+from fitz_liveviews.ui.CheckboxGroup import checkbox_group, checkbox_group_render
+from fitz_liveviews.ui.RadioGroup import radio_group, radio_group_render
+from fitz_liveviews.ui.Rating import rating, rating_render
+from fitz_liveviews.ui.DatePicker import date_picker, date_picker_render
+from fitz_liveviews.ui.form_input_helpers import FieldOption, rating_stars
 ```
 
 They're **i18n-agnostic** (the host passes already-localized text), styled with
@@ -868,35 +876,60 @@ respects the active filters.
 The rich edit form. All inputs stay in the DOM (even hidden tabs) so a save
 serializes every field regardless of the visible tab.
 
-### FormLayout · Input · Textarea · DatePicker
+!!! tip "Packaged (Forms family — inputs)"
+    The leaf form inputs ship as packaged components: **Input** (text), **Textarea**
+    (multi-line), **Select** (dropdown over a `List<FieldOption>`), **DatePicker**
+    (native date), **RadioGroup** (exclusive radios), **Checkbox** (single) +
+    **CheckboxGroup** (a shared-`name` multi-select, `chips: true` for pills), and
+    **Rating** (0..max star input, pure CSS). All are **controlled** — no state of
+    their own; they render into your `<form data-flv-submit>` and you read the
+    values back by `name`. i18n stays in the host (already-localized labels). The
+    composite/interaction-heavy controls below (CascadeSelect, GroupSelect, Tabs,
+    Stepper, TreeView) are still patterns — a later Forms session. See the imports
+    above; `FieldOption { label, value, on }` comes from `form_input_helpers`.
 
-!!! tip "Packaged"
-    Input ships as [`fitz_liveviews.ui.Input`](#input-labeled-form-field) with a
-    label, hint, error state and escaped attributes — import it instead of
-    hand-rolling the `<input>` below, which is the underlying pattern.
+### Input · Textarea · DatePicker
+
+Three labeled text-ish fields sharing one `.flv-field` shell (label + hint/error).
+`error` (non-empty) switches to the invalid style.
 
 ```
-<div class="form-row"><label>{flv(l_nombre)}</label>
-  <input name="nombre" value="{flv(f_nombre)}" placeholder="{flv(ph)}" /></div>
-<textarea name="notas" rows="3">{flv(f_notas)}</textarea>
-<input name="fecha_ingreso" type="date" value="{flv(f_fecha)}" />
+input_render(input { name: "nombre", label: l_nombre, value: f_nombre, placeholder: ph }).raw
+textarea_render(textarea { name: "notas", label: l_notas, value: f_notas, rows: 3 }).raw
+date_picker_render(date_picker { name: "fecha_ingreso", label: l_fecha, value: f_fecha }).raw
 ```
 
-### Select · CascadeSelect · GroupSelect · MultiSelect
+### Select
 
-- **CascadeSelect** — `<select data-flv-change="cascade_pais">`; each change
-  re-queries the dependent options server-side, preserving the typed fields.
-- **GroupSelect** — `<select>` with `<optgroup>` (e.g. "reports to", colleagues
-  grouped by department).
-- **MultiSelect** — a checkbox list sharing a `name`; the client joins the
-  checked ones comma-separated (`serializeForm`, lib v0.8.0).
+A labeled `<select>` built from a `List<FieldOption>` (`on` marks the selected
+option). Set `on_change` to fire a `data-flv-change` fall-through event on change
+(the country → province cascade). `<optgroup>` (GroupSelect) is a later component.
 
-### Checkbox · CheckboxGroup · Radio · Rating
+```
+let opts: List<FieldOption> = deptos.map(fn(d) => FieldOption { label: d.nombre, value: "{d.id}", on: d.id == f_depto })
+select_render(select { name: "departamento_id", label: l_depto, options: opts }).raw
+```
 
-- **CheckboxGroup** — a `<fieldset>` per module (permissions).
-- **Radio** — status active/inactive.
-- **Rating** — a 0-5 star input via radios + the `row-reverse` /
-  `input:checked ~ label` CSS trick (no JS). Read-only `★★★☆☆` for display.
+### Checkbox · CheckboxGroup · RadioGroup · Rating
+
+- **Checkbox** — one labeled box; **CheckboxGroup** — many sharing one `name` (a
+  multi-select), `chips: true` renders a wrap-around pill list that fills each pill
+  while checked (pure CSS `:has(input:checked)`). Build both from `List<FieldOption>`.
+- **RadioGroup** — labeled, mutually-exclusive radios sharing one `name` (status
+  active/inactive), from a `List<FieldOption>` (`on` pre-checks one).
+- **Rating** — a 0..max star input via radios + the `row-reverse` /
+  `input:checked ~ label` CSS trick (no JS). Read-only `★★★☆☆` is a plain glyph run.
+
+```
+radio_group_render(radio_group { name: "activo", label: l_estado, options: estado_opts }).raw
+checkbox_group_render(checkbox_group { name: "skills", label: l_skills, options: skill_opts, chips: true }).raw
+rating_render(rating { name: "nivel", value: f_nivel, max: 5 }).raw
+```
+
+!!! note "Still patterns (later Forms session)"
+    **CascadeSelect** (`data-flv-change` re-queries dependent options),
+    **GroupSelect** (`<optgroup>`), and the grouped-`<fieldset>` permission matrix
+    stay app-specific for now — the Admin ABM builds them inline.
 
 ### Tabs · Stepper
 

@@ -31,6 +31,14 @@ from fitz_liveviews.ui.SortableHeader import sortable_header, sortable_header_re
 from fitz_liveviews.ui.GridToolbar import grid_toolbar, grid_toolbar_render
 from fitz_liveviews.ui.GridFilters import grid_filters, grid_filters_render
 from fitz_liveviews.ui.grid_helpers import Pill, sort_arrow
+from fitz_liveviews.ui.Textarea import textarea, textarea_render
+from fitz_liveviews.ui.Select import select, select_render
+from fitz_liveviews.ui.Checkbox import checkbox, checkbox_render
+from fitz_liveviews.ui.CheckboxGroup import checkbox_group, checkbox_group_render
+from fitz_liveviews.ui.RadioGroup import radio_group, radio_group_render
+from fitz_liveviews.ui.Rating import rating, rating_render
+from fitz_liveviews.ui.DatePicker import date_picker, date_picker_render
+from fitz_liveviews.ui.form_input_helpers import FieldOption, rating_stars
 
 print("=== Theme tokens ===")
 print(ui_theme().raw)
@@ -203,3 +211,40 @@ print(data_grid_render(data_grid {
   info: "0 empleados",
   cols: 3
 }).raw)
+
+// === Forms family (Session F) ===
+
+print("=== Textarea (with hint) ===")
+print(textarea_render(textarea { name: "notas", label: "Notas", value: "Hola", placeholder: "Escribí…", rows: 4, hint: "Opcional" }).raw)
+
+print("=== Select (cascade on_change) ===")
+let sel_opts: List<FieldOption> = [
+  FieldOption { label: "— País —", value: "0", on: true },
+  FieldOption { label: "Argentina", value: "1" },
+  FieldOption { label: "Chile", value: "2" },
+]
+print(select_render(select { name: "pais_id", label: "País", options: sel_opts, on_change: "cascade_pais" }).raw)
+
+print("=== Checkbox (single) ===")
+print(checkbox_render(checkbox { name: "acepto", label: "Acepto los términos", value: "yes", on: true }).raw)
+
+print("=== CheckboxGroup (chips) ===")
+let skill_opts: List<FieldOption> = [
+  FieldOption { label: "Rust", value: "1", on: true },
+  FieldOption { label: "Fitz", value: "2" },
+  FieldOption { label: "SQL", value: "3", on: true },
+]
+print(checkbox_group_render(checkbox_group { name: "skills", label: "Skills", options: skill_opts, chips: true }).raw)
+
+print("=== RadioGroup (estado) ===")
+let estado_opts: List<FieldOption> = [
+  FieldOption { label: "Activo", value: "true", on: true },
+  FieldOption { label: "Inactivo", value: "false" },
+]
+print(radio_group_render(radio_group { name: "activo", label: "Estado", options: estado_opts }).raw)
+
+print("=== Rating (3 of 5) ===")
+print(rating_render(rating { name: "nivel", value: 3, max: 5 }).raw)
+
+print("=== DatePicker ===")
+print(date_picker_render(date_picker { name: "fecha_ingreso", label: "Fecha de ingreso", value: "2026-07-30" }).raw)

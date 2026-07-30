@@ -215,13 +215,16 @@ fn admin_css() -> Str {
   .abm-form \{ display: flex; flex-direction: column; gap: .9rem; \}
   .form-row \{ display: flex; flex-direction: column; gap: .3rem; \}
   .form-row label \{ font-size: .78rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; \}
-  .form-row input, .form-row select, .form-row textarea \{
+  /* Native inline inputs/selects (the cascade + "reporta" selects stay inline —
+     they're a CascadeSelect / GroupSelect, later components). The text fields,
+     textarea, date and radios are packaged components with their own scoped
+     styles. */
+  .form-row input, .form-row select \{
     border: 1px solid var(--border); background: var(--surface); color: var(--text);
     border-radius: 8px; padding: .55rem .75rem; font-size: .9rem; width: 100%;
     font-family: inherit;
   \}
-  .form-row textarea \{ resize: vertical; min-height: 3.2rem; \}
-  .form-row input:focus, .form-row select:focus, .form-row textarea:focus \{ outline: none; border-color: var(--primary); \}
+  .form-row input:focus, .form-row select:focus \{ outline: none; border-color: var(--primary); \}
   .form-grid-3 \{ display: grid; grid-template-columns: repeat(3, 1fr); gap: .9rem; \}
   .form-grid-2 \{ display: grid; grid-template-columns: repeat(2, 1fr); gap: .9rem; \}
   @media (max-width: 560px) \{ .form-grid-3, .form-grid-2 \{ grid-template-columns: 1fr; \} \}
@@ -252,16 +255,10 @@ fn admin_css() -> Str {
   .step.step-done \{ opacity: 1; \}
   .step.step-done .step-num \{ background: color-mix(in srgb, var(--primary) 18%, transparent); color: var(--primary); border-color: var(--primary); \}
   @media (max-width: 560px) \{ .step-label \{ display: none; \} \}
-  /* Radio group (Slice 8) */
-  .radio-group \{ display: flex; gap: 1.25rem; padding: .2rem 0; \}
-  .radio \{ display: inline-flex; align-items: center; gap: .4rem; cursor: pointer; font-size: .9rem; \}
-  .radio input \{ width: auto; margin: 0; accent-color: var(--primary); \}
-  /* Rating (Slice 8c) — star input via radios, no JS */
-  .rating \{ display: inline-flex; flex-direction: row-reverse; justify-content: flex-end; gap: .1rem; padding: .2rem 0; \}
-  .rating input \{ position: absolute; opacity: 0; width: 0; height: 0; \}
-  .rating label \{ color: var(--border); cursor: pointer; font-size: 1.35rem; line-height: 1; margin: 0; padding: 0 .05rem; text-transform: none; letter-spacing: 0; \}
-  .rating input:checked ~ label \{ color: #f59e0b; \}
-  .rating label:hover, .rating label:hover ~ label \{ color: #fbbf24; \}
+  /* The estado RadioGroup + the desempeño Rating star input are packaged
+     components now (fitz_liveviews.ui.RadioGroup / .Rating); their styles travel
+     scoped. `.stars-ro` (the read-only star display in the expand-row detail)
+     stays — it's a plain glyph run, not the input. */
   .stars-ro \{ color: #f59e0b; letter-spacing: .1rem; \}
   /* Group-checkbox (permisos por módulo). */
   .perm-groups \{ display: flex; flex-direction: column; gap: .6rem; \}
@@ -271,16 +268,8 @@ fn admin_css() -> Str {
   @media (max-width: 560px) \{ .perm-checks \{ grid-template-columns: 1fr; \} \}
   .perm-check \{ display: flex; align-items: center; gap: .45rem; font-size: .85rem; cursor: pointer; \}
   .perm-check input \{ width: auto; margin: 0; accent-color: var(--primary); \}
-  /* Multiselect (skills) — chip-style checkbox list. */
-  .skill-list \{ display: flex; flex-wrap: wrap; gap: .4rem; \}
-  .skill-check \{
-    display: inline-flex; align-items: center; gap: .4rem; cursor: pointer;
-    border: 1px solid var(--border); border-radius: 999px; padding: .3rem .7rem;
-    font-size: .82rem; background: var(--surface); user-select: none;
-  \}
-  .skill-check:hover \{ border-color: var(--primary); \}
-  .skill-check input \{ width: auto; margin: 0; accent-color: var(--primary); \}
-  .skill-on \{ background: var(--primary); color: #fff; border-color: var(--primary); \}
+  /* The skills multiselect is the packaged fitz_liveviews.ui.CheckboxGroup
+     (chips variant) now; its styles travel scoped. */
   /* Tree view (Slice 4e) — país → provincia → ciudad */
   .btn-tree \{ margin-left: auto; \}
   .btn-tree + .btn-nuevo \{ margin-left: .5rem; \}

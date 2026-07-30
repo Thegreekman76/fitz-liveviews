@@ -1,0 +1,39 @@
+// Rating.fitzv — packaged companion UI primitive (Phase 9, Forms family).
+//
+// Presentational / controlled: `rating_render(rating { ... }).raw`. A 0..max star
+// rating built from radios — pure CSS, zero JS. The `rating_stars` helper emits
+// the radios max→1 (reverse order) so the component's `row-reverse` +
+// `input:checked ~ label` styling fills the chosen star and every star to its
+// left; hovering previews. `value` (0 = none) pre-selects; read the chosen number
+// back on the form's `data-flv-submit` by `name`. The scoped element selectors
+// reach the helper's radios/labels inside the `.flv-rating` wrapper. Style it by
+// aliasing the --flv-* tokens.
+
+from form_input_helpers import rating_stars
+from fitz_liveviews import flv
+
+component rating {
+  state {
+    name: Str = "rating"
+    value: Int = 0
+    max: Int = 5
+  }
+
+  <template>
+    <div class="flv-rating">{rating_stars(name, value, max)}</div>
+  </template>
+
+  <style scoped>
+    .flv-rating {
+      display: inline-flex; flex-direction: row-reverse; justify-content: flex-end;
+      gap: .1rem; padding: .2rem 0;
+    }
+    .flv-rating input { position: absolute; opacity: 0; width: 0; height: 0; }
+    .flv-rating label {
+      color: var(--flv-border, #d9d9e0); cursor: pointer; font-size: 1.35rem;
+      line-height: 1; margin: 0; padding: 0 .05rem;
+    }
+    .flv-rating input:checked ~ label { color: #f59e0b; }
+    .flv-rating label:hover, .flv-rating label:hover ~ label { color: #fbbf24; }
+  </style>
+}

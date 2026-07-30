@@ -745,9 +745,21 @@ Card · Badge · Alert · Input · Spinner · Icon · **Breadcrumbs** ✅ ·
   multi-delete + grouping *controls* stay app-specific too: they're tied to the
   domain events; the generic table shell + headers + toolbar + filter bar are
   what generalized.)
-- [ ] **Session F — Forms family, part 1 (inputs)**: `Textarea` · `Select` ·
-  `Checkbox` / `CheckboxGroup` · `Radio` / `RadioGroup` · `Rating` ·
-  `DatePicker`. From `EmpleadoForm.fitzv` + `form_helpers.fitz` + form CSS.
+- [x] **Session F — Forms family, part 1 (inputs)** (v0.22.0): `Textarea` (labeled
+  multi-line) · `Select` (labeled `<select>` over a `List<FieldOption>`, `on_change`
+  for a cascade) · `Checkbox` (single) / `CheckboxGroup` (shared-`name` multi-select,
+  `chips: true` for a `:has(input:checked)` pill list) · `RadioGroup` (exclusive
+  radios) · `Rating` (0..max pure-CSS star input) · `DatePicker` (native
+  `<input type=date>`). `form_input_helpers` carries `type FieldOption { label,
+  value, on }` + `rating_stars(...)`. Adopted in `EmpleadoForm.fitzv` /
+  `form_helpers.fitz` (notas / depto / estado / desempeño / skills / fecha); the
+  local `depto_options` / `skills_html` / `rating_input` deleted; the radio / rating /
+  skill-chip / inline-textarea CSS moved out of `admin_css()`. 15 gallery tests (207
+  total), docs, `ui-textarea` / `ui-select` / `ui-checkbox` / `ui-checkboxgroup` /
+  `ui-radiogroup` / `ui-rating` / `ui-datepicker` snippets. `fitz check` + `fitz test`
+  + `fitz build` verified; live Postgres form render + WS smoke + `fitz run` ↔ binary
+  parity confirmed. (Input already packaged. CascadeSelect / GroupSelect / the grouped
+  permission matrix stay app-specific → Session G.)
 - [ ] **Session G — Forms family, part 2 (composite)**: `FormLayout` / `FormRow`
   · `CascadeSelect` · `GroupSelect` · `MultiSelect` · `Tabs` · `Stepper` ·
   `TreeView`. The richer, stateful/interaction-heavy controls.

@@ -1,0 +1,33 @@
+// Checkbox.fitzv — packaged companion UI primitive (Phase 9, Forms family).
+//
+// Presentational / controlled: `checkbox_render(checkbox { ... }).raw`. A single
+// labeled checkbox. No state of its own — the browser toggles it client-side and
+// it's serialized on the form's `data-flv-submit`; read it back by `name`. `on`
+// sets the initial checked state. Style it by aliasing the --flv-* tokens. For a
+// set of related boxes sharing one `name`, use CheckboxGroup.
+
+from fitz_liveviews import flv
+
+component checkbox {
+  state {
+    name: Str = ""
+    label: Str = ""
+    value: Str = "on"
+    on: Bool = false
+  }
+
+  <template>
+    <label class="flv-checkbox">
+      {#if on}<input type="checkbox" name="{flv(name)}" value="{flv(value)}" checked />{#else}<input type="checkbox" name="{flv(name)}" value="{flv(value)}" />{/if}
+      <span class="flv-checkbox-label">{flv(label)}</span>
+    </label>
+  </template>
+
+  <style scoped>
+    .flv-checkbox {
+      display: inline-flex; align-items: center; gap: .45rem; cursor: pointer;
+      font-size: .85rem; user-select: none; color: var(--flv-text, #1a1a1a);
+    }
+    .flv-checkbox input { width: auto; margin: 0; accent-color: var(--flv-color-primary, #ce412b); }
+  </style>
+}

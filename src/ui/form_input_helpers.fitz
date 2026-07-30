@@ -1,0 +1,36 @@
+// form_input_helpers.fitz — shared data types + helpers for the packaged
+// Forms family (Textarea / Select / Checkbox / CheckboxGroup / RadioGroup /
+// Rating / DatePicker). Kept a plain `.fitz` sibling (not a `.fitzv`) because
+// `.fitzv` files hold only `component` blocks — the option datum type + the
+// star-input helper live alongside, imported by both the components and the
+// host. Same split as `grid_helpers` / `chart_helpers` / `shell_types`.
+
+// One option for a Select / RadioGroup / CheckboxGroup. The host supplies an
+// already-localized `label`, the submitted `value`, and `on` — whether it is the
+// selected option (Select), the checked radio (RadioGroup), or a ticked box
+// (CheckboxGroup). Build the list from your domain rows with `.map(...)`.
+type FieldOption {
+  label: Str
+  value: Str
+  on: Bool = false
+}
+
+// The Rating's star radios, emitted `max`→1 (reverse order) so the component's
+// `flex-direction: row-reverse` + `input:checked ~ label` CSS fills the chosen
+// star and every star to its left — a pure-CSS star input, zero JS. Kept a free
+// helper (not a nested `{#for}` with inline math) so the Rating template stays a
+// one-liner: it interpolates `{rating_stars(name, value, max)}` inside its
+// scoped `.flv-rating` wrapper, and the scoped element selectors reach these
+// radios/labels. `name` groups the radios; `selected` (0 = none) pre-checks one.
+fn rating_stars(name: Str, selected: Int, max: Int) -> Str {
+  let out = ""
+  for n in 1..(max + 1) {
+    let val = (max + 1) - n
+    let checked = match val == selected {
+      true => " checked",
+      false => "",
+    }
+    out = out + """<input type="radio" id="{name}-{val}" name="{name}" value="{val}"{checked} /><label for="{name}-{val}" data-tooltip="{val}">★</label>"""
+  }
+  return out
+}

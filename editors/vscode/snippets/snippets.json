@@ -539,5 +539,67 @@
       "let ${6:bar} = grid_filters_render(grid_filters { pills: $1, filter_label: ${7:filter_label} }).raw"
     ],
     "description": "Render the packaged GridFilters (a filter pill bar). Each Pill fires its own fall-through `event` (+ optional `value` payload read as payload[\"value\"]). Import: from fitz_liveviews.ui.GridFilters import grid_filters, grid_filters_render + from fitz_liveviews.ui.grid_helpers import Pill"
+  },
+
+  "Textarea — packaged multi-line field (Forms family)": {
+    "prefix": "ui-textarea",
+    "body": [
+      "let ${1:field} = textarea_render(textarea { name: \"${2:name}\", label: ${3:label}, value: ${4:value}, rows: ${5:3} }).raw"
+    ],
+    "description": "Render the packaged Textarea (labeled multi-line field). Import: from fitz_liveviews.ui.Textarea import textarea, textarea_render"
+  },
+
+  "Select — packaged dropdown (Forms family)": {
+    "prefix": "ui-select",
+    "body": [
+      "let ${1:opts}: List<FieldOption> = ${2:items}.map(fn(x) => FieldOption { label: ${3:x.name}, value: \"${4:x.id}\", on: ${5:x.id == current} })",
+      "let ${6:field} = select_render(select { name: \"${7:name}\", label: ${8:label}, options: $1 }).raw"
+    ],
+    "description": "Render the packaged Select (labeled dropdown over List<FieldOption>; add on_change for a cascade). Import: from fitz_liveviews.ui.Select import select, select_render + from fitz_liveviews.ui.form_input_helpers import FieldOption"
+  },
+
+  "Checkbox — packaged single box (Forms family)": {
+    "prefix": "ui-checkbox",
+    "body": [
+      "let ${1:field} = checkbox_render(checkbox { name: \"${2:name}\", label: ${3:label}, value: \"${4:yes}\", on: ${5:cond} }).raw"
+    ],
+    "description": "Render the packaged Checkbox (single labeled box). Import: from fitz_liveviews.ui.Checkbox import checkbox, checkbox_render"
+  },
+
+  "CheckboxGroup — packaged multi-select (Forms family)": {
+    "prefix": "ui-checkboxgroup",
+    "body": [
+      "let ${1:opts}: List<FieldOption> = ${2:items}.map(fn(x) => FieldOption { label: ${3:x.name}, value: \"${4:x.id}\", on: ${5:checked} })",
+      "let ${6:field} = checkbox_group_render(checkbox_group { name: \"${7:name}\", label: ${8:label}, options: $1, chips: ${9|true,false|} }).raw"
+    ],
+    "description": "Render the packaged CheckboxGroup (boxes sharing one name; chips:true for a pill list). Import: from fitz_liveviews.ui.CheckboxGroup import checkbox_group, checkbox_group_render + from fitz_liveviews.ui.form_input_helpers import FieldOption"
+  },
+
+  "RadioGroup — packaged exclusive radios (Forms family)": {
+    "prefix": "ui-radiogroup",
+    "body": [
+      "let ${1:opts}: List<FieldOption> = [",
+      "  FieldOption { label: ${2:label_a}, value: \"${3:a}\", on: ${4:cond} },",
+      "  FieldOption { label: ${5:label_b}, value: \"${6:b}\" },",
+      "]",
+      "let ${7:field} = radio_group_render(radio_group { name: \"${8:name}\", label: ${9:label}, options: $1 }).raw"
+    ],
+    "description": "Render the packaged RadioGroup (mutually-exclusive radios sharing one name). Import: from fitz_liveviews.ui.RadioGroup import radio_group, radio_group_render + from fitz_liveviews.ui.form_input_helpers import FieldOption"
+  },
+
+  "Rating — packaged star input (Forms family)": {
+    "prefix": "ui-rating",
+    "body": [
+      "let ${1:field} = rating_render(rating { name: \"${2:nivel}\", value: ${3:value}, max: ${4:5} }).raw"
+    ],
+    "description": "Render the packaged Rating (0..max pure-CSS star input). Import: from fitz_liveviews.ui.Rating import rating, rating_render"
+  },
+
+  "DatePicker — packaged native date field (Forms family)": {
+    "prefix": "ui-datepicker",
+    "body": [
+      "let ${1:field} = date_picker_render(date_picker { name: \"${2:name}\", label: ${3:label}, value: ${4:iso_value} }).raw"
+    ],
+    "description": "Render the packaged DatePicker (labeled native <input type=date>; value is ISO YYYY-MM-DD). Import: from fitz_liveviews.ui.DatePicker import date_picker, date_picker_render"
   }
 }

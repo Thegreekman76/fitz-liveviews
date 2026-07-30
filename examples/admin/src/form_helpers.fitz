@@ -17,6 +17,13 @@ from fitz_liveviews import Html, flv, html, h_join
 from fitz_liveviews.ui.Alert import alert, alert_render
 from fitz_liveviews.ui.Button import button, button_render
 from fitz_liveviews.ui.Input import input, input_render
+from fitz_liveviews.ui.Textarea import textarea, textarea_render
+from fitz_liveviews.ui.Select import select, select_render
+from fitz_liveviews.ui.RadioGroup import radio_group, radio_group_render
+from fitz_liveviews.ui.Rating import rating, rating_render
+from fitz_liveviews.ui.CheckboxGroup import checkbox_group, checkbox_group_render
+from fitz_liveviews.ui.DatePicker import date_picker, date_picker_render
+from fitz_liveviews.ui.form_input_helpers import FieldOption
 
 // --- set membership (copy of empleados.fitz's; see module header) ------------
 fn id_checked(csv: Str, id: Int) -> Bool {
@@ -27,21 +34,22 @@ fn id_checked(csv: Str, id: Int) -> Bool {
 
 // --- <option> builders -------------------------------------------------------
 
-// `<option>` tags for the departamento select, current value marked `selected`.
-fn depto_options(deptos: List<Departamento>, selected_id: Int, locale: Str) -> Str {
-    let none = t(locale, "form.depto.none")
-    let head = match selected_id == 0 {
-        true => """<option value="0" selected>{none}</option>""",
-        false => """<option value="0">{none}</option>""",
+// Departamento field — the packaged Select (basic dropdown). Builds a
+// `List<FieldOption>` (a "none" head + one per department) and lets Select render
+// the labeled `<select>`. Same reason it's a helper (not inline in the SFC): a
+// struct literal's braces can't sit inside a `.fitzv` interpolation.
+fn field_depto(deptos: List<Departamento>, selected: Int, locale: Str) -> Str {
+    let opts: List<FieldOption> = [
+        FieldOption { label: t(locale, "form.depto.none"), value: "0", on: selected == 0 },
+    ]
+    for d in deptos {
+        opts.push(FieldOption { label: d.nombre, value: "{d.id}", on: d.id == selected })
     }
-    let opts = h_join(deptos.map(fn(d) => html(match d.id == selected_id {
-        true => """<option value="{d.id}" selected>{flv(d.nombre)}</option>""",
-        false => """<option value="{d.id}">{flv(d.nombre)}</option>""",
-    })))
-    return head + opts
+    return select_render(select { name: "departamento_id", label: t(locale, "form.depto"), options: opts }).raw
 }
 
-// A single `<option>` with `selected` when it matches.
+// A single `<option>` with `selected` when it matches (used by the cascade
+// selects, which stay inline — they're a CascadeSelect, a later component).
 fn option_tag(id: Int, label: Str, selected: Int) -> Str {
     return match id == selected {
         true => """<option value="{id}" selected>{flv(label)}</option>""",
@@ -114,12 +122,11 @@ fn permisos_html(permisos: List<Permiso>, checked_csv: Str) -> Str {
     return out
 }
 
-// Multiselect (Slice 4d) — a flat checkbox list; all share `name="skills"`.
-fn skills_html(skills: List<Skill>, checked_csv: Str) -> Str {
-    return h_join(skills.map(fn(s) => html(match id_checked(checked_csv, s.id) {
-        true => """<label class="skill-check skill-on"><input type="checkbox" name="skills" value="{s.id}" checked /> {flv(s.nombre)}</label>""",
-        false => """<label class="skill-check"><input type="checkbox" name="skills" value="{s.id}" /> {flv(s.nombre)}</label>""",
-    })))
+// Skills field — the packaged CheckboxGroup (chip multiselect; all share
+// `name="skills"`). Builds a `List<FieldOption>` from the skills, `on` = ticked.
+fn field_skills(skills: List<Skill>, checked_csv: Str, locale: Str) -> Str {
+    let opts: List<FieldOption> = skills.map(fn(s) => FieldOption { label: s.nombre, value: "{s.id}", on: id_checked(checked_csv, s.id) })
+    return checkbox_group_render(checkbox_group { name: "skills", label: t(locale, "form.skills"), options: opts, chips: true }).raw
 }
 
 // --- tabs / stepper / rating -------------------------------------------------
@@ -171,20 +178,21 @@ fn stepper_bar(f_tab: Str, locale: Str) -> Str {
     return """<div class="stepper">{s1}<div class="step-line"></div>{s2}<div class="step-line"></div>{s3}</div>"""
 }
 
-// Rating (Slice 8c) — a 0-5 star input via radios (no JS), emitted 5→1 so the
-// `row-reverse` + `input:checked ~ label` CSS fills the chosen star + its left.
-fn rating_input(selected: Int) -> Str {
-    let out = ""
-    for n in 1..6 {
-        let val = 6 - n
-        let checked = match val == selected {
-            true => " checked",
-            false => "",
-        }
-        out = out + """<input type="radio" id="nivel-{val}" name="nivel" value="{val}"{checked} /><label for="nivel-{val}" data-tooltip="{val}">★</label>"""
-    }
-    return out
+// Desempeño field — the packaged Rating (0-5 star input, pure CSS). The label
+// sits in the SFC's form-row; this returns just the stars.
+fn field_rating(selected: Int) -> Str => rating_render(rating { name: "nivel", value: selected, max: 5 }).raw
+
+// Estado field — the packaged RadioGroup (activo true/false).
+fn field_estado(activo: Bool, locale: Str) -> Str {
+    let opts: List<FieldOption> = [
+        FieldOption { label: t(locale, "badge.active"), value: "true", on: activo },
+        FieldOption { label: t(locale, "badge.inactive"), value: "false", on: not activo },
+    ]
+    return radio_group_render(radio_group { name: "activo", label: t(locale, "form.estado"), options: opts }).raw
 }
+
+// Notas field — the packaged Textarea (multi-line).
+fn field_notas(value: Str, locale: Str) -> Str => textarea_render(textarea { name: "notas", label: t(locale, "form.notas"), value: value, placeholder: t(locale, "form.notas.ph"), rows: 3 }).raw
 
 // --- shell fragments (banner / navs / panel classes / placeholders) ----------
 //
@@ -204,11 +212,11 @@ fn form_banner(error: Str) -> Str {
 // as helpers (not inline in the SFC template) because a struct literal's braces
 // can't sit inside a `.fitzv` interpolation — same reason the <option> builders
 // live here (gotcha #2). Input escapes label/value/placeholder itself, so they
-// pass raw. `fecha` uses input_type="date" (the browser's native date picker).
+// pass raw. `fecha` uses the packaged DatePicker + `notas` the Textarea (below).
 fn field_nombre(value: Str, locale: Str) -> Str => input_render(input { name: "nombre", label: t(locale, "form.nombre"), value: value, placeholder: t(locale, "form.nombre.ph"), autocomplete: "off" }).raw
 fn field_email(value: Str, locale: Str) -> Str => input_render(input { name: "email", label: t(locale, "form.email"), value: value, input_type: "email", placeholder: "persona@empresa.com", autocomplete: "off" }).raw
 fn field_cargo(value: Str, locale: Str) -> Str => input_render(input { name: "cargo", label: t(locale, "form.cargo"), value: value, placeholder: t(locale, "form.cargo.ph"), autocomplete: "off" }).raw
-fn field_fecha(value: Str, locale: Str) -> Str => input_render(input { name: "fecha_ingreso", label: t(locale, "form.fecha"), value: value, input_type: "date" }).raw
+fn field_fecha(value: Str, locale: Str) -> Str => date_picker_render(date_picker { name: "fecha_ingreso", label: t(locale, "form.fecha"), value: value }).raw
 
 // Header nav — alta (edit_id == 0) is a guided Stepper; edición uses free Tabs.
 fn form_header_nav(edit_id: Int, f_tab: Str, locale: Str) -> Str {

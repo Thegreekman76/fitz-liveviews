@@ -1,0 +1,40 @@
+// RadioGroup.fitzv — packaged companion UI primitive (Phase 9, Forms family).
+//
+// Presentational / controlled: `radio_group_render(radio_group { ... }).raw`. A
+// labeled set of mutually-exclusive radios sharing one `name`. Build the
+// `List<FieldOption>` (`{ label, value, on }`; `on` pre-checks exactly one). The
+// browser enforces single-selection client-side; read the chosen `value` back on
+// the form's `data-flv-submit`. Style it by aliasing the --flv-* tokens.
+
+from form_input_helpers import FieldOption
+from fitz_liveviews import flv
+
+component radio_group {
+  state {
+    name: Str = ""
+    label: Str = ""
+    options: List<FieldOption> = []
+  }
+
+  <template>
+    <div class="flv-field">
+      {#if label != ""}<span class="flv-field-label">{flv(label)}</span>{/if}
+      <div class="flv-radio-group">
+        {#for o in options}
+          {#if o.on}<label class="flv-radio"><input type="radio" name="{flv(name)}" value="{flv(o.value)}" checked /> {flv(o.label)}</label>{#else}<label class="flv-radio"><input type="radio" name="{flv(name)}" value="{flv(o.value)}" /> {flv(o.label)}</label>{/if}
+        {/for}
+      </div>
+    </div>
+  </template>
+
+  <style scoped>
+    .flv-field { display: flex; flex-direction: column; gap: .3rem; }
+    .flv-field-label { font-size: .82rem; font-weight: 600; color: var(--flv-text, #1a1a1a); }
+    .flv-radio-group { display: flex; gap: 1.25rem; flex-wrap: wrap; padding: .2rem 0; }
+    .flv-radio {
+      display: inline-flex; align-items: center; gap: .4rem; cursor: pointer;
+      font-size: .9rem; user-select: none; color: var(--flv-text, #1a1a1a);
+    }
+    .flv-radio input { width: auto; margin: 0; accent-color: var(--flv-color-primary, #ce412b); }
+  </style>
+}

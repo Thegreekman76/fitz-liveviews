@@ -56,6 +56,19 @@ from fitz_liveviews.ui.SortableHeader import sortable_header, sortable_header_re
 from fitz_liveviews.ui.GridToolbar import grid_toolbar, grid_toolbar_render
 from fitz_liveviews.ui.GridFilters import grid_filters, grid_filters_render
 from fitz_liveviews.ui.grid_helpers import Pill, sort_arrow
+// Forms family (Session F) — the form inputs rendered by EmpleadoForm.fitzv /
+// form_helpers.fitz. Imported HERE so the compiler auto-registers them and their
+// cross-module render-fn signatures resolve to `-> Html`. `FieldOption`
+// (form_input_helpers) is imported so the cross-module `List<FieldOption>` in
+// Select / RadioGroup / CheckboxGroup state resolves.
+from fitz_liveviews.ui.Textarea import textarea, textarea_render
+from fitz_liveviews.ui.Select import select, select_render
+from fitz_liveviews.ui.Checkbox import checkbox, checkbox_render
+from fitz_liveviews.ui.CheckboxGroup import checkbox_group, checkbox_group_render
+from fitz_liveviews.ui.RadioGroup import radio_group, radio_group_render
+from fitz_liveviews.ui.Rating import rating, rating_render
+from fitz_liveviews.ui.DatePicker import date_picker, date_picker_render
+from fitz_liveviews.ui.form_input_helpers import FieldOption, rating_stars
 
 @server(3000, "0.0.0.0")
 fn main() => 0

@@ -1,0 +1,64 @@
+// CheckboxGroup.fitzv — packaged companion UI primitive (Phase 9, Forms family).
+//
+// Presentational / controlled: `checkbox_group_render(checkbox_group { ... }).raw`.
+// A set of checkboxes that all share one `name` (a multi-select that serializes
+// as repeated `name=value` pairs). Build the `List<FieldOption>` from your domain
+// rows (`{ label, value, on }`; `on` pre-checks the box). Two layouts: the default
+// stacked rows, or `chips: true` for a wrap-around pill list that fills each pill
+// while its box is checked (pure CSS `:has(input:checked)`, no server round-trip).
+// The browser toggles boxes client-side; read them back on the form's
+// `data-flv-submit`. Style it by aliasing the --flv-* tokens.
+
+from form_input_helpers import FieldOption
+from fitz_liveviews import flv
+
+component checkbox_group {
+  state {
+    name: Str = ""
+    label: Str = ""
+    options: List<FieldOption> = []
+    chips: Bool = false
+  }
+
+  <template>
+    <div class="flv-field">
+      {#if label != ""}<span class="flv-field-label">{flv(label)}</span>{/if}
+      {#if chips}
+        <div class="flv-check-list flv-check-chips">
+          {#for o in options}
+            {#if o.on}<label class="flv-check"><input type="checkbox" name="{flv(name)}" value="{flv(o.value)}" checked /> {flv(o.label)}</label>{#else}<label class="flv-check"><input type="checkbox" name="{flv(name)}" value="{flv(o.value)}" /> {flv(o.label)}</label>{/if}
+          {/for}
+        </div>
+      {#else}
+        <div class="flv-check-list flv-check-stack">
+          {#for o in options}
+            {#if o.on}<label class="flv-check"><input type="checkbox" name="{flv(name)}" value="{flv(o.value)}" checked /> {flv(o.label)}</label>{#else}<label class="flv-check"><input type="checkbox" name="{flv(name)}" value="{flv(o.value)}" /> {flv(o.label)}</label>{/if}
+          {/for}
+        </div>
+      {/if}
+    </div>
+  </template>
+
+  <style scoped>
+    .flv-field { display: flex; flex-direction: column; gap: .3rem; }
+    .flv-field-label { font-size: .82rem; font-weight: 600; color: var(--flv-text, #1a1a1a); }
+    .flv-check-list { display: flex; gap: .4rem; }
+    .flv-check-stack { flex-direction: column; }
+    .flv-check-chips { flex-wrap: wrap; }
+    .flv-check {
+      display: inline-flex; align-items: center; gap: .4rem; cursor: pointer;
+      font-size: .85rem; user-select: none; color: var(--flv-text, #1a1a1a);
+    }
+    .flv-check input { width: auto; margin: 0; accent-color: var(--flv-color-primary, #ce412b); }
+    .flv-check-chips .flv-check {
+      border: 1px solid var(--flv-border, #d9d9e0); border-radius: 999px;
+      padding: .3rem .7rem; background: var(--flv-surface, #ffffff);
+      transition: background .12s ease, border-color .12s ease, color .12s ease;
+    }
+    .flv-check-chips .flv-check:hover { border-color: var(--flv-color-primary, #ce412b); }
+    .flv-check-chips .flv-check:has(input:checked) {
+      background: var(--flv-color-primary, #ce412b); color: #fff;
+      border-color: var(--flv-color-primary, #ce412b);
+    }
+  </style>
+}

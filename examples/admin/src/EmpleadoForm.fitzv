@@ -23,7 +23,7 @@
 // CSS stays GLOBAL (shell.fitz): `.abm-form` / `.form-row` / `.tab-panel` / … are
 // shared, so no `<style scoped>`.
 
-from form_helpers import form_banner, form_header_nav, form_footer_nav, panel_cls_datos, panel_cls_org, panel_cls_accesos, ph_notas, field_nombre, field_email, field_cargo, field_fecha, depto_options, reporta_options, pais_options, provincia_options, ciudad_options, permisos_html, skills_html, rating_input
+from form_helpers import form_banner, form_header_nav, form_footer_nav, panel_cls_datos, panel_cls_org, panel_cls_accesos, field_nombre, field_email, field_cargo, field_fecha, field_notas, field_estado, field_rating, field_depto, field_skills, reporta_options, pais_options, provincia_options, ciudad_options, permisos_html
 from models import Departamento, Pais, Provincia, Ciudad, Permiso, Skill, Empleado
 from i18n import t
 from fitz_liveviews import flv
@@ -77,30 +77,18 @@ component empleado_form {
               {field_fecha(f_fecha, locale)}
             </div>
             <div class="form-grid-2">
-              <div class="form-row">
-                <label>{flv(t(locale, "form.estado"))}</label>
-                <div class="radio-group">
-                  <label class="radio">{#if f_activo}<input type="radio" name="activo" value="true" checked />{#else}<input type="radio" name="activo" value="true" />{/if} {flv(t(locale, "badge.active"))}</label>
-                  <label class="radio">{#if f_activo}<input type="radio" name="activo" value="false" />{#else}<input type="radio" name="activo" value="false" checked />{/if} {flv(t(locale, "badge.inactive"))}</label>
-                </div>
-              </div>
+              {field_estado(f_activo, locale)}
               <div class="form-row">
                 <label>{flv(t(locale, "form.desempeno"))}</label>
-                <div class="rating">{rating_input(f_nivel)}</div>
+                {field_rating(f_nivel)}
               </div>
             </div>
-            <div class="form-row">
-              <label>{flv(t(locale, "form.notas"))}</label>
-              <textarea name="notas" rows="3" placeholder="{ph_notas(locale)}">{flv(f_notas)}</textarea>
-            </div>
+            {field_notas(f_notas, locale)}
           </div>
 
           <div class="{panel_cls_org(f_tab)}">
             <div class="form-grid-2">
-              <div class="form-row">
-                <label>{flv(t(locale, "form.depto"))}</label>
-                <select name="departamento_id">{depto_options(deptos, f_depto, locale)}</select>
-              </div>
+              {field_depto(deptos, f_depto, locale)}
               <div class="form-row">
                 <label>{flv(t(locale, "form.reporta"))}</label>
                 <select name="reporta_a">{reporta_options(colegas, deptos, edit_id, f_reporta, locale)}</select>
@@ -127,10 +115,7 @@ component empleado_form {
               <label>{flv(t(locale, "form.permisos"))}</label>
               <div class="perm-groups">{permisos_html(permisos, f_permisos)}</div>
             </div>
-            <div class="form-row">
-              <label>{flv(t(locale, "form.skills"))}</label>
-              <div class="skill-list">{skills_html(skills, f_skills)}</div>
-            </div>
+            {field_skills(skills, f_skills, locale)}
           </div>
 
           {form_footer_nav(edit_id, f_tab, locale)}

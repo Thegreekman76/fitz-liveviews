@@ -5,6 +5,67 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.22.0] — 2026-07-30 — `Textarea` + `Select` + `Checkbox` + `CheckboxGroup` + `RadioGroup` + `Rating` + `DatePicker` (Forms family — inputs)
+
+**Minor bump** — ships the **Forms family (inputs)**, extracted from the Admin ABM
+into the package: the leaf form inputs. Text stays `Input` (already packaged); this
+release adds the multi-line, choice, and date inputs. Built against Fitz core
+**v0.29.1**.
+
+### Added — the 7 form-input components
+
+- **`fitz_liveviews.ui.Textarea`** — `textarea { name, label, value, placeholder,
+  rows, hint, error, disabled, required }`. The multi-line sibling of Input, same
+  `.flv-field` label + hint/error shell.
+- **`fitz_liveviews.ui.Select`** — `select { name, label, options: List<FieldOption>,
+  hint, error, disabled, on_change }`. A labeled `<select>`; `on_change` fires a
+  `data-flv-change` fall-through event (country → province cascade). `<optgroup>`
+  (GroupSelect) is a later component.
+- **`fitz_liveviews.ui.Checkbox`** — `checkbox { name, label, value, on }`. A single
+  labeled box.
+- **`fitz_liveviews.ui.CheckboxGroup`** — `checkbox_group { name, label, options:
+  List<FieldOption>, chips }`. Boxes sharing one `name` (a multi-select). `chips:
+  true` renders a wrap-around pill list that fills each pill while checked (pure CSS
+  `:has(input:checked)`, no server round-trip).
+- **`fitz_liveviews.ui.RadioGroup`** — `radio_group { name, label, options:
+  List<FieldOption> }`. Mutually-exclusive radios sharing one `name`.
+- **`fitz_liveviews.ui.Rating`** — `rating { name, value, max }`. A 0..max star
+  input via radios + the `row-reverse` / `input:checked ~ label` CSS trick (zero JS).
+- **`fitz_liveviews.ui.DatePicker`** — `date_picker { name, label, value, hint,
+  error, disabled }`. A labeled native `<input type="date">`.
+- **`fitz_liveviews.ui.form_input_helpers`** — `type FieldOption { label, value, on }`
+  (shared by Select / RadioGroup / CheckboxGroup) + `rating_stars(name, selected,
+  max)` (the reversed star radios; the Rating template interpolates it inside its
+  scoped `.flv-rating` wrapper — the scoped element selectors reach the helper's
+  radios/labels).
+- All are `.fitzv` SFCs with `<style scoped>` over `--flv-*` tokens (literal
+  fallbacks), controlled (no event handlers — they render into your form and you
+  read the values back by `name`), and i18n-agnostic. They render identically under
+  `fitz run` and the `fitz build` binary.
+
+### Changed — Admin ABM adoption
+
+- `EmpleadoForm.fitzv` / `form_helpers.fitz` now render the packaged inputs: the
+  notas Textarea, the departamento Select, the estado RadioGroup, the desempeño
+  Rating, the skills CheckboxGroup (chips), and the fecha DatePicker. The local
+  `depto_options` / `skills_html` / `rating_input` helpers are gone; `field_*`
+  wrappers build the `List<FieldOption>` and render the components.
+- The radio / rating / skill-chip / inline-textarea styles moved out of
+  `admin_css()` into the components' scoped blocks. The form layout
+  (`.form-row` / `.form-grid-*` / `.abm-form`), the grouped-permission matrix
+  (`.perm-*`), the Tabs/Stepper (`.tab-*` / `.step*`), the CascadeSelect / GroupSelect
+  (inline `<select>`s), and the read-only star display (`.stars-ro`) stay — they're
+  app-specific or a later Forms session.
+
+### Verified
+
+- `fitz test` (ui-gallery) — **207 unit tests pass** (15 new for the Forms family).
+- `fitz check` + `fitz build` on the Admin ABM (native binary, cross-module
+  `List<FieldOption>`). Rendered against a local PostgreSQL; the WS smoke exercises
+  the create/edit form flow and `fitz run` ↔ native binary are **bit-a-bit
+  identical** in form content (modulo per-connection uuids + multi-line-literal
+  whitespace).
+
 ## [v0.21.0] — 2026-07-30 — `DataGrid` + `SortableHeader` + `GridToolbar` + `GridFilters` (DataGrid family)
 
 **Minor bump** — ships the **DataGrid family**, extracted from the Admin ABM into

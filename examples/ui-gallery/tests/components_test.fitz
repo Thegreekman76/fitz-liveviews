@@ -34,6 +34,14 @@ from fitz_liveviews.ui.SortableHeader import sortable_header, sortable_header_re
 from fitz_liveviews.ui.GridToolbar import grid_toolbar, grid_toolbar_render
 from fitz_liveviews.ui.GridFilters import grid_filters, grid_filters_render
 from fitz_liveviews.ui.grid_helpers import Pill, sort_arrow
+from fitz_liveviews.ui.Textarea import textarea, textarea_render
+from fitz_liveviews.ui.Select import select, select_render
+from fitz_liveviews.ui.Checkbox import checkbox, checkbox_render
+from fitz_liveviews.ui.CheckboxGroup import checkbox_group, checkbox_group_render
+from fitz_liveviews.ui.RadioGroup import radio_group, radio_group_render
+from fitz_liveviews.ui.Rating import rating, rating_render
+from fitz_liveviews.ui.DatePicker import date_picker, date_picker_render
+from fitz_liveviews.ui.form_input_helpers import FieldOption, rating_stars
 from fitz_liveviews import html
 
 // --- Pager (presentational / controlled) ---
@@ -827,4 +835,157 @@ fn sample_nav() -> List<NavGroup> {
     let h = data_grid_render(data_grid { head: "<tr></tr>", body: "<tr><td>x</td></tr>" }).raw
     // the scoped <style> always names .flv-grid-foot; key on the wrapper element
     assert(not h.contains("flv-grid-foot flv-grid-foot-"))
+}
+
+// === Forms family (Session F) — Textarea / Select / Checkbox / CheckboxGroup /
+// RadioGroup / Rating / DatePicker (presentational form inputs) +
+// form_input_helpers (FieldOption / rating_stars).
+
+// --- rating_stars (helper) ---
+
+@test fn rating_stars_emits_reversed_radios_with_selected_checked() {
+    let h = rating_stars("nivel", 3, 5)
+    // radios emitted max→1 (row-reverse CSS); star 3 pre-checked. This is a
+    // classic string helper, so the bool attr is bare `checked` (the .fitzv
+    // emitter would normalize it to `checked=""`).
+    assert(h.contains("value=\"5\""))
+    assert(h.contains("value=\"1\""))
+    assert(h.contains("value=\"3\" checked"))
+    assert(not h.contains("value=\"5\" checked"))
+    // first radio emitted is the top star (id nivel-5)
+    assert(h.contains("id=\"nivel-5\""))
+    assert(h.contains("id=\"nivel-1\""))
+}
+
+// --- Textarea ---
+
+@test fn textarea_renders_name_rows_value_and_hint() {
+    let h = textarea_render(textarea { name: "notas", label: "Notas", value: "hola", rows: 4, hint: "opcional" }).raw
+    assert(h.contains("name=\"notas\""))
+    assert(h.contains("rows=\"4\""))
+    assert(h.contains(">hola</textarea>"))
+    assert(h.contains(">Notas</span>"))
+    assert(h.contains("opcional"))
+}
+
+@test fn textarea_error_hides_hint_and_escapes_value() {
+    let h = textarea_render(textarea { name: "x", value: "<b>y</b>", error: "requerido", hint: "pista" }).raw
+    assert(h.contains("flv-field-error"))
+    assert(h.contains("requerido"))
+    assert(not h.contains("pista"))
+    assert(h.contains("&lt;b&gt;"))
+}
+
+@test fn textarea_disabled_renders_disabled() {
+    let h = textarea_render(textarea { name: "x", disabled: true }).raw
+    assert(h.contains("disabled"))
+}
+
+// --- Select ---
+
+@test fn select_renders_options_with_selected_and_change() {
+    let opts: List<FieldOption> = [
+        FieldOption { label: "All", value: "0", on: true },
+        FieldOption { label: "Eng", value: "1" },
+    ]
+    let h = select_render(select { name: "dept", label: "Dept", options: opts, on_change: "cascade" }).raw
+    assert(h.contains("name=\"dept\""))
+    assert(h.contains("data-flv-change=\"cascade\""))
+    // the .fitzv emitter normalizes the bare `selected` bool attr to selected=""
+    assert(h.contains("<option value=\"0\" selected=\"\">All</option>"))
+    assert(h.contains("<option value=\"1\">Eng</option>"))
+}
+
+@test fn select_without_change_omits_change_attr() {
+    let opts: List<FieldOption> = [FieldOption { label: "A", value: "1" }]
+    let h = select_render(select { name: "x", options: opts }).raw
+    assert(not h.contains("data-flv-change"))
+}
+
+@test fn select_escapes_option_labels() {
+    let opts: List<FieldOption> = [FieldOption { label: "<b>x</b>", value: "1" }]
+    let h = select_render(select { name: "x", options: opts }).raw
+    assert(h.contains("&lt;b&gt;"))
+}
+
+// --- Checkbox ---
+
+@test fn checkbox_renders_checked_state_and_label() {
+    let on = checkbox_render(checkbox { name: "ok", label: "Acepto", value: "yes", on: true }).raw
+    assert(on.contains("name=\"ok\""))
+    assert(on.contains("value=\"yes\""))
+    assert(on.contains("checked"))
+    assert(on.contains(">Acepto</span>"))
+    let off = checkbox_render(checkbox { name: "ok", label: "Acepto", on: false }).raw
+    assert(not off.contains("checked"))
+}
+
+// --- CheckboxGroup ---
+
+@test fn checkbox_group_shares_name_and_marks_checked() {
+    let opts: List<FieldOption> = [
+        FieldOption { label: "Rust", value: "1", on: true },
+        FieldOption { label: "Fitz", value: "2" },
+    ]
+    let h = checkbox_group_render(checkbox_group { name: "skills", label: "Skills", options: opts }).raw
+    // both boxes share the name
+    assert(h.contains("name=\"skills\" value=\"1\" checked"))
+    assert(h.contains("name=\"skills\" value=\"2\" />"))
+    assert(h.contains(">Skills</span>"))
+}
+
+@test fn checkbox_group_chips_variant_uses_has_checked_css() {
+    let opts: List<FieldOption> = [FieldOption { label: "A", value: "1" }]
+    let h = checkbox_group_render(checkbox_group { name: "x", options: opts, chips: true }).raw
+    assert(h.contains("flv-check-chips"))
+    // the chip fill is pure CSS: :has(input:checked)
+    assert(h.contains(":has(input:checked)"))
+}
+
+// --- RadioGroup ---
+
+@test fn radio_group_renders_exclusive_radios() {
+    let opts: List<FieldOption> = [
+        FieldOption { label: "Activo", value: "true", on: true },
+        FieldOption { label: "Inactivo", value: "false" },
+    ]
+    let h = radio_group_render(radio_group { name: "activo", label: "Estado", options: opts }).raw
+    assert(h.contains("type=\"radio\" name=\"activo\" value=\"true\" checked"))
+    assert(h.contains("type=\"radio\" name=\"activo\" value=\"false\" />"))
+    assert(h.contains(">Estado</span>"))
+}
+
+// --- Rating ---
+
+@test fn rating_renders_stars_with_value_checked() {
+    let h = rating_render(rating { name: "nivel", value: 3, max: 5 }).raw
+    assert(h.contains("flv-rating"))
+    assert(h.contains("★"))
+    assert(h.contains("value=\"3\" checked"))
+    // pure-CSS star fill
+    assert(h.contains("input:checked ~ label"))
+}
+
+@test fn rating_zero_has_no_checked_star() {
+    let h = rating_render(rating { name: "nivel", value: 0, max: 5 }).raw
+    // no radio carries the checked attr (the scoped CSS still names `:checked`,
+    // so key on the radio's ` checked />` shape, not the bare word "checked")
+    assert(not h.contains(" checked />"))
+}
+
+// --- DatePicker ---
+
+@test fn date_picker_renders_native_date_input() {
+    let h = date_picker_render(date_picker { name: "fecha", label: "Fecha", value: "2026-07-30" }).raw
+    assert(h.contains("type=\"date\""))
+    assert(h.contains("name=\"fecha\""))
+    assert(h.contains("value=\"2026-07-30\""))
+    assert(h.contains(">Fecha</span>"))
+}
+
+@test fn date_picker_error_switches_style() {
+    let h = date_picker_render(date_picker { name: "x", error: "fecha inválida", hint: "pista" }).raw
+    assert(h.contains("flv-field-error"))
+    assert(h.contains("fecha inválida"))
+    assert(not h.contains("pista"))
 }
