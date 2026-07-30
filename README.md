@@ -9,14 +9,19 @@
 
   [![CI](https://github.com/Thegreekman76/fitz-liveviews/actions/workflows/ci.yml/badge.svg)](https://github.com/Thegreekman76/fitz-liveviews/actions/workflows/ci.yml)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-  [![Status: Phase 4 landed](https://img.shields.io/badge/Status-Phase%204%20(LiveComponents)-brightgreen.svg)](ROADMAP.md)
+  [![Status: Companion UI complete](https://img.shields.io/badge/Status-Companion%20UI%20v0.24.0-brightgreen.svg)](ROADMAP.md)
 </div>
 
 ---
 
-## Status: ✅ K-1 + K-2 framework fns — v0.5.0
+## Status: ✅ Companion UI library complete — v0.24.0
 
-**Requires Fitz core v0.21.0+.** Adds `dispatch_to(...)`, `component_state(...)`, and `set_component_state(...)` framework fns — first NEW public API since v0.4.0. Unblocks child → parent event bubbling patterns (foundational for full `Board.fitzv` kanban migration).
+**Requires Fitz core v0.29.1+.** The **companion UI library is complete** — ~35
+importable components under `fitz_liveviews.ui.*` covering the whole surface of a
+real back-office app, every one extracted from (and adopted by) the
+[Admin ABM showcase](examples/admin/) with bit-for-bit `fitz run` ↔ native-binary
+parity. See the **[component catalog](#companion-ui-library)** below
+and the full reference in [`docs/ui-components.md`](docs/ui-components.md).
 
 Everything you need to ship a real-time UI works end-to-end today:
 
@@ -31,9 +36,13 @@ Everything you need to ship a real-time UI works end-to-end today:
 - **Phase 6** — VSCode extension v0.4.3 bundled at [`editors/vscode/`](editors/vscode/) — HTML highlighting inside `html("""...""")` + LiveComponents snippets (`livecomp` / `renderfor` / `onevent` / `flvcomp` / `dispatchcomp`) — all snippets are SFC-ready
 - **Phase 8 (Fitz core v0.21.0)** 🎨 — All 4 examples migrated to `.fitzv` single-file component syntax. `Counter.fitzv`, `MetricTile.fitzv`, `ChatRoom.fitzv`, `CardEditor.fitzv` shipped with state + events + `<template>` blocks compact in single files. Chat migration surface 6 view pipeline gaps in Fitz core (V-1 to V-6, closed same-session via §9.cc + §9.dd + §9.ee — feedback loop of hours). Component patterns catalog ready for Phase 9 (Companion UI library)
 - **K-1 + K-2 (v0.5.0)** 🔗 — Event bubbling substitute via `dispatch_to(component_name, instance_id, event, payload)` + direct state read/write via `component_state(name, id)` + `set_component_state(name, id, new_state)`. Enables child → parent dispatch patterns (proven via `k12_canonical_child_dispatches_to_parent_via_dispatch_to` test). Unblocks full `Board.fitzv` kanban migration. First new public API since v0.4.0.
-- **Phase 9 — Companion UI library (v0.12.0 → v0.15.0)** 🧩 — importable primitives under `fitz_liveviews.ui.*` (dotted sub-path). **Cut 1** (v0.12.0): Pager / Toast / ConfirmDialog + `--flv-*` theme. **Cut 2** (v0.13.0): the 8 generic primitives — Button / Card / Badge / Alert / Input / Spinner / Icon / Modal. **9.C** (v0.14.0): the four bundled examples refactored onto the primitives, which surfaced + fixed two API gaps (`Button.submit`, `Input.required`/`clear`/`autocomplete`) — see [`docs/companion-ui-benefits.md`](docs/companion-ui-benefits.md). **v0.15.0**: `Button` gained `icon` / `value` / `tooltip` / `aria_label`, and the **Admin ABM** employee form adopted `Input` / `Alert` / `Button` (verified bit-for-bit `fitz run` ↔ native binary).
+- **Phase 9 — Companion UI library (v0.12.0 → v0.24.0)** 🧩 — importable components under `fitz_liveviews.ui.*` (dotted sub-path). **Cut 1** (v0.12): Pager / Toast / ConfirmDialog + `--flv-*` theme. **Cut 2** (v0.13): the 8 generic primitives — Button / Card / Badge / Alert / Input / Spinner / Icon / Modal. **9.C** (v0.14): the bundled examples refactored onto the primitives. Then the whole Admin ABM was mined into the package, one family per release: **Shell** (v0.17–0.19: Breadcrumbs / ThemeToggle / Sidebar / Topbar / AppShell), **Dashboard** (v0.20: StatCard / BarChart / ProgressBar), **DataGrid** (v0.21: DataGrid / SortableHeader / GridToolbar / GridFilters), **Forms inputs** (v0.22: Textarea / Select / Checkbox / CheckboxGroup / RadioGroup / Rating / DatePicker), **Forms composite** (v0.23: FormLayout / FormRow / GroupSelect / MultiSelect / Tabs / Stepper / TreeView), and **Feedback** (v0.24: Chip / CountBadge / Tooltip / Divider / ExpansionPanel). Every family is adopted by the Admin ABM with `fitz run` ↔ binary parity + a growing gallery test suite (227 tests). **The extraction is complete** — see the [catalog](#companion-ui-library).
 
-See [ROADMAP.md](ROADMAP.md) for what is coming next — the **next norte is keyed diffing** (`{#for … key=…}`; today's positional diff misapplies mid-list insert/remove, surfaced by the Admin ABM's expandable rows), plus Phase 11.7 (client-side dynamic capabilities) and the Admin ABM flagship showcase.
+See [ROADMAP.md](ROADMAP.md) for what is coming next — with the companion UI
+extraction complete, the nortes are the **Admin ABM flagship showcase**
+(the reference back-office app that drove every component) and **client-side
+dynamic capabilities** (Phase 11.7 — `.fitzv` compiled to WASM so some components
+run without a round-trip).
 
 ---
 
@@ -197,6 +206,39 @@ JavaScript build step.
 
 For the multi-user chat demo, `cd examples/chat && fitz run` and open
 `http://127.0.0.1:3000/` in **two** browser windows.
+
+## Companion UI library
+
+A batteries-included component kit ships **inside the package** — import each piece
+by dotted sub-path (`from fitz_liveviews.ui.<Comp> import <name>, <name>_render`)
+straight from the dependency, no vendoring. Every component is **SSR-first**
+(server-rendered, reactive over the WebSocket), needs **zero JS build**, is styled
+with `<style scoped>` over re-themeable `--flv-*` tokens (light / dark / auto), and
+renders identically under `fitz run` and the `fitz build` binary. All were extracted
+from — and are adopted by — the [Admin ABM showcase](examples/admin/).
+
+| Family | Components |
+| --- | --- |
+| **Base** | `Pager` · `Toast` · `ConfirmDialog` · `Modal` · `theme` |
+| **Primitives** | `Button` · `Card` · `Badge` · `Alert` · `Input` · `Spinner` · `Icon` |
+| **Shell** | `Breadcrumbs` · `ThemeToggle` · `Sidebar` · `Topbar` · `AppShell` |
+| **Dashboard** | `StatCard` · `BarChart` · `ProgressBar` |
+| **DataGrid** | `DataGrid` · `SortableHeader` · `GridToolbar` · `GridFilters` |
+| **Forms — inputs** | `Textarea` · `Select` · `Checkbox` · `CheckboxGroup` · `RadioGroup` · `Rating` · `DatePicker` |
+| **Forms — composite** | `FormLayout` · `FormRow` · `GroupSelect` · `MultiSelect` · `Tabs` · `Stepper` · `TreeView` |
+| **Feedback** | `Chip` · `CountBadge` · `Tooltip` · `Divider` · `ExpansionPanel` |
+
+**~40 components.** Full reference (API, wiring, theming, snippets) in
+[`docs/ui-components.md`](docs/ui-components.md); the runnable
+[`examples/ui-gallery/`](examples/ui-gallery/) renders every one in isolation (with
+`fitz test` covering them — 227 tests). VSCode snippets (`ui-<name>`) ship in the
+[extension](editors/vscode/).
+
+```fitz
+from fitz_liveviews.ui.DataGrid import data_grid, data_grid_render
+from fitz_liveviews.ui.Tabs import tabs, tabs_render
+from fitz_liveviews.ui.theme import ui_theme
+```
 
 ## Documentation
 

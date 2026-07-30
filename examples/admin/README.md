@@ -32,18 +32,20 @@ recognizable app over a **People & Access** domain.
   CSV export). All grid state is per-connection.
 - **Departamentos ABM** — the same live architecture, kept simple: grid +
   create/edit/delete + an employee count per area.
-- **LiveComponents** — reusable SFCs (`ConfirmDialog`, `Toast`, `Pager`,
-  `GridToolbar`, `GridFilters`, `EmpleadoRow`, `EmpleadoForm`). The
-  per-connection widgets (ConfirmDialog, Toast) mint a uuid per socket via
-  `component_with(...)` and are **shared across both CRUD screens** — the seed
-  of a companion UI library.
-- **Companion UI primitives** — the employee form adopts the packaged
-  presentational primitives from `fitz_liveviews.ui.*`: `Input` (text/email/date
-  fields), `Alert` (the validation banner) and `Button` (save/finish/cancel), all
-  themed through the `--flv-*` tokens aliased to the admin's own palette in
-  `shell.fitz`. The grid keeps hand-tuned markup on purpose — its per-row buttons
-  render N times per live frame, where a primitive's inline scoped `<style>` would
-  duplicate on every row.
+- **Built on the companion UI library** ⭐ — this is the app the whole
+  [`fitz_liveviews.ui.*`](../../docs/ui-components.md) kit was extracted from, and
+  it now **consumes it end-to-end**. The shell is `AppShell` / `Sidebar` / `Topbar`
+  / `Breadcrumbs` / `ThemeToggle`; the dashboard is `StatCard` / `BarChart` /
+  `ProgressBar` / `Divider` / `ExpansionPanel`; the grid is `DataGrid` /
+  `SortableHeader` / `GridToolbar` / `GridFilters` / `Pager` + `Chip` / `CountBadge`;
+  the rich form is `Input` / `Textarea` / `Select` / `DatePicker` / `RadioGroup` /
+  `Rating` / `CheckboxGroup` / `GroupSelect` / `MultiSelect` / `Tabs` / `Stepper` +
+  `Alert` / `Button`; the locations screen is `TreeView`; the per-connection
+  `ConfirmDialog` + `Toast` mint a uuid per socket (`component_with(...)`) and are
+  shared across both CRUD screens. Every one is themed through `--flv-*` tokens
+  aliased to the admin's palette in `shell.fitz`, so all of it inherits the
+  light/dark/auto switch for free. `EmpleadoRow` stays app-specific on purpose —
+  it's the domain row, re-rendered N times per live frame.
 - **Postgres + Docker** — one `docker compose up` brings up the database
   (schema + seed) and the app. Bit-for-bit identical under `fitz run` and the
   native `fitz build` binary.
@@ -126,9 +128,11 @@ examples/admin/
     ├── dashboard.fitz   the dashboard (stat cards + chart from the ORM)
     ├── empleados.fitz   the Empleados DataGrid + rich forms (SSR + @ws)
     ├── departamentos.fitz  the Departamentos ABM (SSR + @ws)
-    ├── *.fitzv          LiveComponents: ConfirmDialog, Toast, Pager,
-    │                    GridToolbar, GridFilters, EmpleadoRow, EmpleadoForm
-    └── main.fitz        imports the modules + @server; serves
+    ├── EmpleadoRow.fitzv   the domain grid row (app-specific SFC)
+    ├── EmpleadoForm.fitzv  the rich employee form shell (app-specific SFC)
+    ├── form_helpers.fitz   builds the form fields from the packaged inputs
+    └── main.fitz        imports the modules + every packaged component it uses
+                         (so the compiler auto-registers them) + @server; serves
 ```
 
 **Auth is cookie-based on purpose.** A browser can't send an
@@ -148,19 +152,19 @@ gone by the time requests arrive.
 
 ---
 
-## What's next
+## Why it's the flagship
 
-The stack is complete (auth + ORM + live grids + forms + LiveComponents + i18n
-+ Docker). The companion UI library now ships (`fitz_liveviews.ui.*`) and the
-employee form consumes its `Input` / `Alert` / `Button` primitives.
+The whole point: **a complete, real back-office app — and every reusable piece of
+it is a packaged, drop-in component.** The stack is complete (auth + ORM + live
+grids + rich forms + i18n + Docker), keyed diffing landed (`{#for … key=…}`, so
+mid-list inserts like the expand-row detail patch cleanly), and the companion UI
+library was mined out of this app family by family until the extraction was done
+(Sessions A–H → `fitz_liveviews.ui.*`, [catalog](../../README.md#companion-ui-library)).
+So this example doubles as the library's living reference: open any screen, then
+find the same component in [`docs/ui-components.md`](../../docs/ui-components.md) and
+the isolated [`examples/ui-gallery/`](../ui-gallery/).
 
-**Known limitation (framework, next norte): keyed diffing.** Expanding a grid
-row inserts a `<tr class="detail-row">` mid-table; the current `diff_html` is
-positional (keyless), so a mid-list insert shifts every following sibling and
-the patch set is large and fragile — it **intermittently fails to apply on the
-client** (the server output is always correct). The fix is keyed comprehensions
-(`{#for … key=…}`), tracked as the priority next norte in
-[ROADMAP.md](../../ROADMAP.md). For the smoothest experience, run the **native
-binary** (`fitz build`), which is ~9× faster per interaction than `fitz run`.
-See [`docs/showcase-admin-abm-plan.md`](../../docs/showcase-admin-abm-plan.md).
-Each slice is deployable on its own.
+For the smoothest experience, run the **native binary** (`fitz build`), which is
+~9× faster per interaction than `fitz run` — `fitz run` ↔ binary render bit-for-bit
+identical. See [`docs/showcase-admin-abm-plan.md`](../../docs/showcase-admin-abm-plan.md)
+for the slice-by-slice build history.
