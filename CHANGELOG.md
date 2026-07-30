@@ -68,6 +68,10 @@ page lands in CW.3.
 
 ### Fixed
 
+- **Toggle switch was visually stuck** — only the label flipped (Apagado/Encendido);
+  the knob never moved. The on-state now renders `switch-on` / `knob-on` modifier
+  classes (block-level `{#if}{#else}`, same pattern as Tabs' active tab), so the
+  switch fills and the knob slides.
 - **CI: `docs.yml` wasm build failed once the manifest declared more than one
   `[[bin]]`** — `fitz build --target wasm-client` is ambiguous with several bins.
   The step now passes `--bin gallery` (the composed gallery root).

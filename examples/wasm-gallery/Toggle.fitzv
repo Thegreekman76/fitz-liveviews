@@ -12,12 +12,17 @@ component Toggle {
 
   <template>
     <div class="wrap">
-      <button class="switch" @click="flip">
-        <span class="knob"></span>
-      </button>
-      <span class="label">
-        {#if on}Encendido{#else}Apagado{/if}
-      </span>
+      {#if on}
+        <button class="switch switch-on" @click="flip">
+          <span class="knob knob-on"></span>
+        </button>
+        <span class="label">Encendido</span>
+      {#else}
+        <button class="switch" @click="flip">
+          <span class="knob"></span>
+        </button>
+        <span class="label">Apagado</span>
+      {/if}
     </div>
   </template>
 
@@ -39,7 +44,10 @@ component Toggle {
       box-shadow: inset 0 0 0 1px var(--flv-border, #d9d9e0);
       cursor: pointer;
       padding: 0;
-      transition: background .16s ease;
+    }
+    .switch-on {
+      background: var(--flv-color-primary, #ce412b);
+      box-shadow: inset 0 0 0 1px var(--flv-color-primary, #ce412b);
     }
     .knob {
       position: absolute;
@@ -50,7 +58,9 @@ component Toggle {
       border-radius: 50%;
       background: #ffffff;
       box-shadow: 0 1px 3px rgba(0, 0, 0, .3);
-      transition: left .16s ease;
+    }
+    .knob-on {
+      left: 25px;
     }
     .label {
       font-weight: 600;
