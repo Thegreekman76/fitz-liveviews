@@ -1,0 +1,44 @@
+// chart_helpers.fitz — data helpers for the packaged Dashboard-family charts
+// (`BarChart` today). Kept a plain `.fitz` sibling (not a `.fitzv`) because
+// `.fitzv` files hold only `component` blocks — the `Bar` datum type + the
+// scaling helpers live alongside, imported by both the component and the host.
+// Same split as `pager_helpers` / `shell_types` / `icon`.
+
+// One chart bar. The host supplies `label` + `value`; `bar_scale` fills `pct`
+// (0..100) so the `.fitzv` template can render `style="width: {pct}%"` without
+// doing cross-item math (which an SSR template can't).
+type Bar {
+  label: Str
+  value: Int = 0
+  pct: Int = 0
+}
+
+// Percent of `value` over `max`, guarded and clamped to 0..100. `max <= 0`
+// yields 0 (no division-by-zero). Reused by `bar_scale` and by hosts sizing a
+// `ProgressBar` from a value/total pair.
+fn pct_of(value: Int, max: Int) -> Int {
+  if (max <= 0) {
+    return 0
+  }
+  let p = (value * 100) / max
+  if (p > 100) {
+    return 100
+  }
+  if (p < 0) {
+    return 0
+  }
+  return p
+}
+
+// Scale a list of bars to the busiest value: returns a fresh list with each
+// bar's `pct` filled (0..100), the biggest bar reaching 100%. An empty list or
+// all-zero values yields 0% bars (the floor of 1 keeps the math safe).
+fn bar_scale(bars: List<Bar>) -> List<Bar> {
+  let max = 1
+  for b in bars {
+    if (b.value > max) {
+      max = b.value
+    }
+  }
+  return bars.map(fn(b) => Bar { label: b.label, value: b.value, pct: pct_of(b.value, max) })
+}

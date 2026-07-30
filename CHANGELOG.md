@@ -5,6 +5,49 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.20.0] — 2026-07-30 — `StatCard` + `BarChart` + `ProgressBar` (Dashboard family)
+
+**Minor bump** — ships the **Dashboard family**, extracted from the Admin ABM
+into the package: the metric card, the horizontal bar chart, and the determinate
+progress bar. Built against Fitz core **v0.29.1**.
+
+### Added — `StatCard` / `BarChart` / `ProgressBar` (Dashboard family)
+
+- **`fitz_liveviews.ui.StatCard`** — `stat_card { label, value, hint, accent }`.
+  A headline metric card with an accent-tinted left border (`data-accent`:
+  `blue` / `green` / `amber` / `violet` / `primary`). Presentational, no events.
+- **`fitz_liveviews.ui.BarChart`** — `bar_chart { bars: List<Bar> }`. A pure-CSS
+  horizontal bar chart (zero JS, responsive). Controlled like Pager: the host
+  builds a `List<Bar>` (label + value) and runs it through `bar_scale(...)`,
+  which fills each bar's `pct` (0..100), scaling to the busiest bar (an SSR
+  template can't do the cross-item max math, so it's a helper).
+- **`fitz_liveviews.ui.ProgressBar`** — `progress_bar { label, value, max, pct,
+  accent }`. A labeled determinate bar (`label` + `value/max · pct%` + a filled
+  track). Like Spinner, the host passes the percent — compute it with
+  `pct_of(value, max)` (`accent`: `blue` / `green` / `amber`).
+- **`fitz_liveviews.ui.chart_helpers`** — the data helpers: `type Bar { label,
+  value, pct }`, `pct_of(value, max) -> Int` (guarded against division by zero,
+  clamped 0..100), and `bar_scale(bars) -> List<Bar>` (fills each `pct`, the
+  busiest bar reaching 100%).
+- All three are `.fitzv` SFCs with `<style scoped>` over `--flv-*` tokens (`accent`
+  as `data-accent`, computed widths as inline `style="width: {pct}%"` — the
+  mixed-attribute interpolation from Fitz core v0.28.7). A new `--flv-shadow`
+  token (aliased to the shell's `--shadow`) themes the card elevation.
+
+### Changed — Admin ABM adoption
+
+- `dashboard.fitz` now renders `stat_card_render` / `bar_chart_render` /
+  `progress_bar_render`; the local `stat_card` / `bar_chart` / `progress_bar`
+  helpers were removed. The `.stat-card*` / `.chart-*` / `.pbar-*` CSS moved out
+  of the admin's `admin_css()` (it now travels scoped with each component); the
+  `.stat-grid` / `.pbars` layout wrappers stay. The components are imported in the
+  entry (`main.fitz`) for `§9.bb` auto-registration + cross-module `-> Html`.
+  **Visuals unchanged** — verified against a live server (dashboard renders 4
+  StatCards, the 4-department BarChart, and 2 ProgressBars; old classes gone).
+  `fitz check` + `fitz test` (178/178) + `fitz build` of the admin verified.
+- 8 gallery `@test` (178 total), `docs/ui-components.md` sections + composition
+  note, VSCode snippets (`ui-statcard` / `ui-barchart` / `ui-progressbar`).
+
 ## [v0.19.0] — 2026-07-30 — `Sidebar` + `Topbar` + `AppShell` (Shell family, part 3)
 
 **Minor bump** — ships the last three **Shell-family** pieces, extracted from the

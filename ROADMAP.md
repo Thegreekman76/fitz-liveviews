@@ -711,9 +711,20 @@ Card · Badge · Alert · Input · Spinner · Icon · **Breadcrumbs** ✅ ·
   live server (login → dashboard / empleados / departamentos all 200, sidebar /
   topbar / crumbs / drawer / auto-open group / chrome + screen CSS all intact).
   **Pending: the human 320px browser eyeball.**
-- [ ] **Session D — Dashboard family**: `StatCard` (label/value/hint/accent) ·
-  `BarChart` (CSS bars) · `ProgressBar` (determinate). From `dashboard.fitz` +
-  shell CSS (`.stat-card` / `.chart-*` / `.pbar-*`).
+- [x] **Session D — Dashboard family** (v0.20.0): `StatCard` (label/value/hint/
+  accent) · `BarChart` (CSS bars) · `ProgressBar` (determinate). All three are
+  `.fitzv` SFCs with scoped styles (`accent` → `data-accent`, computed widths →
+  inline `style="width: {pct}%"`). `fitz_liveviews.ui.chart_helpers` carries
+  `type Bar` + `pct_of(value, max)` (guarded) + `bar_scale(bars)` (fills each
+  `pct`, scaling to the busiest bar — the cross-item math an SSR template can't
+  do, same split as Pager / `page_range`). Added a `--flv-shadow` token (aliased
+  to `--shadow`) for the card elevation. Adopted in `dashboard.fitz`; the local
+  `stat_card` / `bar_chart` / `progress_bar` helpers removed, `.stat-card*` /
+  `.chart-*` / `.pbar-*` CSS moved out of `admin_css()` (`.stat-grid` / `.pbars`
+  wrappers stay). 8 gallery tests (178 total), docs, `ui-statcard` / `ui-barchart`
+  / `ui-progressbar` snippets. `fitz check` + `fitz test` + `fitz build` verified;
+  live-server render confirmed (4 StatCards + 4-dept BarChart + 2 ProgressBars,
+  old classes gone).
 - [ ] **Session E — DataGrid family**: promote the admin `.fitzv` `GridToolbar`
   + `GridFilters` into the package · `DataGrid` (table + sortable headers +
   `data-label` mobile cards) · `SortableHeader` · selection / multi-delete

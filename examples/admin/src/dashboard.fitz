@@ -13,56 +13,11 @@ from session import user_from_cookie
 from shell import page_layout, redirect_to
 from i18n import t, locale_from_cookie
 from fitz_liveviews import Html, html, flv, html_response
-
-// --- StatCard -------------------------------------------------------------
-
-fn stat_card(label: Str, value: Int, hint: Str, accent: Str) -> Str {
-    return """<div class="stat-card {accent}">
-      <div class="stat-label">{flv(label)}</div>
-      <div class="stat-value">{value}</div>
-      <div class="stat-hint">{flv(hint)}</div>
-    </div>"""
-}
-
-// --- Chart (pure SVG/CSS bars — no JS) ------------------------------------
-//
-// A horizontal bar chart of empleados per departamento, scaled to the busiest
-// department. Data comes straight from the ORM; the bars are plain divs whose
-// width is a percentage, so it's responsive and needs zero client JS.
-
-fn bar_chart(deptos: List<Departamento>, all_emp: List<Empleado>) -> Str {
-    let max = 1
-    for d in deptos {
-        let c = all_emp.filter(fn(e) => e.departamento_id == d.id).len()
-        if (c > max) {
-            max = c
-        }
-    }
-    let bars = ""
-    for d in deptos {
-        let c = all_emp.filter(fn(e) => e.departamento_id == d.id).len()
-        let pct = (c * 100) / max
-        bars = bars + """<div class="chart-row">
-          <span class="chart-label">{flv(d.nombre)}</span>
-          <div class="chart-track"><div class="chart-bar" style="width: {pct}%"></div></div>
-          <span class="chart-val">{c}</span>
-        </div>"""
-    }
-    return bars
-}
-
-// --- ProgressBar (Slice 8b) — a labeled % bar ----------------------------
-
-fn progress_bar(label: Str, value: Int, max: Int, accent: Str) -> Str {
-    let pct = match max <= 0 {
-        true => 0,
-        false => (value * 100) / max,
-    }
-    return """<div class="pbar-row">
-      <div class="pbar-head"><span>{flv(label)}</span><span class="pbar-val">{value}/{max} · {pct}%</span></div>
-      <div class="pbar-track"><div class="pbar-fill {accent}" style="width: {pct}%"></div></div>
-    </div>"""
-}
+// Dashboard-family components (Session D) — presentational, rendered inline.
+from fitz_liveviews.ui.StatCard import stat_card, stat_card_render
+from fitz_liveviews.ui.BarChart import bar_chart, bar_chart_render
+from fitz_liveviews.ui.ProgressBar import progress_bar, progress_bar_render
+from fitz_liveviews.ui.chart_helpers import Bar, bar_scale, pct_of
 
 // --- Dashboard body (real DB counts) -------------------------------------
 
@@ -76,19 +31,22 @@ async fn render_dashboard(locale: Str) -> Result<Html> {
     let inactivos = total_emp - activos
     let n_deptos = Departamento.where(fn(d) => d.id > 0).count(conn).await?
 
-    let c1 = stat_card(t(locale, "dash.stat.empleados"), total_emp, t(locale, "dash.stat.empleados.hint"), "blue")
-    let c2 = stat_card(t(locale, "dash.stat.activos"), activos, t(locale, "dash.stat.activos.hint"), "green")
-    let c3 = stat_card(t(locale, "dash.stat.inactivos"), inactivos, t(locale, "dash.stat.inactivos.hint"), "amber")
-    let c4 = stat_card(t(locale, "dash.stat.deptos"), n_deptos, t(locale, "dash.stat.deptos.hint"), "violet")
+    let c1 = stat_card_render(stat_card { label: t(locale, "dash.stat.empleados"), value: total_emp, hint: t(locale, "dash.stat.empleados.hint"), accent: "blue" }).raw
+    let c2 = stat_card_render(stat_card { label: t(locale, "dash.stat.activos"), value: activos, hint: t(locale, "dash.stat.activos.hint"), accent: "green" }).raw
+    let c3 = stat_card_render(stat_card { label: t(locale, "dash.stat.inactivos"), value: inactivos, hint: t(locale, "dash.stat.inactivos.hint"), accent: "amber" }).raw
+    let c4 = stat_card_render(stat_card { label: t(locale, "dash.stat.deptos"), value: n_deptos, hint: t(locale, "dash.stat.deptos.hint"), accent: "violet" }).raw
 
-    // Chart data: every department + every employee, counted in Fitz.
+    // Chart data: every department + every employee, counted in Fitz. Build a
+    // `List<Bar>` (label + count) and let `bar_scale` size each bar to the
+    // busiest department.
     let deptos = Departamento.where(fn(d) => d.id > 0).order_by(fn(d) => d.nombre).all(conn).await?
     let all_emp = Empleado.where(fn(e) => e.id > 0).all(conn).await?
-    let chart = bar_chart(deptos, all_emp)
+    let bars: List<Bar> = deptos.map(fn(d) => Bar { label: d.nombre, value: all_emp.filter(fn(e) => e.departamento_id == d.id).len() })
+    let chart = bar_chart_render(bar_chart { bars: bar_scale(bars) }).raw
 
     // ProgressBars — headline ratios.
-    let pb_act = progress_bar(t(locale, "dash.stat.activos"), activos, total_emp, "green")
-    let pb_ina = progress_bar(t(locale, "dash.stat.inactivos"), inactivos, total_emp, "amber")
+    let pb_act = progress_bar_render(progress_bar { label: t(locale, "dash.stat.activos"), value: activos, max: total_emp, pct: pct_of(activos, total_emp), accent: "green" }).raw
+    let pb_ina = progress_bar_render(progress_bar { label: t(locale, "dash.stat.inactivos"), value: inactivos, max: total_emp, pct: pct_of(inactivos, total_emp), accent: "amber" }).raw
 
     let d_title = t(locale, "dash.title")
     let d_sub = t(locale, "dash.subtitle")
@@ -108,7 +66,7 @@ async fn render_dashboard(locale: Str) -> Result<Html> {
       <hr class="divider" />
       <details class="exp-panel" open>
         <summary>{flv(d_bydep)}</summary>
-        <div class="chart">{chart}</div>
+        {chart}
       </details>
     </div>"""))
 }

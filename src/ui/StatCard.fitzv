@@ -1,0 +1,52 @@
+// StatCard.fitzv — packaged Dashboard-family primitive (Phase 9, Session D).
+//
+// Pure presentational / SSR: `stat_card_render(stat_card { ... }).raw`. A
+// headline metric card — an accent-tinted left border, an uppercase label, a
+// big value, and a hint line. No state, no events; the host passes props and
+// re-renders it inline. Generalized from the Admin ABM's `stat_card` helper.
+//
+// `accent` picks the left-border color: "blue" | "green" | "amber" | "violet" |
+// "primary". Styled with `<style scoped>` over `--flv-*` tokens (+ literal
+// fallbacks), so it looks right with no theme stylesheet and re-themes via the
+// token vars.
+
+from fitz_liveviews import flv
+
+component stat_card {
+  state {
+    label: Str = ""
+    value: Int = 0
+    hint: Str = ""
+    accent: Str = "primary"
+  }
+
+  <template>
+    <div class="flv-statcard" data-accent="{accent}">
+      <div class="flv-statcard-label">{flv(label)}</div>
+      <div class="flv-statcard-value">{value}</div>
+      <div class="flv-statcard-hint">{flv(hint)}</div>
+    </div>
+  </template>
+
+  <style scoped>
+    .flv-statcard {
+      background: var(--flv-surface, #ffffff);
+      border: 1px solid var(--flv-border, #e3e6ea);
+      border-left: 4px solid var(--flv-color-primary, #ce412b);
+      border-radius: 10px;
+      padding: 1.15rem 1.25rem;
+      box-shadow: var(--flv-shadow, 0 1px 3px rgba(0,0,0,.08));
+    }
+    .flv-statcard[data-accent="blue"] { border-left-color: #3b82f6; }
+    .flv-statcard[data-accent="green"] { border-left-color: #10b981; }
+    .flv-statcard[data-accent="amber"] { border-left-color: #f59e0b; }
+    .flv-statcard[data-accent="violet"] { border-left-color: #8b5cf6; }
+    .flv-statcard[data-accent="primary"] { border-left-color: var(--flv-color-primary, #ce412b); }
+    .flv-statcard-label {
+      font-size: .72rem; text-transform: uppercase; letter-spacing: .06em;
+      color: var(--flv-text-muted, #6b7280); font-weight: 700;
+    }
+    .flv-statcard-value { font-size: 2.1rem; font-weight: 700; line-height: 1.1; margin-top: .4rem; }
+    .flv-statcard-hint { font-size: .78rem; color: var(--flv-text-muted, #6b7280); margin-top: .3rem; }
+  </style>
+}

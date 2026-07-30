@@ -1,0 +1,48 @@
+// ProgressBar.fitzv — packaged Dashboard-family primitive (Phase 9, Session D).
+//
+// Pure presentational / SSR: `progress_bar_render(progress_bar { ... }).raw`.
+// A labeled determinate progress bar — a head row (label + "value/max · pct%")
+// and a filled track. Zero client JS. No state, no events. Generalized from the
+// Admin ABM's `progress_bar`.
+//
+// Like Spinner's `progress`, the host passes the percent: compute `pct` with
+// `pct_of(value, max)` from `fitz_liveviews.ui.chart_helpers` (guarded against
+// division by zero) so the SSR template never divides. `accent` picks the fill
+// color: "blue" | "green" | "amber".
+//
+// Styled with `<style scoped>` over `--flv-*` tokens (+ literal fallbacks).
+
+from fitz_liveviews import flv
+
+component progress_bar {
+  state {
+    label: Str = ""
+    value: Int = 0
+    max: Int = 0
+    pct: Int = 0
+    accent: Str = "blue"
+  }
+
+  <template>
+    <div class="flv-pbar">
+      <div class="flv-pbar-head"><span>{flv(label)}</span><span class="flv-pbar-val">{value}/{max} · {pct}%</span></div>
+      <div class="flv-pbar-track"><div class="flv-pbar-fill" data-accent="{accent}" style="width: {pct}%"></div></div>
+    </div>
+  </template>
+
+  <style scoped>
+    .flv-pbar-head {
+      display: flex; justify-content: space-between;
+      font-size: .82rem; margin-bottom: .3rem;
+    }
+    .flv-pbar-val { color: var(--flv-text-muted, #6b7280); font-weight: 600; }
+    .flv-pbar-track {
+      background: var(--flv-surface-2, #eef1f5);
+      border-radius: 999px; height: .7rem; overflow: hidden;
+    }
+    .flv-pbar-fill { height: 100%; border-radius: 999px; transition: width .3s ease; }
+    .flv-pbar-fill[data-accent="green"] { background: var(--flv-color-success, #16a34a); }
+    .flv-pbar-fill[data-accent="amber"] { background: #f59e0b; }
+    .flv-pbar-fill[data-accent="blue"] { background: var(--flv-color-primary, #ce412b); }
+  </style>
+}

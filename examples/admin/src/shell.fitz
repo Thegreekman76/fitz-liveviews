@@ -156,21 +156,9 @@ fn admin_css() -> Str {
     grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
     gap: 1rem;
   \}
-  .stat-card \{
-    background: var(--surface); border: 1px solid var(--border);
-    border-left: 4px solid var(--primary); border-radius: 10px;
-    padding: 1.15rem 1.25rem; box-shadow: var(--shadow);
-  \}
-  .stat-card.blue \{ border-left-color: #3b82f6; \}
-  .stat-card.green \{ border-left-color: #10b981; \}
-  .stat-card.amber \{ border-left-color: #f59e0b; \}
-  .stat-card.violet \{ border-left-color: #8b5cf6; \}
-  .stat-label \{
-    font-size: .72rem; text-transform: uppercase; letter-spacing: .06em;
-    color: var(--muted); font-weight: 700;
-  \}
-  .stat-value \{ font-size: 2.1rem; font-weight: 700; line-height: 1.1; margin-top: .4rem; \}
-  .stat-hint \{ font-size: .78rem; color: var(--muted); margin-top: .3rem; \}
+  /* .stat-card / .stat-label / .stat-value / .stat-hint travel with the packaged
+     fitz_liveviews.ui.StatCard component (scoped styles). `.stat-grid` (the
+     layout wrapper) stays here. */
 
   .panel \{
     background: var(--surface); border: 1px solid var(--border);
@@ -416,27 +404,11 @@ fn admin_css() -> Str {
     font-size: .76rem; font-weight: 600;
   \}
   @media (max-width: 560px) \{ .detail-panel \{ grid-template-columns: 1fr; \} \}
-  /* Dashboard bar chart (Slice 7) — pure CSS bars, no JS */
-  .chart \{ display: flex; flex-direction: column; gap: .6rem; margin-top: .5rem; \}
-  .chart-row \{ display: flex; align-items: center; gap: .75rem; \}
-  .chart-label \{ flex: 0 0 8.5rem; font-size: .85rem; text-align: right; color: var(--muted); \}
-  .chart-track \{ flex: 1; background: var(--surface-2, rgba(127,127,127,.12)); border-radius: 6px; height: 1.4rem; overflow: hidden; \}
-  .chart-bar \{
-    height: 100%; min-width: 2px; border-radius: 6px;
-    background: linear-gradient(90deg, var(--primary), color-mix(in srgb, var(--primary) 70%, #8b5cf6));
-    transition: width .3s ease;
-  \}
-  .chart-val \{ flex: 0 0 2rem; font-weight: 700; font-size: .85rem; \}
-  @media (max-width: 560px) \{ .chart-label \{ flex-basis: 5.5rem; \} \}
-  /* ProgressBar (Slice 8b) */
+  /* The bar chart (.chart-*) travels with the packaged
+     fitz_liveviews.ui.BarChart component (scoped styles). */
+  /* ProgressBar: .pbar-* travels with the packaged fitz_liveviews.ui.ProgressBar
+     component (scoped styles). `.pbars` (the layout wrapper) stays here. */
   .pbars \{ display: flex; flex-direction: column; gap: .8rem; \}
-  .pbar-head \{ display: flex; justify-content: space-between; font-size: .82rem; margin-bottom: .3rem; \}
-  .pbar-val \{ color: var(--muted); font-weight: 600; \}
-  .pbar-track \{ background: var(--surface-2, rgba(127,127,127,.12)); border-radius: 999px; height: .7rem; overflow: hidden; \}
-  .pbar-fill \{ height: 100%; border-radius: 999px; transition: width .3s ease; \}
-  .pbar-fill.green \{ background: #16a34a; \}
-  .pbar-fill.amber \{ background: #f59e0b; \}
-  .pbar-fill.blue \{ background: var(--primary); \}
   /* Divider (Slice 8b) */
   .divider \{ border: none; border-top: 1px solid var(--border); margin: 1rem 0; \}
   /* ExpansionPanel (Slice 8b) — native <details>, zero JS */

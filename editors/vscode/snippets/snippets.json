@@ -464,5 +464,32 @@
       "return app_shell(${6:title}, ${7:locale}, $1, ${8:sidebar}, ${9:topbar}, ${10:crumbs}, ${11:body}, $4)"
     ],
     "description": "Assemble the full <!doctype html> page. AppShell bakes ui_shell_css() + the drawer/collapse behavior script; you pass head_extra (theme boot script + screen CSS) and body_extra (theme cycle script). Import: from fitz_liveviews.ui.AppShell import app_shell"
+  },
+
+  "StatCard — packaged headline metric (Dashboard family)": {
+    "prefix": "ui-statcard",
+    "body": [
+      "let ${1:card} = stat_card_render(stat_card { label: ${2:label}, value: ${3:count}, hint: ${4:hint}, accent: \"${5|blue,green,amber,violet,primary|}\" }).raw"
+    ],
+    "description": "Render the packaged StatCard (accent-tinted metric card). Import: from fitz_liveviews.ui.StatCard import stat_card, stat_card_render"
+  },
+
+  "BarChart — packaged horizontal bars (Dashboard family)": {
+    "prefix": "ui-barchart",
+    "body": [
+      "let ${1:data}: List<Bar> = [",
+      "  Bar { label: ${2:label}, value: ${3:count} },",
+      "]",
+      "let ${4:chart} = bar_chart_render(bar_chart { bars: bar_scale($1) }).raw"
+    ],
+    "description": "Render the packaged BarChart from a List<Bar>; bar_scale fills each pct (0..100). Import: from fitz_liveviews.ui.BarChart import bar_chart, bar_chart_render + from fitz_liveviews.ui.chart_helpers import Bar, bar_scale"
+  },
+
+  "ProgressBar — packaged determinate bar (Dashboard family)": {
+    "prefix": "ui-progressbar",
+    "body": [
+      "let ${1:bar} = progress_bar_render(progress_bar { label: ${2:label}, value: ${3:value}, max: ${4:total}, pct: pct_of($3, $4), accent: \"${5|blue,green,amber|}\" }).raw"
+    ],
+    "description": "Render the packaged ProgressBar; pct_of(value, max) computes the percent (guarded). Import: from fitz_liveviews.ui.ProgressBar import progress_bar, progress_bar_render + from fitz_liveviews.ui.chart_helpers import pct_of"
   }
 }

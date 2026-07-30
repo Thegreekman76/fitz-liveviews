@@ -40,6 +40,12 @@ from fitz_liveviews.ui.Button import button, button_render
 from fitz_liveviews.ui.Card import card, card_render
 from fitz_liveviews.ui.Input import input, input_render
 from fitz_liveviews.ui.Alert import alert, alert_render
+// Dashboard-family primitives (Session D) — rendered by dashboard.fitz; imported
+// here so the compiler auto-registers them (§9.bb) and their cross-module
+// render-fn signatures resolve to `-> Html`.
+from fitz_liveviews.ui.StatCard import stat_card, stat_card_render
+from fitz_liveviews.ui.BarChart import bar_chart, bar_chart_render
+from fitz_liveviews.ui.ProgressBar import progress_bar, progress_bar_render
 
 @server(3000, "0.0.0.0")
 fn main() => 0

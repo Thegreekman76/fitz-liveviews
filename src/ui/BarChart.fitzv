@@ -1,0 +1,56 @@
+// BarChart.fitzv — packaged Dashboard-family primitive (Phase 9, Session D).
+//
+// Pure presentational / SSR: `bar_chart_render(bar_chart { bars: ... }).raw`.
+// A horizontal bar chart — pure CSS bars (percentage widths), zero client JS,
+// responsive. No state, no events. Generalized from the Admin ABM's `bar_chart`.
+//
+// CONTROLLED like Pager: the host owns the data. Build a `List<Bar>` (label +
+// value) and run it through `bar_scale(...)` from `fitz_liveviews.ui.chart_helpers`
+// first — that fills each bar's `pct` (0..100), scaling to the busiest bar. The
+// SSR template can't do the cross-item max math, so the scaling is a helper
+// (same split as Pager / `page_range`).
+//
+// Styled with `<style scoped>` over `--flv-*` tokens (+ literal fallbacks).
+
+from chart_helpers import Bar
+from fitz_liveviews import flv
+
+component bar_chart {
+  state {
+    bars: List<Bar> = []
+  }
+
+  <template>
+    <div class="flv-chart">
+      {#for b in bars}
+        <div class="flv-chart-row">
+          <span class="flv-chart-label">{flv(b.label)}</span>
+          <div class="flv-chart-track"><div class="flv-chart-bar" style="width: {b.pct}%"></div></div>
+          <span class="flv-chart-val">{b.value}</span>
+        </div>
+      {/for}
+    </div>
+  </template>
+
+  <style scoped>
+    .flv-chart { display: flex; flex-direction: column; gap: .6rem; }
+    .flv-chart-row { display: flex; align-items: center; gap: .75rem; }
+    .flv-chart-label {
+      flex: 0 0 8.5rem; font-size: .85rem; text-align: right;
+      color: var(--flv-text-muted, #6b7280);
+    }
+    .flv-chart-track {
+      flex: 1; background: var(--flv-surface-2, #eef1f5);
+      border-radius: 6px; height: 1.4rem; overflow: hidden;
+    }
+    .flv-chart-bar {
+      height: 100%; min-width: 2px; border-radius: 6px;
+      background: linear-gradient(90deg, var(--flv-color-primary, #ce412b), color-mix(in srgb, var(--flv-color-primary, #ce412b) 70%, #8b5cf6));
+      transition: width .3s ease;
+    }
+    .flv-chart-val { flex: 0 0 2rem; font-weight: 700; font-size: .85rem; }
+    @media (max-width: 560px) {
+      .flv-chart-label { flex-basis: 5.5rem; }
+    }
+  </style>
+}

@@ -134,6 +134,7 @@ fn ui_shell_css() -> Str {
     --flv-text:       var(--text);
     --flv-text-muted: var(--muted);
     --flv-radius-md:   8px;
+    --flv-shadow:      var(--shadow);
     --flv-shadow-card: 0 10px 30px rgba(0,0,0,.25);
   \}
   :root[data-theme="dark"] \{

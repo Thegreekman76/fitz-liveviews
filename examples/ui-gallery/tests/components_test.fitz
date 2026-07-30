@@ -25,6 +25,10 @@ from fitz_liveviews.ui.theme_scripts import theme_boot_script, theme_cycle_scrip
 from fitz_liveviews.ui.Sidebar import sidebar_render
 from fitz_liveviews.ui.Topbar import topbar_render, initials_of
 from fitz_liveviews.ui.AppShell import app_shell, ui_shell_css, shell_behavior_script
+from fitz_liveviews.ui.StatCard import stat_card, stat_card_render
+from fitz_liveviews.ui.BarChart import bar_chart, bar_chart_render
+from fitz_liveviews.ui.ProgressBar import progress_bar, progress_bar_render
+from fitz_liveviews.ui.chart_helpers import Bar, bar_scale, pct_of
 from fitz_liveviews import html
 
 // --- Pager (presentational / controlled) ---
@@ -603,4 +607,85 @@ fn sample_nav() -> List<NavGroup> {
     assert(s.contains("window.flvCloseDrawer"))
     assert(s.contains("nav-open"))
     assert(s.contains("nav-collapsed"))
+}
+
+// === Dashboard family (Session D) — StatCard / BarChart / ProgressBar ===
+// Presentational .fitzv primitives with scoped styles, plus chart_helpers
+// (`Bar` / `pct_of` / `bar_scale`) for the cross-item bar scaling.
+
+// --- StatCard ---
+
+@test fn stat_card_renders_label_value_hint_and_accent() {
+    let h = stat_card_render(stat_card { label: "Empleados", value: 42, hint: "Total", accent: "blue" }).raw
+    assert(h.contains("flv-statcard"))
+    assert(h.contains("data-accent=\"blue\""))
+    assert(h.contains("Empleados"))
+    assert(h.contains(">42<"))          // the value node
+    assert(h.contains("Total"))
+}
+
+@test fn stat_card_escapes_label_and_hint() {
+    let h = stat_card_render(stat_card { label: "<b>L</b>", hint: "<i>H</i>", value: 1 }).raw
+    assert(h.contains("&lt;b&gt;"))
+    assert(h.contains("&lt;i&gt;"))
+}
+
+// --- chart_helpers (pct_of / bar_scale) ---
+
+@test fn pct_of_guards_zero_max_and_clamps() {
+    assert_eq(pct_of(5, 0), 0)          // no division by zero
+    assert_eq(pct_of(5, -3), 0)
+    assert_eq(pct_of(3, 10), 30)
+    assert_eq(pct_of(10, 10), 100)
+    assert_eq(pct_of(15, 10), 100)      // clamped to 100
+}
+
+@test fn bar_scale_sizes_bars_to_the_busiest() {
+    let bars: List<Bar> = [
+        Bar { label: "A", value: 2 },
+        Bar { label: "B", value: 8 },
+        Bar { label: "C", value: 0 },
+    ]
+    let scaled = bar_scale(bars)
+    assert_eq(scaled[0].pct, 25)        // 2 of 8
+    assert_eq(scaled[1].pct, 100)       // the busiest
+    assert_eq(scaled[2].pct, 0)
+    // copy-out: the input list is left untouched
+    assert_eq(bars[0].pct, 0)
+}
+
+// --- BarChart ---
+
+@test fn bar_chart_renders_scaled_rows() {
+    let bars: List<Bar> = bar_scale([Bar { label: "Sales", value: 4 }, Bar { label: "Eng", value: 8 }])
+    let h = bar_chart_render(bar_chart { bars: bars }).raw
+    assert(h.contains("flv-chart-row"))
+    assert(h.contains("Sales"))
+    assert(h.contains("Eng"))
+    assert(h.contains("width: 50%"))    // 4 of 8
+    assert(h.contains("width: 100%"))   // the busiest bar
+}
+
+@test fn bar_chart_empty_renders_no_bars() {
+    let bars: List<Bar> = []
+    let h = bar_chart_render(bar_chart { bars: bars }).raw
+    // the container renders; with no data there are no bars (key on the inline
+    // width, since the scoped <style> always names the row/label classes)
+    assert(h.contains("flv-chart"))
+    assert(not h.contains("style=\"width:"))
+}
+
+// --- ProgressBar ---
+
+@test fn progress_bar_renders_label_ratio_and_fill() {
+    let h = progress_bar_render(progress_bar { label: "Active", value: 3, max: 10, pct: 30, accent: "green" }).raw
+    assert(h.contains("Active"))
+    assert(h.contains("3/10 · 30%"))
+    assert(h.contains("data-accent=\"green\""))
+    assert(h.contains("width: 30%"))
+}
+
+@test fn progress_bar_escapes_label() {
+    let h = progress_bar_render(progress_bar { label: "<b>x</b>", value: 1, max: 2, pct: 50 }).raw
+    assert(h.contains("&lt;b&gt;"))
 }

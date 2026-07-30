@@ -59,6 +59,10 @@ from fitz_liveviews.ui.theme_scripts import theme_boot_script, theme_cycle_scrip
 from fitz_liveviews.ui.Sidebar import sidebar_render
 from fitz_liveviews.ui.Topbar import topbar_render, initials_of
 from fitz_liveviews.ui.AppShell import app_shell, ui_shell_css, shell_behavior_script
+from fitz_liveviews.ui.StatCard import stat_card, stat_card_render
+from fitz_liveviews.ui.BarChart import bar_chart, bar_chart_render
+from fitz_liveviews.ui.ProgressBar import progress_bar, progress_bar_render
+from fitz_liveviews.ui.chart_helpers import Bar, bar_scale, pct_of
 ```
 
 They're **i18n-agnostic** (the host passes already-localized text), styled with
@@ -548,6 +552,78 @@ Html`. Pass an empty `html("")` for `crumbs` to skip the breadcrumb bar.
 | `sidebar` / `topbar` / `crumbs` / `body` | `Html` | rendered pieces |
 | `body_extra` | `Html` | theme cycle script + app JS |
 
+### StatCard — headline metric
+
+A dashboard metric card (Dashboard family): an accent-tinted left border, an
+uppercase label, a big value, and a hint line. Presentational, no events — render
+it inline. `accent` picks the border color: `"blue"` / `"green"` / `"amber"` /
+`"violet"` / `"primary"`.
+
+```
+from fitz_liveviews.ui.StatCard import stat_card, stat_card_render
+
+let card = stat_card_render(stat_card {
+    label: "Employees", value: 42, hint: "Total in the system", accent: "blue"
+}).raw
+```
+
+Arrange several in your own grid wrapper (the admin uses `.stat-grid`). Styled
+with `<style scoped>` over `--flv-*` tokens.
+
+| field | type | default |
+|---|---|---|
+| `label` | `Str` | `""` |
+| `value` | `Int` | `0` |
+| `hint` | `Str` | `""` |
+| `accent` | `Str` | `"primary"` |
+
+### BarChart — horizontal bars
+
+A pure-CSS horizontal bar chart (zero JS, responsive). **Controlled** like Pager:
+the host owns the data. Build a `List<Bar>` (label + value) and run it through
+`bar_scale(...)` first — that fills each bar's `pct` (0..100), scaling to the
+busiest bar (an SSR template can't do the cross-item max math, so it's a helper,
+same split as Pager / `page_range`).
+
+```
+from fitz_liveviews.ui.BarChart import bar_chart, bar_chart_render
+from fitz_liveviews.ui.chart_helpers import Bar, bar_scale
+
+let data: List<Bar> = [
+    Bar { label: "Sales", value: 4 },
+    Bar { label: "Engineering", value: 8 },
+]
+let chart = bar_chart_render(bar_chart { bars: bar_scale(data) }).raw
+```
+
+`Bar` is `{ label: Str, value: Int, pct: Int }` — you set `label` + `value`;
+`bar_scale` fills `pct`. Styled with `<style scoped>` over `--flv-*` tokens.
+
+### ProgressBar — determinate bar
+
+A labeled determinate bar: a head row (`label` + `"value/max · pct%"`) and a
+filled track. Like Spinner, the host passes the percent — compute it with
+`pct_of(value, max)` (guarded against division by zero). `accent` picks the fill:
+`"blue"` / `"green"` / `"amber"`.
+
+```
+from fitz_liveviews.ui.ProgressBar import progress_bar, progress_bar_render
+from fitz_liveviews.ui.chart_helpers import pct_of
+
+let bar = progress_bar_render(progress_bar {
+    label: "Active", value: 3, max: 10, pct: pct_of(3, 10), accent: "green"
+}).raw
+```
+
+Stack several in your own wrapper (the admin uses `.pbars`). Styled with
+`<style scoped>` over `--flv-*` tokens.
+
+| field | type | default |
+|---|---|---|
+| `label` | `Str` | `""` |
+| `value` / `max` / `pct` | `Int` | `0` |
+| `accent` | `Str` | `"blue"` |
+
 ---
 
 ## Shell — composing the pieces
@@ -632,28 +708,29 @@ async fn login_submit(creds: Credentials, cookie: Str?) -> Response {
 
 ## Dashboard
 
-### StatCard
+### StatCard · BarChart · ProgressBar — composing them
+
+The dashboard's metric cards, department bar chart, and headline ratio bars are
+the packaged **Dashboard family** — see [StatCard](#statcard-headline-metric),
+[BarChart](#barchart-horizontal-bars) and [ProgressBar](#progressbar-determinate-bar)
+above. The host owns the data (counted in Fitz over the ORM); the components own
+the presentation. The chart scales its bars with `bar_scale(...)`, and the ratio
+bars size with `pct_of(value, max)`:
 
 ```
-fn stat_card(label: Str, value: Int, hint: Str, accent: Str) -> Str {
-    return """<div class="stat-card {accent}"><div class="stat-value">{value}</div>
-      <div class="stat-label">{flv(label)}</div><div class="stat-hint">{flv(hint)}</div></div>"""
-}
+let bars: List<Bar> = deptos.map(fn(d) => Bar {
+    label: d.nombre, value: all_emp.filter(fn(e) => e.departamento_id == d.id).len()
+})
+let chart = bar_chart_render(bar_chart { bars: bar_scale(bars) }).raw
+
+let c1 = stat_card_render(stat_card { label: "Employees", value: total, hint: "…", accent: "blue" }).raw
+let pb = progress_bar_render(progress_bar {
+    label: "Active", value: active, max: total, pct: pct_of(active, total), accent: "green"
+}).raw
 ```
 
-### BarChart · ProgressBar
-
-Pure CSS bars from ORM counts — zero JS. Scale each bar to the busiest value;
-count in Fitz over one `.all(...)`.
-
-```
-fn progress_bar(label: Str, value: Int, max: Int, accent: Str) -> Str {
-    let pct = match max <= 0 { true => 0, false => (value * 100) / max }
-    return """<div class="pbar-row"><div class="pbar-head"><span>{flv(label)}</span>
-      <span>{value}/{max} · {pct}%</span></div>
-      <div class="pbar-track"><div class="pbar-fill {accent}" style="width: {pct}%"></div></div></div>"""
-}
-```
+Arrange the cards in a `.stat-grid` and the ratio bars in a `.pbars` wrapper
+(host layout).
 
 ### Spinner
 
