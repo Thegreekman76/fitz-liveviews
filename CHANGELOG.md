@@ -5,6 +5,38 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.18.0] — 2026-07-30 — `ThemeToggle` component + reusable theme scripts (Shell family, part 2)
+
+**Minor bump** — ships the second **Shell-family** piece: the light / dark /
+auto theme switch, extracted from the Admin ABM into the package. Built against
+Fitz core **v0.29.1**.
+
+### Added — `ThemeToggle` + theme scripts (Shell family, part 2)
+
+- **`fitz_liveviews.ui.ThemeToggle`** — a controlled/presentational theme switch
+  button. Renders `id="flv-theme-btn"` + `onclick="flvCycleTheme()"`; declares no
+  events (the theme is per-browser — the click runs client-side JS, never a
+  WebSocket event, so it can't flip the theme for everyone). Props: `label`
+  (SSR-initial text, default `"🖥️ Auto"`) and `aria_label` (default `"Theme"`).
+  `<style scoped>` over `--flv-*` tokens.
+- **`fitz_liveviews.ui.theme_scripts`** — the reusable machinery, generalized
+  from the admin's `theme_init_js` / `flvCycleTheme` (storage key + labels now
+  parameters):
+  - `theme_boot_script(storage_key) -> Html` — anti-FOUC `<script>` for `<head>`
+    (applies the saved theme before first paint).
+  - `theme_cycle_script(storage_key, light, dark, auto) -> Html` — `<script>`
+    before `</body>` (defines `flvCycleTheme` light → dark → auto, paints the
+    button). `storage_key` must match the boot script.
+- **Adopted in the Admin ABM**: `render_topbar` now renders the `theme_toggle`
+  component; `page_layout` / `login_layout` use the packaged boot + cycle scripts.
+  The admin's `theme_init_js` was removed and `interactive_js` trimmed to the
+  sidebar/drawer toggle (theme cycling moved to the package). The dead `.theme-btn`
+  CSS was dropped — the scoped component carries its own styles, and the admin's
+  `--flv-*` token aliases keep it visually identical. Verified `fitz check` +
+  `fitz build` of the admin.
+- 3 gallery `@test` (159 total), `docs/ui-components.md` section, VSCode snippet
+  (`ui-theme-toggle`).
+
 ## [v0.17.0] — 2026-07-30 — Keyed-grid verification + grouped mode keyed + `Breadcrumbs` component
 
 **Minor bump** — closes the keyed-diffing follow-up (verify + grouped-mode gap)

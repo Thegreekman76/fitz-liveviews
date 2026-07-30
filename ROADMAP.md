@@ -671,20 +671,25 @@ Admin ABM (the validation, so APIs are proven against real code, not speculative
 → gallery `@test` + `docs/ui-components.md` + a VSCode snippet → verify
 `fitz check` + `fitz test` + `fitz build` (docker path) + a 320px visual pass.
 
-**Already packaged (12):** Pager · Toast · ConfirmDialog · Modal · Button ·
-Card · Badge · Alert · Input · Spinner · Icon · **Breadcrumbs** ✅.
+**Already packaged (13):** Pager · Toast · ConfirmDialog · Modal · Button ·
+Card · Badge · Alert · Input · Spinner · Icon · **Breadcrumbs** ✅ ·
+**ThemeToggle** ✅.
 
 - [x] **Session A — Shell family, part 1: `Breadcrumbs`** (v0.15.x, this
   session). Packaged `fitz_liveviews.ui.Breadcrumbs` + `shell_types.Crumb`
   (N-level, CSS separators, `href == ""` = current). Adopted in the admin
   (`render_breadcrumbs` → the component; `.crumb-bar` keeps the bar placement).
   4 gallery tests, docs, snippet. `fitz build` of the admin verified.
-- [ ] **Session B — Shell family, part 2: `ThemeToggle`**. The reusable theme
-  machinery: `theme_boot_script()` (anti-FOUC head script) + `theme_cycle_script()`
-  (light/dark/auto cycle over `localStorage` + `data-theme`) + a `theme_toggle`
-  button component. Generalize the admin's `theme_init_js` / `flvCycleTheme`
-  (parameterize the `localStorage` key + labels). Adopt in the admin topbar +
-  `page_layout`. **Lower risk than Sidebar/Topbar** — scripts + one button.
+- [x] **Session B — Shell family, part 2: `ThemeToggle`** (v0.18.0). Packaged
+  `fitz_liveviews.ui.ThemeToggle` (button, `id="flv-theme-btn"` +
+  `onclick="flvCycleTheme()"`, no events — client-side per-browser theme) +
+  `fitz_liveviews.ui.theme_scripts` (`theme_boot_script(storage_key)` anti-FOUC
+  head script + `theme_cycle_script(storage_key, light, dark, auto)` cycle over
+  `localStorage` + `data-theme`, generalized from the admin's `theme_init_js` /
+  `flvCycleTheme`). Adopted in the admin topbar + `page_layout` / `login_layout`;
+  `theme_init_js` removed, `interactive_js` trimmed to sidebar/drawer, dead
+  `.theme-btn` CSS dropped. 3 gallery tests, docs, `ui-theme-toggle` snippet.
+  `fitz check` + `fitz build` of the admin verified.
 - [ ] **Session C — Shell family, part 3: `Sidebar` + `Topbar` + `AppShell`**
   (the heavy one — needs its own focused session + visual verification). Requires:
   (a) a nav data model (`NavItem` / `NavGroup` for the nested `<details>` menu);

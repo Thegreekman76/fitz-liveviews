@@ -24,6 +24,8 @@ from fitz_liveviews.ui.Card import card, card_render
 from fitz_liveviews.ui.Alert import alert, alert_render
 from fitz_liveviews.ui.Input import input, input_render
 from fitz_liveviews.ui.Modal import modal, modal_render, modal_show, modal_close
+from fitz_liveviews.ui.ThemeToggle import theme_toggle, theme_toggle_render
+from fitz_liveviews.ui.theme_scripts import theme_boot_script, theme_cycle_script
 
 print("=== Theme tokens ===")
 print(ui_theme().raw)
@@ -134,3 +136,12 @@ print(modal_render(modal {
   title: "Editar empleado",
   body: "<p>Formulario acá</p>"
 }).raw)
+
+print("=== ThemeToggle button ===")
+print(theme_toggle_render(theme_toggle { label: "🖥️ Auto", aria_label: "Tema" }).raw)
+
+print("=== Theme boot script (goes in <head>) ===")
+print(theme_boot_script("flv-gallery-theme").raw)
+
+print("=== Theme cycle script (goes before </body>) ===")
+print(theme_cycle_script("flv-gallery-theme", "☀️ Claro", "🌙 Oscuro", "🖥️ Auto").raw)

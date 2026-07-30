@@ -414,5 +414,18 @@
       "let ${5:trail} = breadcrumbs_render(breadcrumbs { items: $1, aria_label: ${6:aria} }).raw"
     ],
     "description": "Render the packaged Breadcrumbs from a List<Crumb> (href == \"\" marks the current page). Import: from fitz_liveviews.ui.Breadcrumbs import breadcrumbs, breadcrumbs_render + from fitz_liveviews.ui.shell_types import Crumb"
+  },
+
+  "ThemeToggle — light/dark/auto switch (Shell family)": {
+    "prefix": "ui-theme-toggle",
+    "body": [
+      "// in <head> — anti-FOUC:",
+      "{theme_boot_script(\"${1:my-app-theme}\").raw}",
+      "// in the topbar — the button:",
+      "{theme_toggle_render(theme_toggle { label: ${2:t(locale, \"theme.auto\")}, aria_label: ${3:theme_label} }).raw}",
+      "// before </body> — the cycle logic:",
+      "{theme_cycle_script(\"$1\", ${4:light_label}, ${5:dark_label}, ${6:auto_label}).raw}"
+    ],
+    "description": "Wire the per-browser theme switch (3 parts). storage_key must match between boot + cycle; the button's onclick=flvCycleTheme() is defined by the cycle script. Import: from fitz_liveviews.ui.ThemeToggle import theme_toggle, theme_toggle_render + from fitz_liveviews.ui.theme_scripts import theme_boot_script, theme_cycle_script"
   }
 }

@@ -18,6 +18,8 @@ from i18n import t, other_locale, lang_flag
 from fitz_liveviews import Html, html, flv, html_response
 from fitz_liveviews.ui.Breadcrumbs import breadcrumbs, breadcrumbs_render
 from fitz_liveviews.ui.shell_types import Crumb
+from fitz_liveviews.ui.ThemeToggle import theme_toggle, theme_toggle_render
+from fitz_liveviews.ui.theme_scripts import theme_boot_script, theme_cycle_script
 
 // ---------------------------------------------------------------------------
 // Redirect helper — used by protected pages when there's no valid session.
@@ -87,12 +89,15 @@ fn render_topbar(title: Str, user_name: Str, locale: Str) -> Str {
     let lang_lbl = t(locale, "topbar.lang")
     let next_lang = other_locale(locale)
     let cur_flag = lang_flag(locale)
+    // Extract the render call to a binding (like render_breadcrumbs) — a struct
+    // literal's `{ }` can't sit inside a `{...}` string interpolation.
+    let theme_switch = theme_toggle_render(theme_toggle { label: t(locale, "theme.auto"), aria_label: theme_lbl }).raw
     return """<header class="topbar">
       <button class="icon-btn" onclick="flvToggleNav()" aria-label="{flv(menu_lbl)}">☰</button>
       <h1 class="page-title">{flv(title)}</h1>
       <div class="topbar-spacer"></div>
       <a class="icon-btn lang-btn" href="/lang/{next_lang}" data-tooltip="{flv(lang_lbl)}" aria-label="{flv(lang_lbl)}">🌐 {cur_flag}</a>
-      <button id="theme-btn" class="theme-btn" onclick="flvCycleTheme()" aria-label="{flv(theme_lbl)}">{t(locale, "theme.auto")}</button>
+      {theme_switch}
       <div class="user-chip" title="{flv(user_name)}">
         <span class="user-avatar">{flv(initials(user_name))}</span>
         <span class="user-name nav-label">{flv(user_name)}</span>
@@ -135,15 +140,16 @@ fn page_layout(title: Str, active: Str, user_name: Str, body: Html, locale: Str)
     let topbar = render_topbar(title, user_name, locale)
     let crumbs = render_breadcrumbs(title, locale)
     let css = shell_css()
-    let boot = theme_init_js()
-    let script = interactive_js(locale)
+    let boot = theme_boot_script("flv-admin-theme").raw
+    let script = interactive_js()
+    let theme_cycle = theme_cycle_script("flv-admin-theme", t(locale, "theme.light"), t(locale, "theme.dark"), t(locale, "theme.auto")).raw
     return html("""<!doctype html>
 <html lang="{locale}" data-theme="auto">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{flv(title)} · Fitz Admin</title>
-  <script>{boot}</script>
+  {boot}
   <style>{css}</style>
 </head>
 <body>
@@ -159,6 +165,7 @@ fn page_layout(title: Str, active: Str, user_name: Str, body: Html, locale: Str)
     </div>
   </div>
   <script>{script}</script>
+  {theme_cycle}
 </body>
 </html>""")
 }
@@ -166,7 +173,7 @@ fn page_layout(title: Str, active: Str, user_name: Str, body: Html, locale: Str)
 // Bare layout for the login page — no shell, just a centered card.
 fn login_layout(body: Html, locale: Str) -> Html {
     let css = shell_css()
-    let boot = theme_init_js()
+    let boot = theme_boot_script("flv-admin-theme").raw
     let title = t(locale, "login.title")
     return html("""<!doctype html>
 <html lang="{locale}" data-theme="auto">
@@ -174,7 +181,7 @@ fn login_layout(body: Html, locale: Str) -> Html {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{flv(title)} · Fitz Admin</title>
-  <script>{boot}</script>
+  {boot}
   <style>{css}</style>
 </head>
 <body class="login-body">
@@ -336,12 +343,9 @@ fn shell_css() -> Str {
   .icon-btn:hover \{ background: var(--surface-2); \}
   /* Language switch (Slice 9) */
   .lang-btn \{ width: auto; padding: 0 .6rem; gap: .25rem; font-size: .82rem; font-weight: 700; text-decoration: none; \}
-  .theme-btn \{
-    border: 1px solid var(--border); background: var(--surface);
-    color: var(--text); border-radius: 8px; padding: .4rem .7rem;
-    cursor: pointer; font-size: .85rem; font-weight: 600; white-space: nowrap;
-  \}
-  .theme-btn:hover \{ background: var(--surface-2); \}
+  /* Theme switch button styles now travel with the packaged
+     fitz_liveviews.ui.ThemeToggle component (.flv-theme-toggle, scoped). The
+     admin's --flv-* token aliases above keep it visually identical. */
   .user-chip \{ display: flex; align-items: center; gap: .5rem; \}
   .user-avatar \{
     width: 30px; height: 30px; border-radius: 50%;
@@ -747,46 +751,17 @@ fn shell_css() -> Str {
 }
 
 // ---------------------------------------------------------------------------
-// Head script — anti-FOUC: apply the saved theme before first paint.
+// Body script — sidebar / drawer toggle. Per-browser, no WS.
+//
+// Theme cycling moved to the packaged fitz_liveviews.ui.theme_scripts
+// (theme_boot_script in <head> + theme_cycle_script before </body>); the
+// sidebar collapse / mobile drawer stays here until Session C packages the
+// Sidebar/Topbar/AppShell family.
 // ---------------------------------------------------------------------------
 
-fn theme_init_js() -> Str {
+fn interactive_js() -> Str {
     return """
   (function () \{
-    try \{
-      var t = localStorage.getItem('flv-admin-theme') || 'auto';
-      document.documentElement.setAttribute('data-theme', t);
-    \} catch (e) \{\}
-  \})();
-  """
-}
-
-// ---------------------------------------------------------------------------
-// Body script — theme cycling + sidebar/drawer toggle. Per-browser, no WS.
-// ---------------------------------------------------------------------------
-
-fn interactive_js(locale: Str) -> Str {
-    let l_light = t(locale, "theme.light")
-    let l_dark = t(locale, "theme.dark")
-    let l_auto = t(locale, "theme.auto")
-    return """
-  (function () \{
-    var LABELS = \{ light: '{l_light}', dark: '{l_dark}', auto: '{l_auto}' \};
-    function current() \{ return localStorage.getItem('flv-admin-theme') || 'auto'; \}
-    function paintBtn() \{
-      var b = document.getElementById('theme-btn');
-      if (b) \{ b.textContent = LABELS[current()] || LABELS.auto; \}
-    \}
-    function setTheme(t) \{
-      localStorage.setItem('flv-admin-theme', t);
-      document.documentElement.setAttribute('data-theme', t);
-      paintBtn();
-    \}
-    window.flvCycleTheme = function () \{
-      var order = ['light', 'dark', 'auto'];
-      var i = order.indexOf(current());
-      setTheme(order[(i + 1) % 3]);
-    \};
     window.flvToggleNav = function () \{
       if (window.innerWidth <= 768) \{
         document.body.classList.toggle('nav-open');
@@ -797,7 +772,6 @@ fn interactive_js(locale: Str) -> Str {
     window.flvCloseDrawer = function () \{
       document.body.classList.remove('nav-open');
     \};
-    paintBtn();
   \})();
   """
 }

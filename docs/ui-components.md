@@ -54,6 +54,8 @@ from fitz_liveviews.ui.icon import icon
 from fitz_liveviews.ui.theme import ui_theme
 from fitz_liveviews.ui.Breadcrumbs import breadcrumbs, breadcrumbs_render
 from fitz_liveviews.ui.shell_types import Crumb
+from fitz_liveviews.ui.ThemeToggle import theme_toggle, theme_toggle_render
+from fitz_liveviews.ui.theme_scripts import theme_boot_script, theme_cycle_script
 ```
 
 They're **i18n-agnostic** (the host passes already-localized text), styled with
@@ -411,6 +413,42 @@ The widget styles the trail only (colors, separators, wrap); where the bar sits
 in your chrome — padding, a bottom border — stays with the host (the Admin ABM
 wraps it in a `.crumb-bar`). Props: `items: List<Crumb>` and `aria_label: Str`
 (default `"Breadcrumb"`). Styled with `<style scoped>` over `--flv-*` tokens.
+
+### ThemeToggle — light / dark / auto switch
+
+The second Shell-family piece: a per-browser theme switch. It's three cooperating
+parts — a button component plus two tiny inline scripts. The theme lives in
+`localStorage` and flips `data-theme` on `<html>`; it **never goes over the
+WebSocket** (broadcasting it would change the theme for everyone), so the click
+runs client-side JS instead of firing a LiveComponent event.
+
+- `theme_toggle_render(theme_toggle { label, aria_label }).raw` — the button
+  (`id="flv-theme-btn"`, `onclick="flvCycleTheme()"`). Controlled/presentational,
+  no events. `label` is only the SSR-initial text; the cycle script repaints it.
+- `theme_boot_script(storage_key).raw` — anti-FOUC `<script>` for `<head>`:
+  applies the saved theme before first paint.
+- `theme_cycle_script(storage_key, light_label, dark_label, auto_label).raw` —
+  `<script>` before `</body>`: defines `flvCycleTheme` (light → dark → auto) and
+  paints the button. The `storage_key` must match the boot script.
+
+```
+from fitz_liveviews.ui.ThemeToggle import theme_toggle, theme_toggle_render
+from fitz_liveviews.ui.theme_scripts import theme_boot_script, theme_cycle_script
+
+// <head>
+{theme_boot_script("my-app-theme").raw}
+
+// topbar
+{theme_toggle_render(theme_toggle { label: "🖥️ Auto", aria_label: "Theme" }).raw}
+
+// before </body>
+{theme_cycle_script("my-app-theme", "☀️ Light", "🌙 Dark", "🖥️ Auto").raw}
+```
+
+Props (`theme_toggle`): `label: Str` (default `"🖥️ Auto"`, the SSR-initial text)
+and `aria_label: Str` (default `"Theme"`). Labels are embedded into JS
+single-quoted strings — pass already-localized text without apostrophes. Styled
+with `<style scoped>` over `--flv-*` tokens.
 
 ---
 

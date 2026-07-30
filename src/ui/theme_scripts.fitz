@@ -1,0 +1,71 @@
+// theme_scripts.fitz — the reusable theme machinery for the companion UI
+// library (Phase 9 — Shell family, part 2). Two tiny client-side scripts that
+// drive a light / dark / auto theme switch, generalized from the Admin ABM's
+// `theme_init_js` / `flvCycleTheme`.
+//
+// The theme is PER-BROWSER: it lives in `localStorage` and flips `data-theme`
+// on `<html>`. It must NEVER go over a WebSocket (broadcasting it would flip
+// the theme for everyone). That's why these are inline `<script>` elements,
+// not LiveComponent events.
+//
+// Kept in a plain `.fitz` sibling (not a `.fitzv`) — `.fitzv` files hold only
+// `component` blocks; render/script helpers live alongside. Same split as
+// `pager_helpers` / `icon` / `theme`.
+//
+// Wiring (three pieces, one page):
+//   <head>  … {theme_boot_script("my-app-theme").raw}          // anti-FOUC
+//   topbar  … {theme_toggle_render(theme_toggle { … }).raw}    // the button
+//   </body> … {theme_cycle_script("my-app-theme", L, D, A).raw} // the cycle
+//
+// The button (`fitz_liveviews.ui.ThemeToggle`) renders `id="flv-theme-btn"`
+// and `onclick="flvCycleTheme()"`; `theme_cycle_script` defines that global and
+// paints that id. The `storage_key` must match between boot + cycle.
+//
+// Literal `{`/`}` are escaped as `\{`/`\}` (Fitz uses `{}` for interpolation).
+// Labels are embedded into JS single-quoted strings — pass already-localized
+// text without apostrophes (the kit's i18n convention: the host owns the text).
+
+from fitz_liveviews import html, Html
+
+// Anti-FOUC head script — apply the saved theme before first paint, so the
+// page never flashes the wrong theme. Drop it in `<head>` as a full `<script>`
+// element: `{theme_boot_script("my-app-theme").raw}`.
+fn theme_boot_script(storage_key: Str) -> Html {
+    return html("""<script>
+(function () \{
+  try \{
+    var t = localStorage.getItem('{storage_key}') || 'auto';
+    document.documentElement.setAttribute('data-theme', t);
+  \} catch (e) \{\}
+\})();
+</script>""")
+}
+
+// Body script — defines `window.flvCycleTheme` (light → dark → auto over
+// `localStorage` + `data-theme`) and paints the `#flv-theme-btn` label. Drop it
+// once before `</body>` as a full `<script>` element. The three labels are the
+// button text for each state; they must match what the `theme_toggle` button
+// shows initially.
+fn theme_cycle_script(storage_key: Str, light_label: Str, dark_label: Str, auto_label: Str) -> Html {
+    return html("""<script>
+(function () \{
+  var LABELS = \{ light: '{light_label}', dark: '{dark_label}', auto: '{auto_label}' \};
+  function current() \{ return localStorage.getItem('{storage_key}') || 'auto'; \}
+  function paintBtn() \{
+    var b = document.getElementById('flv-theme-btn');
+    if (b) \{ b.textContent = LABELS[current()] || LABELS.auto; \}
+  \}
+  function setTheme(t) \{
+    localStorage.setItem('{storage_key}', t);
+    document.documentElement.setAttribute('data-theme', t);
+    paintBtn();
+  \}
+  window.flvCycleTheme = function () \{
+    var order = ['light', 'dark', 'auto'];
+    var i = order.indexOf(current());
+    setTheme(order[(i + 1) % 3]);
+  \};
+  paintBtn();
+\})();
+</script>""")
+}

@@ -20,6 +20,8 @@ from fitz_liveviews.ui.Input import input, input_render
 from fitz_liveviews.ui.Modal import modal, modal_render, modal_show, modal_close
 from fitz_liveviews.ui.Breadcrumbs import breadcrumbs, breadcrumbs_render
 from fitz_liveviews.ui.shell_types import Crumb
+from fitz_liveviews.ui.ThemeToggle import theme_toggle, theme_toggle_render
+from fitz_liveviews.ui.theme_scripts import theme_boot_script, theme_cycle_script
 
 // --- Pager (presentational / controlled) ---
 
@@ -108,6 +110,38 @@ from fitz_liveviews.ui.shell_types import Crumb
     assert(css.contains("--flv-color-primary"))
     assert(css.contains("--flv-surface"))
     assert(css.contains("data-theme=\"dark\""))
+}
+
+// --- ThemeToggle + theme scripts (Shell family, part 2) ---
+
+@test fn theme_toggle_renders_button_wired_to_cycle() {
+    // presentational, no events: the click runs the client-side flvCycleTheme,
+    // never a WS event. The id must match what theme_cycle_script paints.
+    let h = theme_toggle_render(theme_toggle { label: "🖥️ Auto", aria_label: "Tema" }).raw
+    assert(h.contains("id=\"flv-theme-btn\""))
+    assert(h.contains("onclick=\"flvCycleTheme()\""))
+    assert(h.contains("aria-label=\"Tema\""))
+    assert(h.contains("🖥️ Auto"))
+    // it's a client-side toggle, so it never emits a fall-through WS event
+    assert(not h.contains("data-flv-click"))
+}
+
+@test fn theme_boot_script_reads_storage_key_and_sets_data_theme() {
+    let s = theme_boot_script("flv-admin-theme").raw
+    assert(s.contains("<script>"))
+    assert(s.contains("localStorage.getItem('flv-admin-theme')"))
+    assert(s.contains("setAttribute('data-theme'"))
+}
+
+@test fn theme_cycle_script_defines_global_and_embeds_labels() {
+    let s = theme_cycle_script("flv-admin-theme", "☀️ Claro", "🌙 Oscuro", "🖥️ Auto").raw
+    assert(s.contains("window.flvCycleTheme"))
+    // paints the button the ThemeToggle component renders
+    assert(s.contains("flv-theme-btn"))
+    assert(s.contains("localStorage.setItem('flv-admin-theme'"))
+    // the labels are baked into the LABELS map
+    assert(s.contains("☀️ Claro"))
+    assert(s.contains("🌙 Oscuro"))
 }
 
 // === corte 2 — presentational primitives (Button / Badge / Spinner / Icon) ===

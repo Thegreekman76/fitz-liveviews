@@ -1,0 +1,50 @@
+// ThemeToggle.fitzv — the light / dark / auto theme switch button, packaged as
+// a stateless, presentational LiveComponent with SCOPED styles.
+//
+// Companion UI library component (Phase 9 — Shell family, part 2). Like Pager
+// and Breadcrumbs it is CONTROLLED and rendered directly by the host with
+// `theme_toggle_render(theme_toggle { label: "🖥️ Auto", aria_label: "Theme" }).raw`
+// (NOT `component_with`) — no per-connection store. It declares NO event
+// handlers: the theme is per-browser, so the click runs a client-side JS
+// function (`flvCycleTheme`), never a WebSocket event (broadcasting the theme
+// would flip it for everyone).
+//
+// Coupling (documented on purpose): the button renders `id="flv-theme-btn"` and
+// `onclick="flvCycleTheme()"`. Both are provided by `fitz_liveviews.ui.theme_scripts`:
+//   - `theme_boot_script(storage_key)` in <head> applies the saved theme (anti-FOUC),
+//   - `theme_cycle_script(storage_key, light, dark, auto)` before </body> defines
+//     `flvCycleTheme` and paints this button's label.
+// `label` is only the SSR-initial text; the cycle script repaints it on load to
+// match the actual saved theme.
+//
+// Styling: `<style scoped>` with `--flv-*` theme tokens + literal fallbacks, so
+// it looks right with no theme stylesheet and re-themes via the token vars.
+
+from fitz_liveviews import flv
+
+component theme_toggle {
+  state {
+    label: Str = "🖥️ Auto"
+    aria_label: Str = "Theme"
+  }
+
+  <template>
+    <button id="flv-theme-btn" class="flv-theme-toggle" type="button" onclick="flvCycleTheme()" aria-label="{aria_label}">{flv(label)}</button>
+  </template>
+
+  <style scoped>
+    .flv-theme-toggle {
+      border: 1px solid var(--flv-border, #d9d9e0);
+      background: var(--flv-surface, #ffffff);
+      color: var(--flv-text, #1a1a1a);
+      border-radius: var(--flv-radius-md, 8px);
+      padding: .4rem .7rem;
+      cursor: pointer;
+      font-size: .85rem;
+      font-weight: 600;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+    .flv-theme-toggle:hover { background: var(--flv-surface-2, #f5f5f7); }
+  </style>
+}
