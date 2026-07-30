@@ -427,5 +427,42 @@
       "{theme_cycle_script(\"$1\", ${4:light_label}, ${5:dark_label}, ${6:auto_label}).raw}"
     ],
     "description": "Wire the per-browser theme switch (3 parts). storage_key must match between boot + cycle; the button's onclick=flvCycleTheme() is defined by the cycle script. Import: from fitz_liveviews.ui.ThemeToggle import theme_toggle, theme_toggle_render + from fitz_liveviews.ui.theme_scripts import theme_boot_script, theme_cycle_script"
+  },
+
+  "Sidebar — packaged nav rail (Shell family)": {
+    "prefix": "ui-sidebar",
+    "body": [
+      "let ${1:nav}: List<NavGroup> = [",
+      "  NavGroup { items: [NavItem { href: \"/\", label: ${2:dashboard_label}, key: \"dashboard\", icon: \"📊\" }] },",
+      "  NavGroup {",
+      "    label: ${3:group_label}, icon: \"🗂️\",",
+      "    items: [",
+      "      NavItem { href: \"${4:/items}\", label: ${5:items_label}, key: \"${6:items}\", icon: \"📁\" },",
+      "    ],",
+      "  },",
+      "]",
+      "let ${7:sidebar} = sidebar_render(${8:brand}, \"▲\", $1, ${9:active}, ${10:foot})"
+    ],
+    "description": "Build the packaged Sidebar from a List<NavGroup> (label == \"\" → flat links; a named group nests in a <details> that auto-opens on its active child). Import: from fitz_liveviews.ui.Sidebar import sidebar_render + from fitz_liveviews.ui.shell_types import NavItem, NavGroup"
+  },
+
+  "Topbar — packaged sticky header (Shell family)": {
+    "prefix": "ui-topbar",
+    "body": [
+      "// actions render before the user chip (language switch + theme toggle); user_trail after (logout)",
+      "let ${1:topbar} = topbar_render(${2:title}, ${3:menu_label}, ${4:user_name}, initials_of($4), ${5:actions}, ${6:user_trail})"
+    ],
+    "description": "Render the packaged Topbar: hamburger (flvToggleNav) + title + `actions` Html (before the chip) + user chip + `user_trail` Html (after). Import: from fitz_liveviews.ui.Topbar import topbar_render, initials_of"
+  },
+
+  "AppShell — packaged document layout (Shell family)": {
+    "prefix": "ui-appshell",
+    "body": [
+      "let ${1:head_extra} = html(\"\"\"{${2:boot}}",
+      "  <style>{${3:screen_css}}</style>\"\"\")",
+      "let ${4:body_extra} = ${5:theme_cycle_script(\"my-app-theme\", light, dark, auto)}",
+      "return app_shell(${6:title}, ${7:locale}, $1, ${8:sidebar}, ${9:topbar}, ${10:crumbs}, ${11:body}, $4)"
+    ],
+    "description": "Assemble the full <!doctype html> page. AppShell bakes ui_shell_css() + the drawer/collapse behavior script; you pass head_extra (theme boot script + screen CSS) and body_extra (theme cycle script). Import: from fitz_liveviews.ui.AppShell import app_shell"
   }
 }

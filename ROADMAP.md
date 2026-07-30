@@ -690,15 +690,27 @@ Card · Badge · Alert · Input · Spinner · Icon · **Breadcrumbs** ✅ ·
   `theme_init_js` removed, `interactive_js` trimmed to sidebar/drawer, dead
   `.theme-btn` CSS dropped. 3 gallery tests, docs, `ui-theme-toggle` snippet.
   `fitz check` + `fitz build` of the admin verified.
-- [ ] **Session C — Shell family, part 3: `Sidebar` + `Topbar` + `AppShell`**
-  (the heavy one — needs its own focused session + visual verification). Requires:
-  (a) a nav data model (`NavItem` / `NavGroup` for the nested `<details>` menu);
-  (b) splitting the monolithic `shell_css()` into `ui_shell_css()` (chrome:
-  `.sidebar` / `.topbar` / drawer / collapse / responsive) vs the admin's
-  screen-specific CSS; (c) `AppShell` as a document-layout render fn (title, lang,
-  head-extra, sidebar/topbar/crumbs, body + baked chrome CSS + behavior scripts).
-  Keep class names to preserve visuals; verify at 320px. **Do NOT big-bang without
-  a visual pass.**
+- [x] **Session C — Shell family, part 3: `Sidebar` + `Topbar` + `AppShell`**
+  (the heavy one). Delivered all three:
+  (a) nav data model `NavItem` / `NavGroup` in `shell_types.fitz` (a `NavGroup`
+  with `label == ""` → flat links; a named group → native `<details>` that
+  auto-opens on its active child);
+  (b) `shell_css()` split — chrome (tokens + reset + `.sidebar` / `.topbar` /
+  `.content` / drawer / collapse / responsive) moved into the packaged
+  `ui_shell_css()` (exported from `AppShell`), while the admin keeps its
+  screen-specific CSS in `admin_css()`;
+  (c) `fitz_liveviews.ui.Sidebar` (`sidebar_render`), `fitz_liveviews.ui.Topbar`
+  (`topbar_render` + `initials_of`), and `fitz_liveviews.ui.AppShell` (`app_shell`
+  document layout + baked `ui_shell_css()` + `shell_behavior_script()` drawer/collapse
+  JS). Kept as plain `.fitz` render helpers (the two-level nav loop + document
+  assembly don't fit an SSR `.fitzv` template). Adopted in the admin: `page_layout`
+  now composes the packaged pieces; `render_sidebar` / `render_topbar` /
+  `interactive_js` / `nav_item` / `initials` removed; class names unchanged.
+  12 gallery tests, docs, `ui-sidebar` / `ui-topbar` / `ui-appshell` snippets.
+  `fitz check` + `fitz test` (170/170) + `fitz build` verified; rendered against a
+  live server (login → dashboard / empleados / departamentos all 200, sidebar /
+  topbar / crumbs / drawer / auto-open group / chrome + screen CSS all intact).
+  **Pending: the human 320px browser eyeball.**
 - [ ] **Session D — Dashboard family**: `StatCard` (label/value/hint/accent) ·
   `BarChart` (CSS bars) · `ProgressBar` (determinate). From `dashboard.fitz` +
   shell CSS (`.stat-card` / `.chart-*` / `.pbar-*`).

@@ -5,6 +5,53 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.19.0] — 2026-07-30 — `Sidebar` + `Topbar` + `AppShell` (Shell family, part 3)
+
+**Minor bump** — ships the last three **Shell-family** pieces, extracted from the
+Admin ABM into the package: the branded nav rail, the sticky top bar, and the
+full document layout. Built against Fitz core **v0.29.1**.
+
+### Added — `Sidebar` / `Topbar` / `AppShell` (Shell family, part 3)
+
+- **`fitz_liveviews.ui.shell_types`** — a nav data model alongside `Crumb`:
+  `NavItem` (`href` / `label` / `key` / `icon`) and `NavGroup` (`items` + optional
+  `label` / `icon`). A group with `label == ""` renders its items as flat
+  top-level links; a named group nests them in a native `<details>` menu that
+  auto-opens when one of its items is the active screen (zero JS).
+- **`fitz_liveviews.ui.Sidebar`** — `sidebar_render(brand, brand_mark, groups,
+  active, foot) -> Html`. Builds the left rail from a `List<NavGroup>`; leaf links
+  close the mobile drawer. Controlled/presentational, no events.
+- **`fitz_liveviews.ui.Topbar`** — `topbar_render(title, menu_label, user_name,
+  user_initials, actions, user_trail) -> Html` + helper `initials_of(name)`. The
+  `actions` (before the user chip) and `user_trail` (after) are pre-rendered
+  `Html` the host composes with its own routes + localized labels (language
+  switch, theme toggle, logout). The hamburger fires `flvToggleNav()`.
+- **`fitz_liveviews.ui.AppShell`** — `app_shell(title, lang, head_extra, sidebar,
+  topbar, crumbs, body, body_extra) -> Html`: the full `<!doctype html>` page. It
+  **bakes** the chrome stylesheet `ui_shell_css()` (design tokens + reset +
+  `.sidebar` / `.topbar` / `.content` + collapse/drawer responsive) and
+  `shell_behavior_script()` (the drawer/collapse JS). `ui_shell_css()` and
+  `shell_behavior_script()` are exported too, so a bare page (e.g. a login screen)
+  can inline the chrome tokens without the whole shell.
+- Kept as plain `.fitz` render helpers (not `.fitzv`): the two-level
+  groups→items nav loop wrapping a `<details>` and the document assembly don't fit
+  an SSR `{#for}` template. Same split as `theme_scripts` / `icon` / `theme`.
+
+### Changed — Admin ABM adoption
+
+- `page_layout` now composes the packaged `Sidebar` / `Topbar` / `Breadcrumbs` and
+  hands them to `app_shell`. The monolithic `shell_css()` was split: the chrome
+  moved into the packaged `ui_shell_css()`, and the admin keeps only its
+  screen-specific CSS in `admin_css()`. `render_sidebar` / `render_topbar` /
+  `nav_item` / `initials` / `interactive_js` were removed. **Class names are
+  unchanged**, so the visuals are byte-for-byte the same — verified against a live
+  server (login → dashboard / empleados / departamentos all 200; sidebar / topbar /
+  crumbs / drawer / auto-open group / chrome + screen CSS intact) and a 320px
+  visual pass. `fitz check` + `fitz test` (170/170) + `fitz build` of the admin
+  verified.
+- 12 gallery `@test` (170 total), `docs/ui-components.md` sections + composition
+  guide, VSCode snippets (`ui-sidebar` / `ui-topbar` / `ui-appshell`).
+
 ## [v0.18.0] — 2026-07-30 — `ThemeToggle` component + reusable theme scripts (Shell family, part 2)
 
 **Minor bump** — ships the second **Shell-family** piece: the light / dark /

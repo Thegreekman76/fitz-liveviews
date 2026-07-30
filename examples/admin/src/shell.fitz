@@ -1,25 +1,27 @@
-// shell.fitz — the admin chrome: full HTML document, responsive shell
-// (collapsible sidebar / mobile drawer), topbar, and the light/dark/auto
-// theme switch.
+// shell.fitz — the admin's thin adoption of the packaged Shell family
+// (fitz_liveviews.ui.Sidebar / Topbar / AppShell / Breadcrumbs / ThemeToggle).
+//
+// `page_layout(...)` builds the nav model, renders the sidebar / topbar /
+// breadcrumbs with the packaged components, and hands them to `app_shell(...)`,
+// which bakes the chrome CSS (`ui_shell_css`) + drawer/collapse behavior script.
+// The admin only owns its SCREEN-specific CSS (`admin_css`) + i18n + routes.
 //
 // SSR note: the fitz-liveviews SSR target does NOT support `<slot>` or
-// `<Child />` inside `{#for}` (those are WASM-only, Fitz core Phase 11.7).
-// So the shell is a plain render helper — `page_layout(...)` composes the
-// full document string and drops the active screen's HTML into `<main>`.
-// No component slots involved; this is the SSR-correct way to wrap pages.
+// `<Child />` inside `{#for}` (WASM-only, Fitz core Phase 11.7). The shell
+// pieces are plain render helpers that compose document/HTML strings.
 //
 // Theme + sidebar are CLIENT-side (small inline scripts, `data-theme` on
-// <html>, `localStorage`). They're per-browser, instant, and must NOT go
-// over a WebSocket (broadcasting them would flip the theme for everyone).
-// The head script runs before first paint to avoid a flash of the wrong
-// theme (FOUC).
+// <html>, `localStorage`), per-browser, and must NOT go over a WebSocket.
 
 from i18n import t, other_locale, lang_flag
 from fitz_liveviews import Html, html, flv, html_response
 from fitz_liveviews.ui.Breadcrumbs import breadcrumbs, breadcrumbs_render
-from fitz_liveviews.ui.shell_types import Crumb
+from fitz_liveviews.ui.shell_types import Crumb, NavItem, NavGroup
 from fitz_liveviews.ui.ThemeToggle import theme_toggle, theme_toggle_render
 from fitz_liveviews.ui.theme_scripts import theme_boot_script, theme_cycle_script
+from fitz_liveviews.ui.Sidebar import sidebar_render
+from fitz_liveviews.ui.Topbar import topbar_render, initials_of
+from fitz_liveviews.ui.AppShell import app_shell, ui_shell_css
 
 // ---------------------------------------------------------------------------
 // Redirect helper — used by protected pages when there's no valid session.
@@ -35,144 +37,89 @@ fn redirect_to(path: Str) -> Response {
 }
 
 // ---------------------------------------------------------------------------
-// Navigation
+// Navigation model — the admin's sidebar nav as data for the packaged Sidebar.
 // ---------------------------------------------------------------------------
 
-fn nav_item(href: Str, icon: Str, label: Str, key: Str, active: Str) -> Str {
-    let cls: Str = match key == active {
-        true => "nav-item active",
-        false => "nav-item",
-    }
-    return """<a href="{href}" class="{cls}" onclick="flvCloseDrawer()">
-      <span class="nav-icon">{icon}</span><span class="nav-label">{flv(label)}</span>
-    </a>"""
+fn admin_nav(locale: Str) -> List<NavGroup> {
+    // Top-level (flat) group: just the dashboard link.
+    // "Organización" group: a native <details> nested menu (empleados + deptos).
+    return [
+        NavGroup {
+            items: [
+                NavItem { href: "/", label: t(locale, "nav.dashboard"), key: "dashboard", icon: "📊" },
+            ],
+        },
+        NavGroup {
+            label: t(locale, "nav.organizacion"),
+            icon: "🗂️",
+            items: [
+                NavItem { href: "/empleados", label: t(locale, "nav.empleados"), key: "empleados", icon: "👥" },
+                NavItem { href: "/departamentos", label: t(locale, "nav.departamentos"), key: "departamentos", icon: "🏢" },
+            ],
+        },
+    ]
 }
 
-fn render_sidebar(active: Str, locale: Str) -> Str {
-    let d = nav_item("/", "📊", t(locale, "nav.dashboard"), "dashboard", active)
-    let e = nav_item("/empleados", "👥", t(locale, "nav.empleados"), "empleados", active)
-    let p = nav_item("/departamentos", "🏢", t(locale, "nav.departamentos"), "departamentos", active)
-    // The "Organización" group is a native <details> nested menu — open when one
-    // of its children is the active screen (zero JS, client-side collapse).
-    let grp_open = match active == "empleados" or active == "departamentos" {
-        true => " open",
-        false => "",
-    }
-    let org = t(locale, "nav.organizacion")
-    let tagline = t(locale, "app.tagline")
-    return """<aside class="sidebar">
-      <div class="brand">
-        <span class="brand-mark">▲</span>
-        <span class="brand-name nav-label">Fitz Admin</span>
-      </div>
-      <nav class="nav">
-        {d}
-        <details class="nav-group"{grp_open}>
-          <summary class="nav-item nav-group-head">
-            <span class="nav-icon">🗂️</span><span class="nav-label">{flv(org)}</span>
-            <span class="nav-caret nav-label">▾</span>
-          </summary>
-          <div class="nav-sub">
-            {e}
-            {p}
-          </div>
-        </details>
-      </nav>
-      <div class="sidebar-foot nav-label">{flv(tagline)}</div>
-    </aside>"""
-}
-
-fn render_topbar(title: Str, user_name: Str, locale: Str) -> Str {
-    let menu_lbl = t(locale, "topbar.menu")
-    let theme_lbl = t(locale, "topbar.theme")
-    let logout_lbl = t(locale, "topbar.logout")
+// Topbar right-side clusters — language switch + theme toggle (before the chip),
+// and logout (after the chip). Built here because they use the admin's routes
+// and localized labels.
+fn topbar_actions(locale: Str) -> Html {
     let lang_lbl = t(locale, "topbar.lang")
+    let theme_lbl = t(locale, "topbar.theme")
     let next_lang = other_locale(locale)
     let cur_flag = lang_flag(locale)
-    // Extract the render call to a binding (like render_breadcrumbs) — a struct
-    // literal's `{ }` can't sit inside a `{...}` string interpolation.
     let theme_switch = theme_toggle_render(theme_toggle { label: t(locale, "theme.auto"), aria_label: theme_lbl }).raw
-    return """<header class="topbar">
-      <button class="icon-btn" onclick="flvToggleNav()" aria-label="{flv(menu_lbl)}">☰</button>
-      <h1 class="page-title">{flv(title)}</h1>
-      <div class="topbar-spacer"></div>
-      <a class="icon-btn lang-btn" href="/lang/{next_lang}" data-tooltip="{flv(lang_lbl)}" aria-label="{flv(lang_lbl)}">🌐 {cur_flag}</a>
-      {theme_switch}
-      <div class="user-chip" title="{flv(user_name)}">
-        <span class="user-avatar">{flv(initials(user_name))}</span>
-        <span class="user-name nav-label">{flv(user_name)}</span>
-      </div>
-      <a class="icon-btn logout" href="/logout" aria-label="{flv(logout_lbl)}">🚪</a>
-    </header>"""
+    return html("""<a class="icon-btn lang-btn" href="/lang/{next_lang}" data-tooltip="{flv(lang_lbl)}" aria-label="{flv(lang_lbl)}">🌐 {cur_flag}</a>
+      {theme_switch}""")
+}
+
+fn topbar_logout(locale: Str) -> Html {
+    let logout_lbl = t(locale, "topbar.logout")
+    return html("""<a class="icon-btn logout" href="/logout" aria-label="{flv(logout_lbl)}">🚪</a>""")
 }
 
 // Breadcrumbs (Slice 7) — "Admin / <screen>", the home crumb links to the
-// dashboard. Trivial today (two levels); ready to grow for nested screens.
-fn render_breadcrumbs(title: Str, locale: Str) -> Str {
+// dashboard. The trail is the packaged `Breadcrumbs` component; the host only
+// supplies the crumb data + the `.crumb-bar` placement. `href == ""` marks the
+// current (last) crumb.
+fn render_breadcrumbs(title: Str, locale: Str) -> Html {
     let home = t(locale, "crumb.admin")
-    // The trail itself is the packaged `Breadcrumbs` companion component; the
-    // host only supplies the crumb data + the bar placement (padding + border
-    // via `.crumb-bar`). `href == ""` marks the current (last) crumb.
     let crumbs: List<Crumb> = [
         Crumb { label: home, href: "/" },
         Crumb { label: title, href: "" },
     ]
     let trail = breadcrumbs_render(breadcrumbs { items: crumbs, aria_label: home }).raw
-    return """<div class="crumb-bar">{trail}</div>"""
-}
-
-// First 1-2 letters for the avatar chip.
-fn initials(name: Str) -> Str {
-    let nm = name.trim()
-    if (nm.is_empty()) {
-        return "?"
-    }
-    return nm.left(1).upper()
+    return html("""<div class="crumb-bar">{trail}</div>""")
 }
 
 // ---------------------------------------------------------------------------
 // Full document
 // ---------------------------------------------------------------------------
 
-// Protected page layout — sidebar + topbar + the screen's body.
+// Protected page layout — sidebar + topbar + the screen's body, via the
+// packaged AppShell (which bakes the chrome CSS + behavior script).
 fn page_layout(title: Str, active: Str, user_name: Str, body: Html, locale: Str) -> Html {
-    let sidebar = render_sidebar(active, locale)
-    let topbar = render_topbar(title, user_name, locale)
+    let sidebar = sidebar_render("Fitz Admin", "▲", admin_nav(locale), active, t(locale, "app.tagline"))
+    let topbar = topbar_render(title, t(locale, "topbar.menu"), user_name, initials_of(user_name), topbar_actions(locale), topbar_logout(locale))
     let crumbs = render_breadcrumbs(title, locale)
-    let css = shell_css()
+    let doc_title = "{title} · Fitz Admin"
+    // <head> extras: the anti-FOUC theme boot script + the admin's screen CSS.
     let boot = theme_boot_script("flv-admin-theme").raw
-    let script = interactive_js()
-    let theme_cycle = theme_cycle_script("flv-admin-theme", t(locale, "theme.light"), t(locale, "theme.dark"), t(locale, "theme.auto")).raw
-    return html("""<!doctype html>
-<html lang="{locale}" data-theme="auto">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{flv(title)} · Fitz Admin</title>
-  {boot}
-  <style>{css}</style>
-</head>
-<body>
-  <div class="admin">
-    {sidebar}
-    <div class="drawer-overlay" onclick="flvCloseDrawer()"></div>
-    <div class="main-col">
-      {topbar}
-      {crumbs}
-      <main class="content">
-        {body.raw}
-      </main>
-    </div>
-  </div>
-  <script>{script}</script>
-  {theme_cycle}
-</body>
-</html>""")
+    let screen_css = admin_css()
+    let head_extra = html("""{boot}
+  <style>{screen_css}</style>""")
+    // <body> extras: the theme cycle script (defines flvCycleTheme + paints the
+    // toggle). The drawer/collapse behavior script is baked by AppShell.
+    let body_extra = theme_cycle_script("flv-admin-theme", t(locale, "theme.light"), t(locale, "theme.dark"), t(locale, "theme.auto"))
+    return app_shell(doc_title, locale, head_extra, sidebar, topbar, crumbs, body, body_extra)
 }
 
-// Bare layout for the login page — no shell, just a centered card.
+// Bare layout for the login page — no shell, just a centered card. Pulls the
+// design tokens + reset from `ui_shell_css()` and the `.login-*` styles from
+// `admin_css()`.
 fn login_layout(body: Html, locale: Str) -> Html {
-    let css = shell_css()
+    let chrome = ui_shell_css()
+    let screen_css = admin_css()
     let boot = theme_boot_script("flv-admin-theme").raw
     let title = t(locale, "login.title")
     return html("""<!doctype html>
@@ -182,7 +129,7 @@ fn login_layout(body: Html, locale: Str) -> Html {
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{flv(title)} · Fitz Admin</title>
   {boot}
-  <style>{css}</style>
+  <style>{chrome}{screen_css}</style>
 </head>
 <body class="login-body">
   {body.raw}
@@ -191,172 +138,15 @@ fn login_layout(body: Html, locale: Str) -> Html {
 }
 
 // ---------------------------------------------------------------------------
-// CSS — design tokens via custom properties + `data-theme`.
+// Screen-specific CSS — dashboard, data grid, toolbar/filters, forms, tabs,
+// stepper, tree, row selection/modal, breadcrumb-bar placement, charts, and
+// login. The shell chrome (tokens, reset, sidebar, topbar, content, collapse/
+// drawer) lives in the packaged `ui_shell_css()`.
 // Literal `{`/`}` are escaped as `\{`/`\}` (Fitz uses `{}` for interpolation).
 // ---------------------------------------------------------------------------
 
-fn shell_css() -> Str {
+fn admin_css() -> Str {
     return """
-  :root \{
-    --bg: #f4f6f9;
-    --surface: #ffffff;
-    --surface-2: #eef1f5;
-    --text: #1a1d23;
-    --muted: #6b7280;
-    --border: #e3e6ea;
-    --primary: #CE412B;
-    --primary-ink: #ffffff;
-    --sidebar-bg: #1c2230;
-    --sidebar-text: #aeb6c4;
-    --sidebar-active-bg: #CE412B;
-    --sidebar-active-text: #ffffff;
-    --topbar-bg: #ffffff;
-    --shadow: 0 1px 3px rgba(0,0,0,.08);
-    /* Companion UI library tokens (fitz_liveviews.ui.*) — aliased to the
-       admin's design tokens so the shared Pager / Toast / ConfirmDialog
-       inherit the same light/dark/auto theming. Aliasing to var(--...) means
-       these resolve lazily and follow the theme across all three states with
-       one block. Semantic colors are literal (the admin has no
-       danger/success/info tokens of its own; they match the old inline toast). */
-    --flv-color-primary: var(--primary);
-    --flv-color-success: #16a34a;
-    --flv-color-danger:  #ef4444;
-    --flv-color-warning: #ed6c02;
-    --flv-color-info:    #1565c0;
-    --flv-color-muted:   var(--muted);
-    --flv-surface:    var(--surface);
-    --flv-surface-2:  var(--surface-2);
-    --flv-border:     var(--border);
-    --flv-text:       var(--text);
-    --flv-text-muted: var(--muted);
-    --flv-radius-md:   8px;
-    --flv-shadow-card: 0 10px 30px rgba(0,0,0,.25);
-  \}
-  :root[data-theme="dark"] \{
-    --bg: #0f1319;
-    --surface: #1a1f27;
-    --surface-2: #232a34;
-    --text: #e6e9ee;
-    --muted: #9aa4b2;
-    --border: #2b323d;
-    --primary: #e4674f;
-    --sidebar-bg: #12161d;
-    --sidebar-text: #99a2b0;
-    --topbar-bg: #1a1f27;
-    --shadow: 0 1px 3px rgba(0,0,0,.4);
-  \}
-  @media (prefers-color-scheme: dark) \{
-    :root[data-theme="auto"] \{
-      --bg: #0f1319;
-      --surface: #1a1f27;
-      --surface-2: #232a34;
-      --text: #e6e9ee;
-      --muted: #9aa4b2;
-      --border: #2b323d;
-      --primary: #e4674f;
-      --sidebar-bg: #12161d;
-      --sidebar-text: #99a2b0;
-      --topbar-bg: #1a1f27;
-      --shadow: 0 1px 3px rgba(0,0,0,.4);
-    \}
-  \}
-
-  * \{ box-sizing: border-box; \}
-  html, body \{ margin: 0; padding: 0; \}
-  body \{
-    background: var(--bg);
-    color: var(--text);
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    -webkit-font-smoothing: antialiased;
-  \}
-  a \{ color: inherit; text-decoration: none; \}
-
-  .admin \{ display: flex; min-height: 100vh; \}
-
-  /* Sidebar */
-  .sidebar \{
-    width: 240px;
-    flex-shrink: 0;
-    background: var(--sidebar-bg);
-    color: var(--sidebar-text);
-    display: flex;
-    flex-direction: column;
-    transition: width .15s ease;
-  \}
-  .brand \{
-    display: flex; align-items: center; gap: .6rem;
-    padding: 1rem 1.25rem;
-    font-weight: 700; color: #fff;
-    border-bottom: 1px solid rgba(255,255,255,.06);
-  \}
-  .brand-mark \{ color: var(--primary); font-size: 1.2rem; \}
-  .nav \{ display: flex; flex-direction: column; padding: .75rem .5rem; gap: .15rem; flex: 1; \}
-  .nav-item \{
-    display: flex; align-items: center; gap: .75rem;
-    padding: .6rem .75rem; border-radius: 8px;
-    color: var(--sidebar-text); font-size: .95rem; font-weight: 500;
-  \}
-  .nav-item:hover \{ background: rgba(255,255,255,.06); color: #fff; \}
-  .nav-item.active \{ background: var(--sidebar-active-bg); color: var(--sidebar-active-text); \}
-  .nav-icon \{ width: 1.25rem; text-align: center; \}
-  /* Nested menu (Slice 8c) — native <details> group in the sidebar */
-  .nav-group \{ margin: 0; \}
-  .nav-group-head \{ cursor: pointer; list-style: none; \}
-  .nav-group-head::-webkit-details-marker \{ display: none; \}
-  .nav-caret \{ margin-left: auto; font-size: .7rem; transition: transform .15s; opacity: .6; \}
-  .nav-group[open] .nav-caret \{ transform: rotate(180deg); \}
-  .nav-sub \{ display: flex; flex-direction: column; gap: .15rem; margin: .15rem 0 .15rem .6rem; padding-left: .55rem; border-left: 1px solid rgba(255,255,255,.1); \}
-  .nav-sub .nav-item \{ font-size: .88rem; padding: .45rem .7rem; \}
-  /* Tooltip (Slice 8c) — CSS-only, driven by data-tooltip. The :not([...=""])
-     guard means an empty data-tooltip (the companion UI Button always emits one)
-     renders nothing instead of an empty bubble on hover. */
-  [data-tooltip]:not([data-tooltip=""]) \{ position: relative; \}
-  [data-tooltip]:not([data-tooltip=""])::after \{
-    content: attr(data-tooltip); position: absolute; bottom: 100%; left: 50%;
-    transform: translateX(-50%) translateY(-4px); white-space: nowrap;
-    background: #1e293b; color: #fff; font-size: .72rem; font-weight: 500;
-    padding: .25rem .5rem; border-radius: 6px; pointer-events: none;
-    opacity: 0; transition: opacity .12s; z-index: 40;
-  \}
-  [data-tooltip]:not([data-tooltip=""]):hover::after \{ opacity: 1; \}
-  .sidebar-foot \{
-    padding: .9rem 1.25rem; font-size: .75rem; color: rgba(255,255,255,.35);
-    border-top: 1px solid rgba(255,255,255,.06);
-  \}
-
-  /* Main column */
-  .main-col \{ flex: 1; display: flex; flex-direction: column; min-width: 0; \}
-  .topbar \{
-    height: 56px; flex-shrink: 0;
-    background: var(--topbar-bg);
-    border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; gap: .75rem;
-    padding: 0 1rem;
-  \}
-  .page-title \{ margin: 0; font-size: 1.05rem; font-weight: 600; \}
-  .topbar-spacer \{ flex: 1; \}
-  .icon-btn \{
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 38px; height: 38px; border: none; border-radius: 8px;
-    background: transparent; color: var(--text); cursor: pointer; font-size: 1.1rem;
-  \}
-  .icon-btn:hover \{ background: var(--surface-2); \}
-  /* Language switch (Slice 9) */
-  .lang-btn \{ width: auto; padding: 0 .6rem; gap: .25rem; font-size: .82rem; font-weight: 700; text-decoration: none; \}
-  /* Theme switch button styles now travel with the packaged
-     fitz_liveviews.ui.ThemeToggle component (.flv-theme-toggle, scoped). The
-     admin's --flv-* token aliases above keep it visually identical. */
-  .user-chip \{ display: flex; align-items: center; gap: .5rem; \}
-  .user-avatar \{
-    width: 30px; height: 30px; border-radius: 50%;
-    background: var(--primary); color: var(--primary-ink);
-    display: inline-flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: .85rem;
-  \}
-  .user-name \{ font-size: .9rem; font-weight: 500; \}
-
-  .content \{ padding: 1.5rem; flex: 1; max-width: 1200px; width: 100%; margin: 0 auto; \}
-
   /* Dashboard */
   .page-head \{ margin: 0 0 1.25rem; \}
   .page-head h2 \{ margin: 0 0 .25rem; font-size: 1.4rem; \}
@@ -430,8 +220,8 @@ fn shell_css() -> Str {
     flex-wrap: wrap;
   \}
   .grid-info \{ font-size: .82rem; color: var(--muted); \}
-  /* Pager styles (.pager / .pg-btn / .pg-num / .pg-active) moved to the
-     Pager.fitzv component's <style scoped> block. */
+  /* Pager styles (.pager / .pg-btn / .pg-num / .pg-active) travel with the
+     packaged Pager.fitzv component's <style scoped> block. */
 
   /* Toolbar: search + estado filters (Slice 3) */
   .grid-toolbar \{
@@ -693,29 +483,6 @@ fn shell_css() -> Str {
     .grid-empty \{ justify-content: center; \}
   \}
 
-  /* Drawer overlay (mobile) */
-  .drawer-overlay \{ display: none; \}
-
-  /* Collapsed sidebar (desktop) */
-  body.nav-collapsed .sidebar \{ width: 64px; \}
-  body.nav-collapsed .nav-label \{ display: none; \}
-  body.nav-collapsed .nav-item \{ justify-content: center; \}
-
-  /* Mobile: sidebar becomes an off-canvas drawer */
-  @media (max-width: 768px) \{
-    .sidebar \{
-      position: fixed; top: 0; left: -260px; bottom: 0; width: 240px;
-      z-index: 50; transition: left .2s ease;
-    \}
-    body.nav-open .sidebar \{ left: 0; \}
-    .drawer-overlay \{ position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 40; \}
-    body.nav-open .drawer-overlay \{ display: block; \}
-    body.nav-collapsed .sidebar \{ width: 240px; \}
-    body.nav-collapsed .nav-label \{ display: inline; \}
-    .user-name \{ display: none; \}
-    .content \{ padding: 1rem; \}
-  \}
-
   /* Login */
   .login-body \{ background: var(--bg); \}
   .login-wrap \{ min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; \}
@@ -747,31 +514,5 @@ fn shell_css() -> Str {
   \}
   :root[data-theme="dark"] .login-error \{ background: #3a1d18; color: #f0a08e; \}
   .login-hint \{ margin-top: 1.25rem; font-size: .78rem; color: var(--muted); text-align: center; line-height: 1.5; \}
-  """
-}
-
-// ---------------------------------------------------------------------------
-// Body script — sidebar / drawer toggle. Per-browser, no WS.
-//
-// Theme cycling moved to the packaged fitz_liveviews.ui.theme_scripts
-// (theme_boot_script in <head> + theme_cycle_script before </body>); the
-// sidebar collapse / mobile drawer stays here until Session C packages the
-// Sidebar/Topbar/AppShell family.
-// ---------------------------------------------------------------------------
-
-fn interactive_js() -> Str {
-    return """
-  (function () \{
-    window.flvToggleNav = function () \{
-      if (window.innerWidth <= 768) \{
-        document.body.classList.toggle('nav-open');
-      \} else \{
-        document.body.classList.toggle('nav-collapsed');
-      \}
-    \};
-    window.flvCloseDrawer = function () \{
-      document.body.classList.remove('nav-open');
-    \};
-  \})();
   """
 }

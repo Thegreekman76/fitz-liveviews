@@ -11,3 +11,27 @@ type Crumb {
   label: Str
   href: Str = ""
 }
+
+// One sidebar nav link (`fitz_liveviews.ui.Sidebar`). `key` matches the
+// AppShell's `active` string to mark the current screen; `icon` is a leading
+// glyph (emoji or short text) shown left of the label. `href` is the link
+// target. Labels arrive already-localized (the kit's i18n convention: the host
+// owns the text).
+type NavItem {
+  href: Str
+  label: Str
+  key: Str = ""
+  icon: Str = ""
+}
+
+// A sidebar nav section. When `label == ""` the `items` render as flat
+// top-level links; otherwise they nest inside a native `<details>` group whose
+// `<summary>` shows `label` (+ optional `icon`). The group auto-opens when one
+// of its items is the active screen (zero JS — client-side collapse via the
+// `<details>` element). N levels of items per group; the trail grows with the
+// list.
+type NavGroup {
+  items: List<NavItem> = []
+  label: Str = ""
+  icon: Str = ""
+}

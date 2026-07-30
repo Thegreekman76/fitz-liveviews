@@ -1,0 +1,287 @@
+// AppShell.fitz — the packaged document shell (Phase 9 — Shell family, part 3).
+// Assembles the full `<!doctype html>` page: `<head>` (title, lang, host head
+// extras, baked chrome CSS) and `<body>` (sidebar + drawer overlay + main column
+// holding topbar + breadcrumbs + the screen body, then the baked behavior script
+// and host body extras). Generalized from the Admin ABM's hand-rolled
+// `page_layout`.
+//
+// Kept a plain `.fitz` render helper (not a `.fitzv`) — it composes a full
+// document string, not a component with state/events. Same split as
+// `theme_scripts` / `icon` / `theme`.
+//
+// AppShell is CHROME-ONLY: it takes the sidebar / topbar / crumbs / body as
+// already-rendered `Html` and arranges them, baking `ui_shell_css()` (the
+// chrome stylesheet: tokens + reset + `.sidebar` / `.topbar` / `.content` +
+// collapse/drawer responsive) and `shell_behavior_script()` (the drawer/collapse
+// JS). The host renders the pieces (with `Sidebar` / `Topbar` / `Breadcrumbs`)
+// and supplies its own screen CSS + theme scripts via `head_extra` / `body_extra`.
+//
+// The theme is per-browser (see `theme_scripts`): the host drops the anti-FOUC
+// boot script in `head_extra` and the cycle script in `body_extra`. The drawer /
+// sidebar-collapse state is also client-side (`data-theme` / body classes), never
+// over a WebSocket.
+
+from fitz_liveviews import Html, html, flv
+
+// The full page.
+//   title       <title> text (host supplies the full string incl. any suffix)
+//   lang        <html lang="...">
+//   head_extra  extra <head> content: the theme boot script + the host's
+//               screen CSS <style> + any meta. Rendered before the chrome CSS.
+//   sidebar     rendered left rail (see `Sidebar`)
+//   topbar      rendered top bar (see `Topbar`)
+//   crumbs      rendered breadcrumb bar (see `Breadcrumbs`); pass empty for none
+//   body        the screen's main content
+//   body_extra  extra scripts before </body>: the theme cycle script + app JS
+fn app_shell(title: Str, lang: Str, head_extra: Html, sidebar: Html, topbar: Html, crumbs: Html, body: Html, body_extra: Html) -> Html {
+    let behavior = shell_behavior_script().raw
+    let chrome = ui_shell_css()
+    return html("""<!doctype html>
+<html lang="{lang}" data-theme="auto">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{flv(title)}</title>
+  {head_extra.raw}
+  <style>{chrome}</style>
+</head>
+<body>
+  <div class="admin">
+    {sidebar.raw}
+    <div class="drawer-overlay" onclick="flvCloseDrawer()"></div>
+    <div class="main-col">
+      {topbar.raw}
+      {crumbs.raw}
+      <main class="content">
+        {body.raw}
+      </main>
+    </div>
+  </div>
+  {behavior}
+  {body_extra.raw}
+</body>
+</html>""")
+}
+
+// ---------------------------------------------------------------------------
+// Behavior script — sidebar collapse (desktop) / off-canvas drawer (mobile).
+// Per-browser, no WebSocket. Baked by `app_shell`; exported for tests.
+// Literal `{`/`}` are escaped as `\{`/`\}` (Fitz uses `{}` for interpolation).
+// ---------------------------------------------------------------------------
+
+fn shell_behavior_script() -> Html {
+    return html("""<script>
+(function () \{
+  window.flvToggleNav = function () \{
+    if (window.innerWidth <= 768) \{
+      document.body.classList.toggle('nav-open');
+    \} else \{
+      document.body.classList.toggle('nav-collapsed');
+    \}
+  \};
+  window.flvCloseDrawer = function () \{
+    document.body.classList.remove('nav-open');
+  \};
+\})();
+</script>""")
+}
+
+// ---------------------------------------------------------------------------
+// Chrome CSS — design tokens (custom properties + `data-theme`), a base reset,
+// and the shell layout: sidebar (+ nested nav + tooltip), topbar, content, and
+// the collapse/drawer responsive rules. Baked by `app_shell`; exported so a
+// host can inline it elsewhere (e.g. a bare login page).
+//
+// Ships the fitz-liveviews house palette (Fitz-orange primary, navy sidebar) as
+// the default theme, plus the `--flv-*` companion-UI token aliases so packaged
+// components (Pager / Toast / ConfirmDialog / …) inherit the same theming. A
+// host re-themes by redefining any token after this block.
+//
+// Literal `{`/`}` are escaped as `\{`/`\}` (Fitz uses `{}` for interpolation).
+// ---------------------------------------------------------------------------
+
+fn ui_shell_css() -> Str {
+    return """
+  :root \{
+    --bg: #f4f6f9;
+    --surface: #ffffff;
+    --surface-2: #eef1f5;
+    --text: #1a1d23;
+    --muted: #6b7280;
+    --border: #e3e6ea;
+    --primary: #CE412B;
+    --primary-ink: #ffffff;
+    --sidebar-bg: #1c2230;
+    --sidebar-text: #aeb6c4;
+    --sidebar-active-bg: #CE412B;
+    --sidebar-active-text: #ffffff;
+    --topbar-bg: #ffffff;
+    --shadow: 0 1px 3px rgba(0,0,0,.08);
+    /* Companion UI library tokens (fitz_liveviews.ui.*) — aliased to the
+       shell's design tokens so the shared Pager / Toast / ConfirmDialog
+       inherit the same light/dark/auto theming. Aliasing to var(--...) means
+       these resolve lazily and follow the theme across all three states with
+       one block. Semantic colors are literal. */
+    --flv-color-primary: var(--primary);
+    --flv-color-success: #16a34a;
+    --flv-color-danger:  #ef4444;
+    --flv-color-warning: #ed6c02;
+    --flv-color-info:    #1565c0;
+    --flv-color-muted:   var(--muted);
+    --flv-surface:    var(--surface);
+    --flv-surface-2:  var(--surface-2);
+    --flv-border:     var(--border);
+    --flv-text:       var(--text);
+    --flv-text-muted: var(--muted);
+    --flv-radius-md:   8px;
+    --flv-shadow-card: 0 10px 30px rgba(0,0,0,.25);
+  \}
+  :root[data-theme="dark"] \{
+    --bg: #0f1319;
+    --surface: #1a1f27;
+    --surface-2: #232a34;
+    --text: #e6e9ee;
+    --muted: #9aa4b2;
+    --border: #2b323d;
+    --primary: #e4674f;
+    --sidebar-bg: #12161d;
+    --sidebar-text: #99a2b0;
+    --topbar-bg: #1a1f27;
+    --shadow: 0 1px 3px rgba(0,0,0,.4);
+  \}
+  @media (prefers-color-scheme: dark) \{
+    :root[data-theme="auto"] \{
+      --bg: #0f1319;
+      --surface: #1a1f27;
+      --surface-2: #232a34;
+      --text: #e6e9ee;
+      --muted: #9aa4b2;
+      --border: #2b323d;
+      --primary: #e4674f;
+      --sidebar-bg: #12161d;
+      --sidebar-text: #99a2b0;
+      --topbar-bg: #1a1f27;
+      --shadow: 0 1px 3px rgba(0,0,0,.4);
+    \}
+  \}
+
+  * \{ box-sizing: border-box; \}
+  html, body \{ margin: 0; padding: 0; \}
+  body \{
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  \}
+  a \{ color: inherit; text-decoration: none; \}
+
+  .admin \{ display: flex; min-height: 100vh; \}
+
+  /* Sidebar */
+  .sidebar \{
+    width: 240px;
+    flex-shrink: 0;
+    background: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    display: flex;
+    flex-direction: column;
+    transition: width .15s ease;
+  \}
+  .brand \{
+    display: flex; align-items: center; gap: .6rem;
+    padding: 1rem 1.25rem;
+    font-weight: 700; color: #fff;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+  \}
+  .brand-mark \{ color: var(--primary); font-size: 1.2rem; \}
+  .nav \{ display: flex; flex-direction: column; padding: .75rem .5rem; gap: .15rem; flex: 1; \}
+  .nav-item \{
+    display: flex; align-items: center; gap: .75rem;
+    padding: .6rem .75rem; border-radius: 8px;
+    color: var(--sidebar-text); font-size: .95rem; font-weight: 500;
+  \}
+  .nav-item:hover \{ background: rgba(255,255,255,.06); color: #fff; \}
+  .nav-item.active \{ background: var(--sidebar-active-bg); color: var(--sidebar-active-text); \}
+  .nav-icon \{ width: 1.25rem; text-align: center; \}
+  /* Nested menu — native <details> group in the sidebar */
+  .nav-group \{ margin: 0; \}
+  .nav-group-head \{ cursor: pointer; list-style: none; \}
+  .nav-group-head::-webkit-details-marker \{ display: none; \}
+  .nav-caret \{ margin-left: auto; font-size: .7rem; transition: transform .15s; opacity: .6; \}
+  .nav-group[open] .nav-caret \{ transform: rotate(180deg); \}
+  .nav-sub \{ display: flex; flex-direction: column; gap: .15rem; margin: .15rem 0 .15rem .6rem; padding-left: .55rem; border-left: 1px solid rgba(255,255,255,.1); \}
+  .nav-sub .nav-item \{ font-size: .88rem; padding: .45rem .7rem; \}
+  /* Tooltip — CSS-only, driven by data-tooltip. The :not([...=""]) guard means
+     an empty data-tooltip (the companion UI Button always emits one) renders
+     nothing instead of an empty bubble on hover. */
+  [data-tooltip]:not([data-tooltip=""]) \{ position: relative; \}
+  [data-tooltip]:not([data-tooltip=""])::after \{
+    content: attr(data-tooltip); position: absolute; bottom: 100%; left: 50%;
+    transform: translateX(-50%) translateY(-4px); white-space: nowrap;
+    background: #1e293b; color: #fff; font-size: .72rem; font-weight: 500;
+    padding: .25rem .5rem; border-radius: 6px; pointer-events: none;
+    opacity: 0; transition: opacity .12s; z-index: 40;
+  \}
+  [data-tooltip]:not([data-tooltip=""]):hover::after \{ opacity: 1; \}
+  .sidebar-foot \{
+    padding: .9rem 1.25rem; font-size: .75rem; color: rgba(255,255,255,.35);
+    border-top: 1px solid rgba(255,255,255,.06);
+  \}
+
+  /* Main column */
+  .main-col \{ flex: 1; display: flex; flex-direction: column; min-width: 0; \}
+  .topbar \{
+    height: 56px; flex-shrink: 0;
+    background: var(--topbar-bg);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: .75rem;
+    padding: 0 1rem;
+  \}
+  .page-title \{ margin: 0; font-size: 1.05rem; font-weight: 600; \}
+  .topbar-spacer \{ flex: 1; \}
+  .icon-btn \{
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 38px; height: 38px; border: none; border-radius: 8px;
+    background: transparent; color: var(--text); cursor: pointer; font-size: 1.1rem;
+  \}
+  .icon-btn:hover \{ background: var(--surface-2); \}
+  /* Language switch */
+  .lang-btn \{ width: auto; padding: 0 .6rem; gap: .25rem; font-size: .82rem; font-weight: 700; text-decoration: none; \}
+  /* Theme switch button styles travel with the packaged
+     fitz_liveviews.ui.ThemeToggle component (.flv-theme-toggle, scoped). The
+     --flv-* token aliases above keep it visually consistent. */
+  .user-chip \{ display: flex; align-items: center; gap: .5rem; \}
+  .user-avatar \{
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--primary); color: var(--primary-ink);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: .85rem;
+  \}
+  .user-name \{ font-size: .9rem; font-weight: 500; \}
+
+  .content \{ padding: 1.5rem; flex: 1; max-width: 1200px; width: 100%; margin: 0 auto; \}
+
+  /* Drawer overlay (mobile) */
+  .drawer-overlay \{ display: none; \}
+
+  /* Collapsed sidebar (desktop) */
+  body.nav-collapsed .sidebar \{ width: 64px; \}
+  body.nav-collapsed .nav-label \{ display: none; \}
+  body.nav-collapsed .nav-item \{ justify-content: center; \}
+
+  /* Mobile: sidebar becomes an off-canvas drawer */
+  @media (max-width: 768px) \{
+    .sidebar \{
+      position: fixed; top: 0; left: -260px; bottom: 0; width: 240px;
+      z-index: 50; transition: left .2s ease;
+    \}
+    body.nav-open .sidebar \{ left: 0; \}
+    .drawer-overlay \{ position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 40; \}
+    body.nav-open .drawer-overlay \{ display: block; \}
+    body.nav-collapsed .sidebar \{ width: 240px; \}
+    body.nav-collapsed .nav-label \{ display: inline; \}
+    .user-name \{ display: none; \}
+    .content \{ padding: 1rem; \}
+  \}
+  """
+}

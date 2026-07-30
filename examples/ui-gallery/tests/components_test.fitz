@@ -19,9 +19,13 @@ from fitz_liveviews.ui.Alert import alert, alert_render
 from fitz_liveviews.ui.Input import input, input_render
 from fitz_liveviews.ui.Modal import modal, modal_render, modal_show, modal_close
 from fitz_liveviews.ui.Breadcrumbs import breadcrumbs, breadcrumbs_render
-from fitz_liveviews.ui.shell_types import Crumb
+from fitz_liveviews.ui.shell_types import Crumb, NavItem, NavGroup
 from fitz_liveviews.ui.ThemeToggle import theme_toggle, theme_toggle_render
 from fitz_liveviews.ui.theme_scripts import theme_boot_script, theme_cycle_script
+from fitz_liveviews.ui.Sidebar import sidebar_render
+from fitz_liveviews.ui.Topbar import topbar_render, initials_of
+from fitz_liveviews.ui.AppShell import app_shell, ui_shell_css, shell_behavior_script
+from fitz_liveviews import html
 
 // --- Pager (presentational / controlled) ---
 
@@ -445,4 +449,158 @@ from fitz_liveviews.ui.theme_scripts import theme_boot_script, theme_cycle_scrip
     let cs: List<Crumb> = [Crumb { label: "Home", href: "" }]
     let h = breadcrumbs_render(breadcrumbs { items: cs, aria_label: "Migas" }).raw
     assert(h.contains("aria-label=\"Migas\""))
+}
+
+// === Shell family, part 3 — Sidebar / Topbar / AppShell ===
+// Plain render helpers (not .fitzv): they compose document/HTML strings from a
+// nav data model + already-rendered pieces. Tested like the other components:
+// the rendered HTML/CSS is asserted on substrings.
+
+// --- Sidebar (nav model → left rail) ---
+
+// A small nav model reused by the sidebar tests.
+fn sample_nav() -> List<NavGroup> {
+    return [
+        NavGroup {
+            items: [NavItem { href: "/", label: "Dashboard", key: "dashboard", icon: "📊" }],
+        },
+        NavGroup {
+            label: "Organización",
+            icon: "🗂️",
+            items: [
+                NavItem { href: "/empleados", label: "Empleados", key: "empleados", icon: "👥" },
+                NavItem { href: "/departamentos", label: "Deptos", key: "departamentos", icon: "🏢" },
+            ],
+        },
+    ]
+}
+
+@test fn sidebar_renders_brand_flat_link_and_active_item() {
+    let h = sidebar_render("Fitz Admin", "▲", sample_nav(), "empleados", "Personas").raw
+    assert(h.contains("<aside class=\"sidebar\">"))
+    assert(h.contains("brand-mark"))
+    assert(h.contains("Fitz Admin"))
+    // flat top-level link (label == "" group → plain nav-item, no <details>)
+    assert(h.contains("href=\"/\""))
+    assert(h.contains("Dashboard"))
+    // leaf links close the mobile drawer on click
+    assert(h.contains("onclick=\"flvCloseDrawer()\""))
+    // the active screen's item gets `.active`
+    assert(h.contains("nav-item active"))
+    // the footer line
+    assert(h.contains("Personas"))
+}
+
+@test fn sidebar_group_auto_opens_when_a_child_is_active() {
+    // "empleados" is inside the "Organización" group → the <details> opens.
+    let h = sidebar_render("A", "▲", sample_nav(), "empleados", "F").raw
+    assert(h.contains("<details class=\"nav-group\" open>"))
+    assert(h.contains("nav-group-head"))
+}
+
+@test fn sidebar_group_stays_closed_when_no_child_is_active() {
+    // "dashboard" is a flat item, so the "Organización" group has no active child.
+    let h = sidebar_render("A", "▲", sample_nav(), "dashboard", "F").raw
+    assert(h.contains("<details class=\"nav-group\">"))
+    assert(not h.contains("<details class=\"nav-group\" open>"))
+}
+
+@test fn sidebar_escapes_labels_and_brand() {
+    let nav: List<NavGroup> = [
+        NavGroup { items: [NavItem { href: "/x", label: "<b>x</b>", key: "x" }] },
+    ]
+    let h = sidebar_render("<i>A</i>", "▲", nav, "none", "<u>f</u>").raw
+    assert(h.contains("&lt;b&gt;"))   // item label
+    assert(h.contains("&lt;i&gt;"))   // brand
+    assert(h.contains("&lt;u&gt;"))   // foot
+}
+
+// --- Topbar (title + hamburger + slots + user chip) ---
+
+@test fn topbar_renders_title_hamburger_slots_and_chip() {
+    let actions = html("<a href=\"/lang/en\">ES</a>")
+    let trail = html("<a href=\"/logout\">out</a>")
+    let h = topbar_render("Panel", "Menú", "Ada Lovelace", "A", actions, trail).raw
+    assert(h.contains("class=\"topbar\""))
+    assert(h.contains("onclick=\"flvToggleNav()\""))   // hamburger toggles the drawer
+    assert(h.contains("aria-label=\"Menú\""))
+    assert(h.contains("Panel"))
+    assert(h.contains("user-chip"))
+    assert(h.contains("user-avatar\">A<"))             // avatar initials
+    assert(h.contains("Ada Lovelace"))                 // name
+    assert(h.contains("/lang/en"))                     // actions slot (before chip)
+    assert(h.contains("/logout"))                      // trail slot (after chip)
+}
+
+@test fn topbar_escapes_title_and_user_name() {
+    let h = topbar_render("<b>T</b>", "M", "<i>U</i>", "U", html(""), html("")).raw
+    assert(h.contains("&lt;b&gt;"))
+    assert(h.contains("&lt;i&gt;"))
+}
+
+@test fn initials_of_takes_first_letter_upper() {
+    assert_eq(initials_of("ada lovelace"), "A")
+    assert_eq(initials_of("  bob"), "B")
+}
+
+@test fn initials_of_blank_is_a_question_mark() {
+    assert_eq(initials_of(""), "?")
+    assert_eq(initials_of("   "), "?")
+}
+
+// --- AppShell (document layout + baked chrome CSS + behavior script) ---
+
+@test fn app_shell_assembles_document_with_pieces_and_chrome() {
+    let h = app_shell(
+        "Panel · Fitz Admin",
+        "es",
+        html("<meta name=\"head-marker\" />"),           // head_extra
+        html("<aside class=\"sidebar\">SB</aside>"),     // sidebar
+        html("<header class=\"topbar\">TB</header>"),    // topbar
+        html("<div class=\"crumb-bar\">CB</div>"),       // crumbs
+        html("<h2>Body</h2>"),                           // body
+        html("<script>/*extra*/</script>"),             // body_extra
+    ).raw
+    assert(h.contains("<!doctype html>"))
+    assert(h.contains("<html lang=\"es\" data-theme=\"auto\">"))
+    assert(h.contains("<title>Panel · Fitz Admin</title>"))
+    assert(h.contains("head-marker"))                    // head_extra baked in
+    assert(h.contains("class=\"admin\""))
+    assert(h.contains("<aside class=\"sidebar\">SB</aside>"))
+    assert(h.contains("<header class=\"topbar\">TB</header>"))
+    assert(h.contains("crumb-bar"))
+    assert(h.contains("<main class=\"content\">"))
+    assert(h.contains("<h2>Body</h2>"))
+    assert(h.contains("drawer-overlay"))
+    assert(h.contains("window.flvToggleNav"))            // baked behavior script
+    assert(h.contains("/*extra*/"))                      // body_extra baked in
+    // the chrome stylesheet is baked (tokens + selectors)
+    assert(h.contains("--sidebar-bg"))
+    assert(h.contains("max-width: 1200px"))              // .content chrome rule
+}
+
+@test fn ui_shell_css_has_chrome_selectors_not_screen_css() {
+    let css = ui_shell_css()
+    // brace-free markers unique to each chrome selector
+    assert(css.contains("min-height: 100vh"))            // .admin
+    assert(css.contains("width: 240px"))                 // .sidebar
+    assert(css.contains("height: 56px"))                 // .topbar
+    assert(css.contains("max-width: 1200px"))            // .content
+    assert(css.contains("drawer-overlay"))
+    assert(css.contains("--sidebar-bg"))
+    assert(css.contains("--flv-color-primary"))          // companion UI tokens
+    assert(css.contains("max-width: 768px"))             // drawer media query
+    assert(css.contains("nav-collapsed"))                // desktop collapse
+    // screen-specific CSS belongs to the host, not the chrome sheet
+    assert(not css.contains(".stat-card"))
+    assert(not css.contains(".login-card"))
+}
+
+@test fn shell_behavior_script_defines_nav_toggles() {
+    let s = shell_behavior_script().raw
+    assert(s.contains("<script>"))
+    assert(s.contains("window.flvToggleNav"))
+    assert(s.contains("window.flvCloseDrawer"))
+    assert(s.contains("nav-open"))
+    assert(s.contains("nav-collapsed"))
 }

@@ -53,9 +53,12 @@ from fitz_liveviews.ui.Spinner import spinner, spinner_render
 from fitz_liveviews.ui.icon import icon
 from fitz_liveviews.ui.theme import ui_theme
 from fitz_liveviews.ui.Breadcrumbs import breadcrumbs, breadcrumbs_render
-from fitz_liveviews.ui.shell_types import Crumb
+from fitz_liveviews.ui.shell_types import Crumb, NavItem, NavGroup
 from fitz_liveviews.ui.ThemeToggle import theme_toggle, theme_toggle_render
 from fitz_liveviews.ui.theme_scripts import theme_boot_script, theme_cycle_script
+from fitz_liveviews.ui.Sidebar import sidebar_render
+from fitz_liveviews.ui.Topbar import topbar_render, initials_of
+from fitz_liveviews.ui.AppShell import app_shell, ui_shell_css, shell_behavior_script
 ```
 
 They're **i18n-agnostic** (the host passes already-localized text), styled with
@@ -450,59 +453,158 @@ and `aria_label: Str` (default `"Theme"`). Labels are embedded into JS
 single-quoted strings — pass already-localized text without apostrophes. Styled
 with `<style scoped>` over `--flv-*` tokens.
 
+### Sidebar — branded nav rail
+
+The third Shell-family piece: the left rail, built from a **nav data model**. A
+`NavGroup` with `label == ""` renders its `items` as flat top-level links; a
+named group nests them inside a native `<details>` menu that **auto-opens** when
+one of its items is the active screen (zero JS). Leaf links close the mobile
+drawer on click. Controlled/presentational — render it fresh each frame; it
+declares no events. It's a plain `.fitz` render helper (the two-level
+groups→items loop wrapping a `<details>` can't be a flat SSR `{#for}` template).
+
+```
+from fitz_liveviews.ui.Sidebar import sidebar_render
+from fitz_liveviews.ui.shell_types import NavItem, NavGroup
+
+let nav: List<NavGroup> = [
+    NavGroup { items: [NavItem { href: "/", label: "Dashboard", key: "dashboard", icon: "📊" }] },
+    NavGroup {
+        label: "Organization", icon: "🗂️",
+        items: [
+            NavItem { href: "/employees", label: "Employees", key: "employees", icon: "👥" },
+            NavItem { href: "/departments", label: "Departments", key: "departments", icon: "🏢" },
+        ],
+    },
+]
+let sidebar = sidebar_render("My App", "▲", nav, active, "People & Access")
+```
+
+`sidebar_render(brand, brand_mark, groups, active, foot) -> Html`. `active`
+matches each `NavItem.key`. The `.sidebar` / `.nav-*` chrome — desktop collapse
+and the mobile off-canvas drawer — is styled by `ui_shell_css()` (baked by
+`AppShell`).
+
+| type | field | default |
+|---|---|---|
+| `NavItem` | `href`, `label` | — (required) |
+| `NavItem` | `key`, `icon` | `""` |
+| `NavGroup` | `items` | `[]` |
+| `NavGroup` | `label`, `icon` | `""` |
+
+### Topbar — sticky header
+
+The fourth Shell-family piece: the top bar — a drawer/collapse hamburger
+(`flvToggleNav()`), the page title, a flexible action cluster, a user chip
+(avatar + name), and a trailing slot. `actions` and `user_trail` are
+pre-rendered `Html` you compose with your own routes + localized labels
+(language switch, theme toggle, logout), so the bar stays app-agnostic.
+Controlled — no events.
+
+```
+from fitz_liveviews.ui.Topbar import topbar_render, initials_of
+
+let theme_switch = theme_toggle_render(theme_toggle { label: "🖥️ Auto", aria_label: "Theme" }).raw
+let actions = html("""<a class="icon-btn lang-btn" href="/lang/en">🌐 ES</a>
+  {theme_switch}""")
+let logout = html("""<a class="icon-btn" href="/logout" aria-label="Log out">🚪</a>""")
+let topbar = topbar_render(title, "Menu", user_name, initials_of(user_name), actions, logout)
+```
+
+`topbar_render(title, menu_label, user_name, user_initials, actions, user_trail)
+-> Html`. `actions` renders before the user chip, `user_trail` after. The helper
+`initials_of(name) -> Str` gives the avatar text (first letter, upper, or `"?"`
+for blank) — pass your own for two-letter initials or an image. Styled by
+`ui_shell_css()` (the `.topbar` / `.icon-btn` / `.user-chip` chrome).
+
+### AppShell — document layout
+
+The fifth Shell-family piece: the full `<!doctype html>` page. It takes the
+already-rendered `sidebar` / `topbar` / `crumbs` / `body` and arranges them,
+**baking** the chrome stylesheet (`ui_shell_css()` — tokens + reset + `.sidebar`
+/ `.topbar` / `.content` + collapse/drawer responsive) and the drawer/collapse
+behavior script. You supply your screen CSS + theme scripts via `head_extra` /
+`body_extra`.
+
+```
+from fitz_liveviews.ui.AppShell import app_shell
+
+let head_extra = html("""{boot}
+  <style>{my_screen_css()}</style>""")            // theme boot script + your CSS
+let body_extra = theme_cycle_script("my-app-theme", "☀️ Light", "🌙 Dark", "🖥️ Auto")
+let page = app_shell(title, locale, head_extra, sidebar, topbar, crumbs, body, body_extra)
+```
+
+`app_shell(title, lang, head_extra, sidebar, topbar, crumbs, body, body_extra) ->
+Html`. Pass an empty `html("")` for `crumbs` to skip the breadcrumb bar.
+`ui_shell_css()` and `shell_behavior_script()` are exported too, so a bare page
+(e.g. a login screen) can inline the chrome tokens without the whole shell.
+
+| arg | type | role |
+|---|---|---|
+| `title` | `Str` | `<title>` text (escaped) |
+| `lang` | `Str` | `<html lang="...">` |
+| `head_extra` | `Html` | theme boot script + your screen `<style>` |
+| `sidebar` / `topbar` / `crumbs` / `body` | `Html` | rendered pieces |
+| `body_extra` | `Html` | theme cycle script + app JS |
+
 ---
 
-## Shell
+## Shell — composing the pieces
 
-The chrome around every screen. Built as plain render helpers (`page_layout`
-composes the full document and drops the active screen into `<main>`).
-
-### AppShell · Sidebar · Topbar
-
-`page_layout(title, active, user, body, locale)` wraps the sidebar + topbar +
-breadcrumbs around a screen body. The sidebar collapses to a drawer on mobile
-(CSS-only, `data-*` toggles); the topbar carries the user chip, theme toggle
-and language switch.
+The Admin ABM's `page_layout` wires the five Shell-family pieces into one
+document: it builds the nav model, renders the `Sidebar` / `Topbar` /
+`Breadcrumbs`, and hands them to `app_shell`, which bakes the chrome CSS +
+drawer/collapse script. The host owns only its **screen** CSS (`admin_css`) +
+i18n + routes.
 
 ```
 fn page_layout(title: Str, active: Str, user_name: Str, body: Html, locale: Str) -> Html {
-    let sidebar = render_sidebar(active, locale)
-    let topbar = render_topbar(title, user_name, locale)
-    let crumbs = render_breadcrumbs(title, locale)
-    return html("""<!doctype html><html lang="{locale}" ...>
-      <body><div class="admin">{sidebar}
-        <div class="main-col">{topbar}{crumbs}<main>{body.raw}</main></div>
-      </div></body></html>""")
+    let sidebar = sidebar_render("Fitz Admin", "▲", admin_nav(locale), active, t(locale, "app.tagline"))
+    let topbar = topbar_render(title, t(locale, "topbar.menu"), user_name,
+        initials_of(user_name), topbar_actions(locale), topbar_logout(locale))
+    let crumbs = render_breadcrumbs(title, locale)   // wraps packaged Breadcrumbs in .crumb-bar
+
+    let boot = theme_boot_script("flv-admin-theme").raw
+    let screen_css = admin_css()
+    let head_extra = html("""{boot}
+  <style>{screen_css}</style>""")
+    let body_extra = theme_cycle_script("flv-admin-theme",
+        t(locale, "theme.light"), t(locale, "theme.dark"), t(locale, "theme.auto"))
+
+    return app_shell("{title} · Fitz Admin", locale, head_extra, sidebar, topbar, crumbs, body, body_extra)
 }
 ```
 
-### nested Menu
-
-A collapsible sidebar group is a native `<details>` — zero JS, auto-open when
-one of its children is the active screen.
-
-```
-<details class="nav-group"{open}>
-  <summary class="nav-item nav-group-head">🗂️ {flv(label)} <span class="nav-caret">▾</span></summary>
-  <div class="nav-sub">{children}</div>
-</details>
-```
-
-### Breadcrumbs
+The nav data model (`NavItem` / `NavGroup`) makes the sidebar declarative — the
+"Organización" group is one named `NavGroup`, so it renders as a native
+`<details>` menu that auto-opens on its child screens:
 
 ```
-fn render_breadcrumbs(title: Str, locale: Str) -> Str {
-    let home = t(locale, "crumb.admin")
-    return """<nav class="breadcrumbs"><a href="/">{flv(home)}</a>
-      <span class="crumb-sep">/</span><span class="crumb-current">{flv(title)}</span></nav>"""
+fn admin_nav(locale: Str) -> List<NavGroup> {
+    return [
+        NavGroup { items: [NavItem { href: "/", label: t(locale, "nav.dashboard"), key: "dashboard", icon: "📊" }] },
+        NavGroup {
+            label: t(locale, "nav.organizacion"), icon: "🗂️",
+            items: [
+                NavItem { href: "/empleados", label: t(locale, "nav.empleados"), key: "empleados", icon: "👥" },
+                NavItem { href: "/departamentos", label: t(locale, "nav.departamentos"), key: "departamentos", icon: "🏢" },
+            ],
+        },
+    ]
 }
 ```
 
-### ThemeToggle
+For a bare page with no shell (e.g. login), skip `app_shell` and inline the
+chrome tokens yourself with `ui_shell_css()` + your screen CSS:
 
-Light / dark / auto via `data-theme` on `<html>` + `localStorage`. An inline
-head script sets the theme **before first paint** (no flash), and a body
-script cycles it. Per-browser — never over the WebSocket.
+```
+let boot = theme_boot_script("flv-admin-theme").raw
+return html("""<!doctype html><html lang="{locale}" data-theme="auto"><head>
+  <title>{flv(title)}</title>{boot}
+  <style>{ui_shell_css()}{admin_css()}</style>
+</head><body class="login-body">{body.raw}</body></html>""")
+```
 
 ---
 

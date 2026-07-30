@@ -1,0 +1,75 @@
+// Sidebar.fitz — the packaged admin sidebar (Phase 9 — Shell family, part 3).
+// Renders the branded left rail: a brand header, a nav built from a data model
+// (`List<NavGroup>` of `NavItem`s, with native `<details>` nested groups), and
+// a foot line. Generalized from the Admin ABM's hand-rolled `render_sidebar`.
+//
+// Kept a plain `.fitz` render helper (not a `.fitzv`) because the nav is a
+// two-level loop (groups → items) wrapping a `<details>`/`<summary>` structure
+// that can't be expressed as a flat SSR `{#for}` template. Same split as
+// `theme_scripts` / `icon` / `theme`. The SSR target has no `<slot>`/`<Child />`
+// inside `{#for}` (WASM-only, Fitz core Phase 11.7), so building the string with
+// `h_join(groups.map(...))` is the SSR-correct way.
+//
+// CLIENT coupling: leaf links carry `onclick="flvCloseDrawer()"` and the whole
+// rail is styled + collapsed/drawered by `ui_shell_css()` (baked by AppShell).
+// Both are provided by `fitz_liveviews.ui.AppShell`.
+//
+// i18n: every label arrives already-localized (the kit convention — the host
+// owns the text). Labels are escaped with `flv()`; `href`/`icon`/`brand_mark`
+// are server-controlled and pass through raw.
+
+from shell_types import NavItem, NavGroup
+from fitz_liveviews import Html, html, flv, h_join
+
+// One leaf nav link. `active` is the current screen key; a matching `item.key`
+// gets the `.active` class.
+fn nav_link(item: NavItem, active: Str) -> Html {
+    let cls: Str = match item.key == active {
+        true => "nav-item active",
+        false => "nav-item",
+    }
+    return html("""<a href="{item.href}" class="{cls}" onclick="flvCloseDrawer()">
+      <span class="nav-icon">{item.icon}</span><span class="nav-label">{flv(item.label)}</span>
+    </a>""")
+}
+
+// One nav section. `label == ""` → flat top-level links; otherwise a native
+// `<details>` group, auto-opened when one of its items is the active screen.
+fn nav_group_html(group: NavGroup, active: Str) -> Html {
+    let links = group.items.map(fn(it) => nav_link(it, active))
+    let inner = h_join(links)
+    if (group.label == "") {
+        return html(inner)
+    }
+    let active_children = group.items.filter(fn(it) => it.key == active)
+    let grp_open: Str = match active_children.len() > 0 {
+        true => " open",
+        false => "",
+    }
+    return html("""<details class="nav-group"{grp_open}>
+      <summary class="nav-item nav-group-head">
+        <span class="nav-icon">{group.icon}</span><span class="nav-label">{flv(group.label)}</span>
+        <span class="nav-caret nav-label">▾</span>
+      </summary>
+      <div class="nav-sub">
+        {inner}
+      </div>
+    </details>""")
+}
+
+// Render the full sidebar. `brand` / `brand_mark` are the header; `groups` is
+// the nav model; `active` marks the current screen; `foot` is the footer line.
+fn sidebar_render(brand: Str, brand_mark: Str, groups: List<NavGroup>, active: Str, foot: Str) -> Html {
+    let sections = groups.map(fn(g) => nav_group_html(g, active))
+    let nav_inner = h_join(sections)
+    return html("""<aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark">{brand_mark}</span>
+        <span class="brand-name nav-label">{flv(brand)}</span>
+      </div>
+      <nav class="nav">
+        {nav_inner}
+      </nav>
+      <div class="sidebar-foot nav-label">{flv(foot)}</div>
+    </aside>""")
+}

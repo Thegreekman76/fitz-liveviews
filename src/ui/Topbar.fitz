@@ -1,0 +1,52 @@
+// Topbar.fitz — the packaged admin top bar (Phase 9 — Shell family, part 3).
+// Renders the sticky header: a drawer/collapse hamburger, the page title, a
+// flexible action cluster, a user chip (avatar + name), and a trailing slot
+// (logout, etc). Generalized from the Admin ABM's hand-rolled `render_topbar`.
+//
+// Kept a plain `.fitz` render helper (not a `.fitzv`) so the host can compose
+// the `actions` / `user_trail` clusters (language switch, theme toggle, logout)
+// with its own routes and localized labels — those are app-specific and would
+// not fit a fixed component template. Same split as `theme_scripts` / `icon`.
+//
+// CLIENT coupling: the hamburger fires `flvToggleNav()` (defined by the shell
+// behavior script AppShell bakes). The `.topbar` / `.icon-btn` / `.user-chip`
+// chrome is styled by `ui_shell_css()`.
+//
+// i18n: `title` / `menu_label` / `user_name` arrive already-localized and are
+// escaped with `flv()`. `actions` and `user_trail` are pre-rendered `Html`
+// composed by the host.
+
+from fitz_liveviews import Html, html, flv
+
+// Convenience: the avatar text for a display name — the first letter, upper,
+// or "?" when the name is blank. Hosts can pass their own `user_initials`
+// instead (two-letter initials, an image, etc).
+fn initials_of(name: Str) -> Str {
+    let nm = name.trim()
+    if (nm.is_empty()) {
+        return "?"
+    }
+    return nm.left(1).upper()
+}
+
+// Render the top bar.
+//   title         page heading (already-localized)
+//   menu_label    aria-label for the hamburger (already-localized)
+//   user_name     display name for the chip
+//   user_initials avatar text (see `initials_of`)
+//   actions       right-side cluster rendered BEFORE the user chip
+//                 (e.g. language switch + theme toggle)
+//   user_trail    cluster rendered AFTER the user chip (e.g. logout)
+fn topbar_render(title: Str, menu_label: Str, user_name: Str, user_initials: Str, actions: Html, user_trail: Html) -> Html {
+    return html("""<header class="topbar">
+      <button class="icon-btn" onclick="flvToggleNav()" aria-label="{flv(menu_label)}">☰</button>
+      <h1 class="page-title">{flv(title)}</h1>
+      <div class="topbar-spacer"></div>
+      {actions.raw}
+      <div class="user-chip" title="{flv(user_name)}">
+        <span class="user-avatar">{flv(user_initials)}</span>
+        <span class="user-name nav-label">{flv(user_name)}</span>
+      </div>
+      {user_trail.raw}
+    </header>""")
+}
