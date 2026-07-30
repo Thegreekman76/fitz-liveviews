@@ -1,0 +1,13 @@
+// todo_helpers.fitz — pure sibling helper for TodoList.fitzv.
+//
+// The `.fitzv` event-body parser doesn't accept inline `==`/`!=`, so the
+// "keep everything except the target" predicate lives here in classic
+// Fitz and is imported by the component. The wasm build loads sibling
+// `.fitz` fns (core R3.5a.2), same as the kanban's board_helpers.
+
+// Keep every item whose text is NOT the target (used to remove one).
+// Note: removes by value, so duplicate texts are removed together —
+// fine for a demo list.
+fn keep_if_not(target: Str, x: Str) -> Bool {
+  return x != target
+}

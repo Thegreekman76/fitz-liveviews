@@ -32,20 +32,35 @@ this file summarises what shipped at each release.
 > and uses a DOM-ops render model). See [`docs/client-wasm-plan.md`](docs/client-wasm-plan.md).
 > The formal version bump ships with CW.5.
 
-### Added — the client component set (CW.2, in progress)
+### Added — the client component set (CW.2)
 
-- **`Toggle.fitzv`** — a Bool switch. Note: the `.fitzv` view lexer rejects `!` in
-  event bodies (only `!=`), so the flip is `on = on == false`.
-- **`Tabs.fitzv`** — client-side panel switching (`Int` state + `{#if active == N}`
-  comparison conditions + `{#if}{#else}` to highlight the active tab). The headline
-  of the client-WASM story: zero round-trips, instant panel swap.
-- **`Stepper.fitzv`** — a bounded `[0, 10]` number input using an `if`-as-value
-  expression on the RHS of the event-body assignment.
-- Each is a standalone `[[bin]]` in `examples/wasm-gallery/fitz.toml`; all compile
-  to wasm. The composed live gallery page lands in CW.3.
+Eight standalone client components, each a `[[bin]]` in
+`examples/wasm-gallery/fitz.toml`; all compile to wasm. The composed live gallery
+page lands in CW.3.
+
+- **`Counter.fitzv`** — `Int` state, arithmetic events (from CW.1).
+- **`Toggle.fitzv`** — a Bool switch. The `.fitzv` view lexer rejects `!` in event
+  bodies (only `!=`), so the flip is `on = on == false`.
+- **`Tabs.fitzv`** — client-side panel switching (`{#if active == N}` comparison
+  conditions + `{#if}{#else}` to highlight the active tab). The headline of the
+  client-WASM story: zero round-trips, instant panel swap.
+- **`Stepper.fitzv`** — a bounded `[0, 10]` input using an `if`-as-value on the RHS
+  of the event-body assignment.
+- **`Rating.fitzv`** — a 0–5 star picker (`{#if stars >= N}` fill).
+- **`Accordion.fitzv`** — a 3-section expander, one open at a time (`Int` state,
+  `if`-as-value to close). The wasm emitter defers unary negation `-1`, so the
+  "closed" sentinel is a non-negative `9`.
+- **`Modal.fitzv`** — an open/close dialog (`{#if open}` mounts/unmounts the overlay).
+- **`TodoList.fitzv`** — add/remove a `List<Str>` (`{#for}`, `items.push(...)` from a
+  `data-flv-submit` form payload, `items.filter(...)` to remove via a
+  `data-flv-value-*` click payload). The `!=` remove predicate lives in the sibling
+  `todo_helpers.fitz` (the view lexer rejects inline `!=` in event bodies).
 
 ### Fixed
 
+- **CI: `docs.yml` wasm build failed once the manifest declared more than one
+  `[[bin]]`** — `fitz build --target wasm-client` is ambiguous with several bins.
+  The step now passes `--bin counter` (CW.3 switches it to the composed gallery bin).
 - The `wasm-gallery` host page painted only the centered 680px column, exposing the
   browser's default (near-black) canvas on the sides in dark mode. Backgrounding
   `<html>` + `color-scheme: light dark` now paints the full viewport in both schemes.

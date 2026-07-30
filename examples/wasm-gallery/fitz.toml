@@ -44,3 +44,27 @@ name = "stepper"
 main = "Stepper.fitzv"
 target = "wasm-client"
 mount = "#app"
+
+[[bin]]
+name = "rating"
+main = "Rating.fitzv"
+target = "wasm-client"
+mount = "#app"
+
+[[bin]]
+name = "accordion"
+main = "Accordion.fitzv"
+target = "wasm-client"
+mount = "#app"
+
+[[bin]]
+name = "modal"
+main = "Modal.fitzv"
+target = "wasm-client"
+mount = "#app"
+
+[[bin]]
+name = "todolist"
+main = "TodoList.fitzv"
+target = "wasm-client"
+mount = "#app"

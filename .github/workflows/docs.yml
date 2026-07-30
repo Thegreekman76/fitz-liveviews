@@ -86,7 +86,10 @@ jobs:
 
       - name: Build the wasm gallery
         working-directory: examples/wasm-gallery
-        run: fitz build --target wasm-client
+        # The manifest declares several client bins (one per component). The
+        # live `/live/` page mounts the counter; CW.3 will compose a single
+        # `Gallery` root and this switches to `--bin gallery`.
+        run: fitz build --bin counter --target wasm-client
 
       - name: Assemble site/live
         run: |

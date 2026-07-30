@@ -1,0 +1,82 @@
+// Accordion.fitzv — a 3-section expander, one open at a time (CW.2).
+// Standalone client component: imports nothing, `{...}`, local `@click`.
+//
+// Exercises: `Int` state as "which section is open" (9 = none — a
+// non-negative sentinel, since the `.fitzv` wasm emitter defers unary
+// negation `-1` in event bodies), `if`-as-value to toggle a section
+// closed, and `{#if open == N}` to show each body.
+
+component Accordion {
+  state { open: Int = 0 }
+
+  event toggle0() { open = if (open == 0) { 9 } else { 0 } }
+  event toggle1() { open = if (open == 1) { 9 } else { 1 } }
+  event toggle2() { open = if (open == 2) { 9 } else { 2 } }
+
+  <template>
+    <div class="acc">
+      <div class="item">
+        <button class="head" @click="toggle0">
+          <span>Qué es client-WASM</span>
+          {#if open == 0}<span class="chev">−</span>{#else}<span class="chev">+</span>{/if}
+        </button>
+        {#if open == 0}<div class="body">Componentes compilados a WebAssembly que corren en el browser, sin servidor.</div>{/if}
+      </div>
+      <div class="item">
+        <button class="head" @click="toggle1">
+          <span>Dónde vive el estado</span>
+          {#if open == 1}<span class="chev">−</span>{#else}<span class="chev">+</span>{/if}
+        </button>
+        {#if open == 1}<div class="body">En Rust, dentro de la instancia WASM. Cada cambio re-renderiza el subárbol.</div>{/if}
+      </div>
+      <div class="item">
+        <button class="head" @click="toggle2">
+          <span>Cuándo usar SSR</span>
+          {#if open == 2}<span class="chev">−</span>{#else}<span class="chev">+</span>{/if}
+        </button>
+        {#if open == 2}<div class="body">Cuando el estado es compartido o vive en la DB: ahí gana LiveView sobre WebSocket.</div>{/if}
+      </div>
+    </div>
+  </template>
+
+  <style scoped>
+    .acc {
+      font-family: system-ui, sans-serif;
+      color: var(--flv-text, #1a1a1a);
+      max-width: 420px;
+      border: 1px solid var(--flv-border, #d9d9e0);
+      border-radius: var(--flv-radius-md, 8px);
+      overflow: hidden;
+    }
+    .item {
+      border-bottom: 1px solid var(--flv-border, #d9d9e0);
+    }
+    .head {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: none;
+      background: var(--flv-surface, #ffffff);
+      color: var(--flv-text, #1a1a1a);
+      padding: 14px 16px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-align: left;
+    }
+    .head:hover {
+      background: var(--flv-surface-2, #f5f5f7);
+    }
+    .chev {
+      color: var(--flv-color-primary, #ce412b);
+      font-size: 1.2rem;
+    }
+    .body {
+      padding: 4px 16px 16px;
+      color: var(--flv-text-muted, #55555c);
+      line-height: 1.55;
+      font-size: 0.9rem;
+    }
+  </style>
+}

@@ -1,0 +1,112 @@
+// TodoList.fitzv — add/remove a list of items, all client-side (CW.2).
+// The most dynamic widget of the set: a `List<Str>` state, a submit form
+// that reads the payload, and per-item delete buttons that carry their
+// value in a `data-flv-value-*` attribute.
+//
+// Exercises: `List<Str>` state, `{#for it in items}`, `items.push(...)`
+// from a form payload, `items = items.filter(...)` to remove, a submit
+// form (`data-flv-submit` + `data-flv-clear`), and a click payload
+// (`data-flv-value-text`). The `!=` predicate lives in the sibling
+// `todo_helpers.fitz` (the view lexer rejects inline `!=` in event bodies).
+
+from todo_helpers import keep_if_not
+
+component TodoList {
+  state { items: List<Str> = [] }
+
+  event add() {
+    if (payload.has("text")) {
+      items.push(payload["text"])
+    }
+  }
+
+  event remove() {
+    if (payload.has("text")) {
+      let target = payload["text"]
+      items = items.filter(fn(x) => keep_if_not(target, x))
+    }
+  }
+
+  <template>
+    <div class="todo">
+      <form class="row" data-flv-submit="add">
+        <input class="inp" name="text" placeholder="Nueva tarea" autocomplete="off" data-flv-clear />
+        <button class="add" type="submit">Agregar</button>
+      </form>
+      <ul class="list">
+        {#for it in items}
+          <li class="item">
+            <span class="txt">{it}</span>
+            <button class="del" data-flv-click="remove" data-flv-value-text="{it}" aria-label="Borrar tarea">×</button>
+          </li>
+        {/for}
+      </ul>
+      <p class="count">{items.len()} tarea(s)</p>
+    </div>
+  </template>
+
+  <style scoped>
+    .todo {
+      font-family: system-ui, sans-serif;
+      color: var(--flv-text, #1a1a1a);
+      max-width: 380px;
+    }
+    .row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .inp {
+      flex: 1;
+      padding: 9px 11px;
+      border: 1px solid var(--flv-border, #d9d9e0);
+      border-radius: var(--flv-radius-md, 8px);
+      background: var(--flv-surface, #ffffff);
+      color: var(--flv-text, #1a1a1a);
+      font-size: 0.95rem;
+    }
+    .add {
+      border: none;
+      border-radius: var(--flv-radius-md, 8px);
+      background: var(--flv-color-primary, #ce412b);
+      color: #ffffff;
+      padding: 9px 16px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 9px 12px;
+      border: 1px solid var(--flv-border, #d9d9e0);
+      border-radius: var(--flv-radius-md, 8px);
+      background: var(--flv-surface-2, #f5f5f7);
+    }
+    .txt {
+      font-size: 0.95rem;
+    }
+    .del {
+      border: none;
+      background: transparent;
+      color: var(--flv-color-danger, #c62828);
+      font-size: 1.2rem;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+    .count {
+      margin-top: 12px;
+      color: var(--flv-text-muted, #55555c);
+      font-size: 0.85rem;
+    }
+  </style>
+}

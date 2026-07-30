@@ -1,0 +1,80 @@
+// Rating.fitzv — a 0–5 star picker (CW.2). Standalone client component:
+// imports nothing, `{...}`, local `@click`, `--flv-*` look.
+//
+// Exercises: `Int` state, `{#if stars >= N}` comparison conditions to
+// fill each star, and a plain `{stars}` interpolation in the caption.
+
+component Rating {
+  state { stars: Int = 0 }
+
+  event set1() { stars = 1 }
+  event set2() { stars = 2 }
+  event set3() { stars = 3 }
+  event set4() { stars = 4 }
+  event set5() { stars = 5 }
+  event clear() { stars = 0 }
+
+  <template>
+    <div class="rating">
+      <div class="stars">
+        {#if stars >= 1}<button class="star on" @click="set1">★</button>{#else}<button class="star" @click="set1">☆</button>{/if}
+        {#if stars >= 2}<button class="star on" @click="set2">★</button>{#else}<button class="star" @click="set2">☆</button>{/if}
+        {#if stars >= 3}<button class="star on" @click="set3">★</button>{#else}<button class="star" @click="set3">☆</button>{/if}
+        {#if stars >= 4}<button class="star on" @click="set4">★</button>{#else}<button class="star" @click="set4">☆</button>{/if}
+        {#if stars >= 5}<button class="star on" @click="set5">★</button>{#else}<button class="star" @click="set5">☆</button>{/if}
+      </div>
+      <div class="foot">
+        <span class="cap">{stars} / 5</span>
+        {#if stars >= 1}<button class="clear" @click="clear">limpiar</button>{/if}
+      </div>
+    </div>
+  </template>
+
+  <style scoped>
+    .rating {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-family: system-ui, sans-serif;
+      color: var(--flv-text, #1a1a1a);
+    }
+    .stars {
+      display: flex;
+      gap: 2px;
+    }
+    .star {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 1.9rem;
+      line-height: 1;
+      padding: 2px;
+      color: var(--flv-border, #d9d9e0);
+      transition: transform .08s ease;
+    }
+    .star:hover {
+      transform: scale(1.15);
+    }
+    .on {
+      color: var(--flv-color-warning, #ed6c02);
+    }
+    .foot {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .cap {
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .clear {
+      border: 1px solid var(--flv-border, #d9d9e0);
+      border-radius: var(--flv-radius-md, 8px);
+      background: transparent;
+      color: var(--flv-text-muted, #55555c);
+      cursor: pointer;
+      font-size: 0.8rem;
+      padding: 3px 10px;
+    }
+  </style>
+}

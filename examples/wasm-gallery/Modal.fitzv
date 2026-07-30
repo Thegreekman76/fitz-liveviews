@@ -1,0 +1,103 @@
+// Modal.fitzv — an open/close dialog (CW.2). Standalone client component:
+// imports nothing, `{...}`, local `@click`, `--flv-*` look.
+//
+// Exercises: `Bool` state, `{#if open}` to mount/unmount the overlay, and
+// literal `true` / `false` assignments in event bodies.
+
+component Modal {
+  state { open: Bool = false }
+
+  event show() { open = true }
+  event hide() { open = false }
+
+  <template>
+    <div class="modal">
+      <button class="trigger" @click="show">Abrir modal</button>
+      {#if open}
+        <div class="overlay">
+          <div class="dialog">
+            <div class="dhead">
+              <strong>Hola desde WASM</strong>
+              <button class="x" @click="hide">×</button>
+            </div>
+            <p class="dbody">
+              Este diálogo se montó y desmontó del DOM client-side con un
+              bloque condicional del template — sin servidor, sin round-trip.
+            </p>
+            <div class="dfoot">
+              <button class="ok" @click="hide">Entendido</button>
+            </div>
+          </div>
+        </div>
+      {/if}
+    </div>
+  </template>
+
+  <style scoped>
+    .modal {
+      font-family: system-ui, sans-serif;
+    }
+    .trigger {
+      border: none;
+      border-radius: var(--flv-radius-md, 8px);
+      background: var(--flv-color-primary, #ce412b);
+      color: #ffffff;
+      padding: 10px 18px;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 50;
+    }
+    .dialog {
+      background: var(--flv-surface, #ffffff);
+      color: var(--flv-text, #1a1a1a);
+      border: 1px solid var(--flv-border, #d9d9e0);
+      border-radius: var(--flv-radius-md, 8px);
+      box-shadow: var(--flv-shadow-card, 0 6px 20px rgba(0, 0, 0, .12));
+      width: 100%;
+      max-width: 380px;
+      overflow: hidden;
+    }
+    .dhead {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--flv-border, #d9d9e0);
+    }
+    .x {
+      border: none;
+      background: transparent;
+      color: var(--flv-text-muted, #55555c);
+      font-size: 1.4rem;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+    .dbody {
+      padding: 16px;
+      line-height: 1.55;
+      color: var(--flv-text-muted, #55555c);
+    }
+    .dfoot {
+      padding: 0 16px 16px;
+      text-align: right;
+    }
+    .ok {
+      border: none;
+      border-radius: var(--flv-radius-md, 8px);
+      background: var(--flv-color-primary, #ce412b);
+      color: #ffffff;
+      padding: 8px 16px;
+      cursor: pointer;
+    }
+  </style>
+}
