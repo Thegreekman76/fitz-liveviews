@@ -215,76 +215,34 @@ fn admin_css() -> Str {
   .abm-form \{ display: flex; flex-direction: column; gap: .9rem; \}
   .form-row \{ display: flex; flex-direction: column; gap: .3rem; \}
   .form-row label \{ font-size: .78rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; \}
-  /* Native inline inputs/selects (the cascade + "reporta" selects stay inline —
-     they're a CascadeSelect / GroupSelect, later components). The text fields,
-     textarea, date and radios are packaged components with their own scoped
-     styles. */
-  .form-row input, .form-row select \{
-    border: 1px solid var(--border); background: var(--surface); color: var(--text);
-    border-radius: 8px; padding: .55rem .75rem; font-size: .9rem; width: 100%;
-    font-family: inherit;
-  \}
-  .form-row input:focus, .form-row select:focus \{ outline: none; border-color: var(--primary); \}
+  /* Every form field is a packaged component now (Input / Textarea / Select /
+     GroupSelect / DatePicker / RadioGroup / Rating / CheckboxGroup / MultiSelect)
+     with its own scoped `.flv-field` styles; only the row + grid LAYOUT stays. */
   .form-grid-3 \{ display: grid; grid-template-columns: repeat(3, 1fr); gap: .9rem; \}
   .form-grid-2 \{ display: grid; grid-template-columns: repeat(2, 1fr); gap: .9rem; \}
   @media (max-width: 560px) \{ .form-grid-3, .form-grid-2 \{ grid-template-columns: 1fr; \} \}
-  /* Tabs (Slice 8) — server-tracked active tab; all panels stay in the DOM */
-  .tab-nav \{ display: flex; gap: .25rem; border-bottom: 1px solid var(--border); margin-bottom: .3rem; \}
-  .tab-btn \{
-    border: none; background: none; color: var(--muted); cursor: pointer;
-    padding: .55rem .95rem; font-size: .88rem; font-weight: 600;
-    border-bottom: 2px solid transparent; margin-bottom: -1px;
-  \}
-  .tab-btn:hover \{ color: var(--text); \}
-  .tab-btn.tab-on \{ color: var(--primary); border-bottom-color: var(--primary); \}
+  /* Tabs — the tab NAV is the packaged fitz_liveviews.ui.Tabs component (scoped);
+     the panels stay host-managed here (all in the DOM, only the active shows, so a
+     save serializes every field regardless of tab). The alta wizard indicator is
+     the packaged fitz_liveviews.ui.Stepper (scoped). */
   .tab-panel \{ display: none; flex-direction: column; gap: .9rem; \}
   .tab-panel.tab-active \{ display: flex; \}
-  /* Stepper (Slice 8b) — guided onboarding for the "alta" form */
-  .stepper \{ display: flex; align-items: center; gap: .4rem; margin-bottom: .5rem; \}
-  .step \{ display: flex; align-items: center; gap: .45rem; opacity: .55; \}
-  .step-num \{
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 1.6rem; height: 1.6rem; border-radius: 50%; font-size: .8rem; font-weight: 700;
-    background: var(--surface-2, rgba(127,127,127,.15)); color: var(--muted);
-    border: 1px solid var(--border);
-  \}
-  .step-label \{ font-size: .82rem; font-weight: 600; \}
-  .step-line \{ flex: 1; height: 1px; background: var(--border); \}
-  .step.step-active \{ opacity: 1; \}
-  .step.step-active .step-num \{ background: var(--primary); color: #fff; border-color: var(--primary); \}
-  .step.step-done \{ opacity: 1; \}
-  .step.step-done .step-num \{ background: color-mix(in srgb, var(--primary) 18%, transparent); color: var(--primary); border-color: var(--primary); \}
-  @media (max-width: 560px) \{ .step-label \{ display: none; \} \}
   /* The estado RadioGroup + the desempeño Rating star input are packaged
      components now (fitz_liveviews.ui.RadioGroup / .Rating); their styles travel
      scoped. `.stars-ro` (the read-only star display in the expand-row detail)
      stays — it's a plain glyph run, not the input. */
   .stars-ro \{ color: #f59e0b; letter-spacing: .1rem; \}
-  /* Group-checkbox (permisos por módulo). */
-  .perm-groups \{ display: flex; flex-direction: column; gap: .6rem; \}
-  .perm-group \{ border: 1px solid var(--border); border-radius: 8px; padding: .5rem .75rem .65rem; margin: 0; \}
-  .perm-group legend \{ font-size: .75rem; font-weight: 700; color: var(--primary); padding: 0 .35rem; text-transform: uppercase; letter-spacing: .03em; \}
-  .perm-checks \{ display: grid; grid-template-columns: repeat(2, 1fr); gap: .3rem .9rem; \}
-  @media (max-width: 560px) \{ .perm-checks \{ grid-template-columns: 1fr; \} \}
-  .perm-check \{ display: flex; align-items: center; gap: .45rem; font-size: .85rem; cursor: pointer; \}
-  .perm-check input \{ width: auto; margin: 0; accent-color: var(--primary); \}
-  /* The skills multiselect is the packaged fitz_liveviews.ui.CheckboxGroup
-     (chips variant) now; its styles travel scoped. */
+  /* The permisos matrix is the packaged fitz_liveviews.ui.MultiSelect (grouped
+     checkboxes) and the skills chips are fitz_liveviews.ui.CheckboxGroup; both
+     travel scoped. */
   /* Tree view (Slice 4e) — país → provincia → ciudad */
   .btn-tree \{ margin-left: auto; \}
   .btn-tree + .btn-nuevo \{ margin-left: .5rem; \}
+  /* The locations tree itself is the packaged fitz_liveviews.ui.TreeView (scoped).
+     The tree SCREEN wrapper (`.tree-card` / `.tree-foot`) stays, and `.tree-arrow`
+     is shared with the grid's grouped rows (`.grp-toggle`). */
   .tree-card \{ padding: 1rem 1.1rem; \}
-  ul.tree \{ list-style: none; margin: 0; padding: 0; \}
-  ul.tree ul.tree \{ margin-left: 1.1rem; border-left: 1px dashed var(--border); padding-left: .4rem; \}
-  .tree-root > li \{ margin: .15rem 0; \}
-  .tree-node \{
-    display: inline-flex; align-items: center; gap: .45rem; cursor: pointer;
-    border: none; background: none; color: var(--text); font-size: .9rem;
-    padding: .25rem .4rem; border-radius: 6px; width: 100%; text-align: left;
-  \}
-  .tree-node:hover \{ background: var(--surface-2, rgba(127,127,127,.1)); \}
   .tree-arrow \{ color: var(--muted); font-size: .75rem; width: 1rem; display: inline-block; \}
-  .tree-leaf \{ padding: .25rem .4rem .25rem 1.4rem; font-size: .85rem; color: var(--muted); \}
   .tree-foot \{ margin-top: 1rem; \}
   /* Row selection + multi-delete + export (Slice 5) */
   .col-sel \{ width: 2.2rem; text-align: center; \}

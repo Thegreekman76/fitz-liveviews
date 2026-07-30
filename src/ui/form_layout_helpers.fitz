@@ -1,0 +1,59 @@
+// form_layout_helpers.fitz — shared data types for the packaged Forms-composite
+// family (FormLayout / FormRow / GroupSelect / MultiSelect / Tabs / Stepper /
+// TreeView). Kept a plain `.fitz` sibling (not a `.fitzv`) because `.fitzv` files
+// hold only `component` blocks — these datum types live alongside, imported by
+// both the components and the host. `OptionGroup` / `MultiSelect` reuse
+// `FieldOption` from `form_input_helpers`. Same split as `grid_helpers` /
+// `form_input_helpers` / `chart_helpers` / `shell_types`.
+
+from form_input_helpers import FieldOption
+
+// One `<optgroup>` for GroupSelect, or one titled section for the grouped
+// MultiSelect. `label` is the group heading; `options` are its members (`on`
+// marks the selected `<option>` / the ticked box).
+type OptionGroup {
+  label: Str
+  options: List<FieldOption> = []
+}
+
+// One tab in a Tabs bar. `value` is the id sent in the `data-flv-value-tab`
+// payload; `active` marks the current tab (server-tracked — a LiveView re-render
+// resets any CSS-only selection, so the host owns which tab is active).
+type Tab {
+  label: Str
+  value: Str
+  active: Bool = false
+}
+
+// One step in a Stepper. `state` drives the dot: "done" (a past step), "active"
+// (the current one), or "pending" (default, still ahead).
+type Step {
+  label: Str
+  state: Str = "pending"
+}
+
+// One visible row of a TreeView, already flattened by the host: the host walks
+// its hierarchy (filtering children by parent, honoring expanded state) and emits
+// one `TreeNode` per visible node, with its `depth` (0 = root) for the indent.
+// A branch node carries `expanded` + a fall-through `event` (+ `value` payload)
+// for its toggle; a `leaf` renders as plain text. `icon` is an optional leading
+// glyph (emoji or short text).
+type TreeNode {
+  label: Str
+  depth: Int = 0
+  leaf: Bool = false
+  expanded: Bool = false
+  event: Str = ""
+  value: Str = ""
+  icon: Str = ""
+}
+
+// The disclosure glyph for a TreeView branch node — ▾ expanded / ▸ collapsed.
+// Kept a free helper so the TreeView template interpolates `{tree_arrow(n.expanded)}`
+// instead of nesting another `{#if}` inside the leaf/branch branch.
+fn tree_arrow(expanded: Bool) -> Str {
+  return match expanded {
+    true => "▾",
+    false => "▸",
+  }
+}

@@ -1,0 +1,63 @@
+// Stepper.fitzv — packaged companion UI primitive (Phase 9, Forms-composite).
+//
+// Presentational / controlled: `stepper_render(stepper { ... }).raw`. A numbered
+// progress indicator for a guided wizard (a multi-step "create" form). Build a
+// `List<Step>` (`{ label, state }`); `state` is "done" (a past step), "active"
+// (the current one) or "pending" (still ahead) — **server-tracked**, the host
+// owns it. The step numbers come from a pure-CSS counter (no index needed) and the
+// connector lines from a `::after` pseudo-element (no filler elements). It renders
+// only the indicator — pair it with your own Back / Next / Finish buttons. Style
+// it by aliasing the --flv-* tokens.
+
+from form_layout_helpers import Step
+from fitz_liveviews import flv
+
+component stepper {
+  state {
+    steps: List<Step> = []
+  }
+
+  <template>
+    <div class="flv-stepper">
+      {#for s in steps}
+        <div class="flv-step" data-state="{s.state}">
+          <span class="flv-step-num"></span>
+          <span class="flv-step-label">{flv(s.label)}</span>
+        </div>
+      {/for}
+    </div>
+  </template>
+
+  <style scoped>
+    .flv-stepper {
+      display: flex; align-items: center; gap: .4rem; margin-bottom: .5rem;
+      counter-reset: flvstep;
+    }
+    .flv-step { display: flex; align-items: center; gap: .45rem; opacity: .55; }
+    .flv-step:not(:last-child) { flex: 1; }
+    .flv-step:not(:last-child)::after {
+      content: ""; flex: 1; height: 1px;
+      background: var(--flv-border, #d9d9e0); margin-left: .4rem;
+    }
+    .flv-step-num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 1.6rem; height: 1.6rem; border-radius: 50%; font-size: .8rem; font-weight: 700;
+      background: var(--flv-surface-2, #f5f5f7); color: var(--flv-text-muted, #55555c);
+      border: 1px solid var(--flv-border, #d9d9e0); counter-increment: flvstep;
+    }
+    .flv-step-num::before { content: counter(flvstep); }
+    .flv-step-label { font-size: .82rem; font-weight: 600; }
+    .flv-step[data-state="active"] { opacity: 1; }
+    .flv-step[data-state="active"] .flv-step-num {
+      background: var(--flv-color-primary, #ce412b); color: #fff;
+      border-color: var(--flv-color-primary, #ce412b);
+    }
+    .flv-step[data-state="done"] { opacity: 1; }
+    .flv-step[data-state="done"] .flv-step-num {
+      background: color-mix(in srgb, var(--flv-color-primary, #ce412b) 18%, transparent);
+      color: var(--flv-color-primary, #ce412b);
+      border-color: var(--flv-color-primary, #ce412b);
+    }
+    @media (max-width: 560px) { .flv-step-label { display: none; } }
+  </style>
+}

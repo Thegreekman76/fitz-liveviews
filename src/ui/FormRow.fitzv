@@ -1,0 +1,41 @@
+// FormRow.fitzv — packaged companion UI primitive (Phase 9, Forms-composite).
+//
+// Presentational: `form_row_render(form_row { ... }).raw`. The form's layout leaf.
+// Two modes: a **labeled row** (an optional uppercase `label` above a `field`, for
+// an inline control that has no label of its own — e.g. a Rating), or, when
+// `cols > 1`, a **responsive grid** that lays its `field` (two/three packaged
+// inputs) side-by-side and collapses to one column on narrow screens. `field` is
+// RAW markup you build. Style it by aliasing the --flv-* tokens.
+
+from fitz_liveviews import flv
+
+component form_row {
+  state {
+    label: Str = ""
+    field: Str = ""
+    cols: Int = 1
+  }
+
+  <template>
+    {#if cols > 1}
+      <div class="flv-form-grid" data-cols="{cols}">{field}</div>
+    {#else}
+      <div class="flv-form-row">
+        {#if label != ""}<label class="flv-form-label">{flv(label)}</label>{/if}
+        {field}
+      </div>
+    {/if}
+  </template>
+
+  <style scoped>
+    .flv-form-row { display: flex; flex-direction: column; gap: .3rem; }
+    .flv-form-label {
+      font-size: .78rem; font-weight: 700; color: var(--flv-text-muted, #55555c);
+      text-transform: uppercase; letter-spacing: .03em;
+    }
+    .flv-form-grid { display: grid; gap: .9rem; }
+    .flv-form-grid[data-cols="2"] { grid-template-columns: repeat(2, 1fr); }
+    .flv-form-grid[data-cols="3"] { grid-template-columns: repeat(3, 1fr); }
+    @media (max-width: 560px) { .flv-form-grid { grid-template-columns: 1fr; } }
+  </style>
+}

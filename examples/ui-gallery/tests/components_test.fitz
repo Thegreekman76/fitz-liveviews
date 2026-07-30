@@ -42,6 +42,14 @@ from fitz_liveviews.ui.RadioGroup import radio_group, radio_group_render
 from fitz_liveviews.ui.Rating import rating, rating_render
 from fitz_liveviews.ui.DatePicker import date_picker, date_picker_render
 from fitz_liveviews.ui.form_input_helpers import FieldOption, rating_stars
+from fitz_liveviews.ui.FormLayout import form_layout, form_layout_render
+from fitz_liveviews.ui.FormRow import form_row, form_row_render
+from fitz_liveviews.ui.GroupSelect import group_select, group_select_render
+from fitz_liveviews.ui.MultiSelect import multi_select, multi_select_render
+from fitz_liveviews.ui.Tabs import tabs, tabs_render
+from fitz_liveviews.ui.Stepper import stepper, stepper_render
+from fitz_liveviews.ui.TreeView import tree_view, tree_view_render
+from fitz_liveviews.ui.form_layout_helpers import OptionGroup, Tab, Step, TreeNode, tree_arrow
 from fitz_liveviews import html
 
 // --- Pager (presentational / controlled) ---
@@ -988,4 +996,126 @@ fn sample_nav() -> List<NavGroup> {
     assert(h.contains("flv-field-error"))
     assert(h.contains("fecha inválida"))
     assert(not h.contains("pista"))
+}
+
+// === Forms-composite family (Session G) — FormLayout / FormRow / GroupSelect /
+// MultiSelect / Tabs / Stepper / TreeView + form_layout_helpers.
+
+// --- tree_arrow (helper) ---
+
+@test fn tree_arrow_reflects_expanded() {
+    assert_eq(tree_arrow(true), "▾")
+    assert_eq(tree_arrow(false), "▸")
+}
+
+// --- FormLayout ---
+
+@test fn form_layout_wraps_body_in_form_with_submit() {
+    let h = form_layout_render(form_layout { submit_event: "save_user", body: "<p>x</p>" }).raw
+    assert(h.contains("data-flv-submit=\"save_user\""))
+    assert(h.contains("<p>x</p>"))                 // body is RAW
+    assert(h.contains("flv-form-card"))            // card by default
+}
+
+@test fn form_layout_no_card_omits_wrapper() {
+    let h = form_layout_render(form_layout { body: "<p>x</p>", card: false }).raw
+    assert(not h.contains("flv-form-card flv-form-card-"))
+}
+
+// --- FormRow ---
+
+@test fn form_row_labeled_renders_label_and_field() {
+    let h = form_row_render(form_row { label: "Desempeño", field: "<div>★</div>" }).raw
+    assert(h.contains("flv-form-row"))
+    assert(h.contains(">Desempeño</label>"))
+    assert(h.contains("<div>★</div>"))             // field is RAW
+}
+
+@test fn form_row_grid_mode_sets_cols() {
+    let h = form_row_render(form_row { field: "<span>a</span>", cols: 2 }).raw
+    assert(h.contains("flv-form-grid"))
+    assert(h.contains("data-cols=\"2\""))
+}
+
+// --- GroupSelect ---
+
+@test fn group_select_renders_optgroups_and_head() {
+    let groups: List<OptionGroup> = [
+        OptionGroup { label: "Eng", options: [FieldOption { label: "Ada", value: "1", on: true }] },
+    ]
+    let h = group_select_render(group_select { name: "boss", label: "Reporta", groups: groups, head_label: "— none —", head_on: false }).raw
+    assert(h.contains("<optgroup label=\"Eng\">"))
+    assert(h.contains("<option value=\"1\" selected=\"\">Ada</option>"))
+    assert(h.contains("<option value=\"0\">— none —</option>"))  // head, not selected
+    assert(h.contains("name=\"boss\""))
+}
+
+// --- MultiSelect ---
+
+@test fn multi_select_renders_fieldset_per_group_sharing_name() {
+    let groups: List<OptionGroup> = [
+        OptionGroup { label: "Empleados", options: [FieldOption { label: "Ver", value: "1", on: true }, FieldOption { label: "Editar", value: "2" }] },
+    ]
+    let h = multi_select_render(multi_select { name: "permisos", label: "Permisos", groups: groups }).raw
+    assert(h.contains("<fieldset"))
+    assert(h.contains(">Empleados</legend>"))
+    assert(h.contains("name=\"permisos\" value=\"1\" checked"))
+    assert(h.contains("name=\"permisos\" value=\"2\" />"))
+}
+
+// --- Tabs ---
+
+@test fn tabs_marks_active_and_carries_form_serialization() {
+    let items: List<Tab> = [
+        Tab { label: "Datos", value: "datos", active: true },
+        Tab { label: "Org", value: "org" },
+    ]
+    let h = tabs_render(tabs { items: items }).raw
+    assert(h.contains("flv-tab-on"))
+    assert(h.contains("data-flv-form"))
+    assert(h.contains("data-flv-click=\"form_tab\" data-flv-value-tab=\"datos\""))
+    assert(h.contains("data-flv-value-tab=\"org\""))
+}
+
+@test fn tabs_custom_event() {
+    let items: List<Tab> = [Tab { label: "A", value: "a", active: true }]
+    let h = tabs_render(tabs { items: items, tab_event: "switch" }).raw
+    assert(h.contains("data-flv-click=\"switch\""))
+}
+
+// --- Stepper ---
+
+@test fn stepper_marks_step_states() {
+    let steps: List<Step> = [
+        Step { label: "Datos", state: "done" },
+        Step { label: "Org", state: "active" },
+        Step { label: "Accesos", state: "pending" },
+    ]
+    let h = stepper_render(stepper { steps: steps }).raw
+    assert(h.contains("data-state=\"done\""))
+    assert(h.contains("data-state=\"active\""))
+    assert(h.contains("data-state=\"pending\""))
+    assert(h.contains(">Datos</span>"))
+    // numbers come from a CSS counter (no per-step number in markup)
+    assert(h.contains("counter(flvstep)"))
+}
+
+// --- TreeView ---
+
+@test fn tree_view_renders_flattened_nodes_with_indent_and_arrows() {
+    let nodes: List<TreeNode> = [
+        TreeNode { label: "Argentina", depth: 0, expanded: true, event: "toggle_pais", value: "1", icon: "🌎" },
+        TreeNode { label: "El Chaltén", depth: 2, leaf: true, icon: "📍" },
+        TreeNode { label: "Chile", depth: 0, expanded: false, event: "toggle_pais", value: "2" },
+    ]
+    let h = tree_view_render(tree_view { nodes: nodes }).raw
+    // branch node: arrow + toggle event + indent
+    assert(h.contains("data-flv-click=\"toggle_pais\" data-flv-value-value=\"1\""))
+    assert(h.contains("▾"))                         // Argentina expanded
+    assert(h.contains("▸"))                         // Chile collapsed
+    assert(h.contains("style=\"padding-left: 0rem\""))
+    // leaf: plain row, deeper indent, no toggle button
+    assert(h.contains("flv-tree-leaf"))
+    assert(h.contains("style=\"padding-left: 2rem\""))
+    assert(h.contains("El Chaltén"))
 }

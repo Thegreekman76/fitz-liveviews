@@ -1,0 +1,61 @@
+// MultiSelect.fitzv — packaged companion UI primitive (Phase 9, Forms-composite).
+//
+// Presentational / controlled: `multi_select_render(multi_select { ... }).raw`. A
+// grouped multi-select: checkboxes bucketed into titled `<fieldset>`s (a
+// permission matrix — modules × permissions). All the boxes share one `name` and
+// serialize as repeated `name=value` pairs. Build a `List<OptionGroup>` (each
+// `{ label, options: List<FieldOption> }`; `on` pre-checks a box). The browser
+// toggles boxes client-side; read them back on the form's `data-flv-submit`. For a
+// flat (ungrouped) multi-select, use CheckboxGroup. Style it by aliasing --flv-*
+// tokens.
+
+from form_layout_helpers import OptionGroup
+from form_input_helpers import FieldOption
+from fitz_liveviews import flv
+
+component multi_select {
+  state {
+    name: Str = ""
+    label: Str = ""
+    groups: List<OptionGroup> = []
+  }
+
+  <template>
+    <div class="flv-field">
+      {#if label != ""}<span class="flv-field-label">{flv(label)}</span>{/if}
+      <div class="flv-ms-groups">
+        {#for g in groups}
+          <fieldset class="flv-ms-group">
+            <legend>{flv(g.label)}</legend>
+            <div class="flv-ms-checks">
+              {#for o in g.options}
+                {#if o.on}<label class="flv-ms-check"><input type="checkbox" name="{flv(name)}" value="{flv(o.value)}" checked /> {flv(o.label)}</label>{#else}<label class="flv-ms-check"><input type="checkbox" name="{flv(name)}" value="{flv(o.value)}" /> {flv(o.label)}</label>{/if}
+              {/for}
+            </div>
+          </fieldset>
+        {/for}
+      </div>
+    </div>
+  </template>
+
+  <style scoped>
+    .flv-field { display: flex; flex-direction: column; gap: .3rem; }
+    .flv-field-label { font-size: .82rem; font-weight: 600; color: var(--flv-text, #1a1a1a); }
+    .flv-ms-groups { display: flex; flex-direction: column; gap: .6rem; }
+    .flv-ms-group {
+      border: 1px solid var(--flv-border, #d9d9e0); border-radius: 8px;
+      padding: .5rem .75rem .65rem; margin: 0;
+    }
+    .flv-ms-group legend {
+      font-size: .75rem; font-weight: 700; color: var(--flv-color-primary, #ce412b);
+      padding: 0 .35rem; text-transform: uppercase; letter-spacing: .03em;
+    }
+    .flv-ms-checks { display: grid; grid-template-columns: repeat(2, 1fr); gap: .3rem .9rem; }
+    @media (max-width: 560px) { .flv-ms-checks { grid-template-columns: 1fr; } }
+    .flv-ms-check {
+      display: flex; align-items: center; gap: .45rem; font-size: .85rem;
+      cursor: pointer; user-select: none; color: var(--flv-text, #1a1a1a);
+    }
+    .flv-ms-check input { width: auto; margin: 0; accent-color: var(--flv-color-primary, #ce412b); }
+  </style>
+}

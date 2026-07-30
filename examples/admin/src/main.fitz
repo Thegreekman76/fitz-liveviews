@@ -69,6 +69,20 @@ from fitz_liveviews.ui.RadioGroup import radio_group, radio_group_render
 from fitz_liveviews.ui.Rating import rating, rating_render
 from fitz_liveviews.ui.DatePicker import date_picker, date_picker_render
 from fitz_liveviews.ui.form_input_helpers import FieldOption, rating_stars
+// Forms-composite family (Session G) — GroupSelect / MultiSelect / Tabs / Stepper
+// / TreeView rendered by EmpleadoForm.fitzv / form_helpers.fitz / empleados.fitz.
+// Imported HERE so the compiler auto-registers them and their cross-module
+// render-fn signatures resolve to `-> Html`. FormLayout / FormRow are reusable
+// primitives (gallery-tested); `OptionGroup` / `Tab` / `Step` / `TreeNode` are
+// imported so the cross-module `List<...>` state fields resolve.
+from fitz_liveviews.ui.FormLayout import form_layout, form_layout_render
+from fitz_liveviews.ui.FormRow import form_row, form_row_render
+from fitz_liveviews.ui.GroupSelect import group_select, group_select_render
+from fitz_liveviews.ui.MultiSelect import multi_select, multi_select_render
+from fitz_liveviews.ui.Tabs import tabs, tabs_render
+from fitz_liveviews.ui.Stepper import stepper, stepper_render
+from fitz_liveviews.ui.TreeView import tree_view, tree_view_render
+from fitz_liveviews.ui.form_layout_helpers import OptionGroup, Tab, Step, TreeNode, tree_arrow
 
 @server(3000, "0.0.0.0")
 fn main() => 0

@@ -1,0 +1,71 @@
+// GroupSelect.fitzv — packaged companion UI primitive (Phase 9, Forms-composite).
+//
+// Presentational / controlled: `group_select_render(group_select { ... }).raw`. A
+// labeled `<select>` whose options are bucketed into `<optgroup>`s — e.g. a
+// "reports to" field with colleagues grouped by department. Build a
+// `List<OptionGroup>` (each `{ label, options: List<FieldOption> }`; `on` marks the
+// selected option). An optional leading `head_label` renders a groupless default
+// (a "— none —" row). Same `.flv-field` shell as Input/Select; read the chosen
+// `value` back on the form's `data-flv-submit`. Style it by aliasing --flv-* tokens.
+
+from form_layout_helpers import OptionGroup
+from form_input_helpers import FieldOption
+from fitz_liveviews import flv
+
+component group_select {
+  state {
+    name: Str = ""
+    label: Str = ""
+    groups: List<OptionGroup> = []
+    head_label: Str = ""
+    head_value: Str = "0"
+    head_on: Bool = true
+    hint: Str = ""
+    error: Str = ""
+  }
+
+  <template>
+    <label class="flv-field">
+      {#if label != ""}<span class="flv-field-label">{flv(label)}</span>{/if}
+      <select class="flv-field-input flv-field-select" name="{flv(name)}">
+        {#if head_label != ""}
+          {#if head_on}<option value="{flv(head_value)}" selected>{flv(head_label)}</option>{#else}<option value="{flv(head_value)}">{flv(head_label)}</option>{/if}
+        {/if}
+        {#for g in groups}
+          <optgroup label="{flv(g.label)}">
+            {#for o in g.options}
+              {#if o.on}<option value="{flv(o.value)}" selected>{flv(o.label)}</option>{#else}<option value="{flv(o.value)}">{flv(o.label)}</option>{/if}
+            {/for}
+          </optgroup>
+        {/for}
+      </select>
+      {#if error != ""}
+        <span class="flv-field-error">{flv(error)}</span>
+      {#else}
+        {#if hint != ""}<span class="flv-field-hint">{flv(hint)}</span>{/if}
+      {/if}
+    </label>
+  </template>
+
+  <style scoped>
+    .flv-field { display: flex; flex-direction: column; gap: .3rem; }
+    .flv-field-label { font-size: .82rem; font-weight: 600; color: var(--flv-text, #1a1a1a); }
+    .flv-field-input {
+      font-size: .9rem; padding: .5rem .7rem;
+      border-radius: var(--flv-radius-md, 8px);
+      border: 1px solid var(--flv-border, #d9d9e0);
+      background: var(--flv-surface, #ffffff);
+      color: var(--flv-text, #1a1a1a);
+      font-family: inherit; cursor: pointer;
+      transition: border-color .12s ease, box-shadow .12s ease;
+    }
+    .flv-field-input:focus {
+      outline: none;
+      border-color: var(--flv-color-primary, #ce412b);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--flv-color-primary, #ce412b) 20%, transparent);
+    }
+    .flv-field:has(.flv-field-error) .flv-field-input { border-color: var(--flv-color-danger, #c62828); }
+    .flv-field-hint { font-size: .78rem; color: var(--flv-text-muted, #55555c); }
+    .flv-field-error { font-size: .78rem; color: var(--flv-color-danger, #c62828); font-weight: 600; }
+  </style>
+}

@@ -5,6 +5,72 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.23.0] — 2026-07-30 — `FormLayout` + `FormRow` + `GroupSelect` + `MultiSelect` + `Tabs` + `Stepper` + `TreeView` (Forms family — composite)
+
+**Minor bump** — ships the **Forms family (composite)**, extracted from the Admin
+ABM into the package: the layout primitives + the richer, stateful/interaction
+controls. This closes the Forms extraction (inputs shipped in v0.22.0). Built
+against Fitz core **v0.29.1**.
+
+### Added — the 7 composite components
+
+- **`fitz_liveviews.ui.FormLayout`** — `form_layout { submit_event, body, card }`.
+  The `<form data-flv-submit>` shell (a vertical stack, optionally inside a card).
+- **`fitz_liveviews.ui.FormRow`** — `form_row { label, field, cols }`. A labeled
+  row, or (when `cols > 1`) a responsive grid that collapses to one column on
+  narrow screens.
+- **`fitz_liveviews.ui.GroupSelect`** — `group_select { name, label, groups:
+  List<OptionGroup>, head_label, … }`. A `<select>` whose options are bucketed into
+  `<optgroup>`s (a "reports to" grouped by department).
+- **`fitz_liveviews.ui.MultiSelect`** — `multi_select { name, label, groups:
+  List<OptionGroup> }`. A grouped multi-select: checkboxes in titled `<fieldset>`s
+  sharing one `name` (a module × permission matrix). For a flat multi-select, use
+  CheckboxGroup.
+- **`fitz_liveviews.ui.Tabs`** — `tabs { items: List<Tab>, tab_event }`. A
+  server-tracked tab nav (`data-flv-form` so switching a tab serializes typed
+  values). Renders only the nav — the panels stay in the host DOM.
+- **`fitz_liveviews.ui.Stepper`** — `stepper { steps: List<Step> }`. A numbered
+  wizard indicator (states done / active / pending). Numbers come from a pure-CSS
+  counter, the connector lines from a `::after` pseudo-element (no filler markup).
+- **`fitz_liveviews.ui.TreeView`** — `tree_view { nodes: List<TreeNode> }`. An
+  expandable hierarchy. The SSR template can't recurse, so the host flattens its
+  hierarchy into the currently-visible `List<TreeNode>` (each with a `depth` indent
+  + `expanded` arrow); a branch toggle fires `event` with `value`.
+- **`fitz_liveviews.ui.form_layout_helpers`** — `type OptionGroup { label, options:
+  List<FieldOption> }` (GroupSelect / MultiSelect), `type Tab { label, value,
+  active }`, `type Step { label, state }`, `type TreeNode { label, depth, leaf,
+  expanded, event, value, icon }`, and `tree_arrow(expanded)`.
+- All are `.fitzv` SFCs with `<style scoped>` over `--flv-*` tokens, controlled
+  (the host owns the active tab/step + the tree's expanded set), and i18n-agnostic.
+  They render identically under `fitz run` and the `fitz build` binary.
+
+### Changed — Admin ABM adoption
+
+- `form_helpers.fitz` / `EmpleadoForm.fitzv` render the packaged composite
+  controls: the "reporta a" GroupSelect, the permisos MultiSelect, the país /
+  provincia / ciudad **Select in cascade mode** (`on_change`), and the form's Tabs
+  (edit) / Stepper (create wizard). `empleados.fitz` renders the ubicaciones
+  **TreeView** (flattening its país→provincia→ciudad hierarchy into a
+  `List<TreeNode>`). The local `reporta_options` / `permisos_html` /
+  `pais_options` / `tab_btn` / `step_dot` / `stepper_bar` / `tree_html` helpers are
+  gone.
+- The tab / stepper / permission-matrix / tree-list / inline-select styles moved
+  out of `admin_css()` into the components' scoped blocks. The tab PANELS
+  (`.tab-panel`), the tree SCREEN wrapper (`.tree-card` / `.tree-foot`), the shared
+  `.tree-arrow` (grouped grid rows), and the form row/grid layout stay.
+- The tree toggle handlers (`toggle_pais` / `toggle_prov`) now read
+  `payload["value"]` (the generic TreeView emits `data-flv-value-value`).
+
+### Verified
+
+- `fitz test` (ui-gallery) — **218 unit tests pass** (11 new for the composite
+  family). `fitz check` + `fitz build` on the Admin ABM (native binary,
+  cross-module `List<OptionGroup>` / `List<Tab>` / `List<Step>` / `List<TreeNode>`;
+  GroupSelect / MultiSelect import `FieldOption` so the nested `OptionGroup.options`
+  resolves). Rendered against a local PostgreSQL; the WS smoke exercises the form
+  create/edit flow + the tree, and `fitz run` ↔ native binary are **bit-a-bit
+  identical** (modulo per-connection uuids + multi-line-literal whitespace).
+
 ## [v0.22.0] — 2026-07-30 — `Textarea` + `Select` + `Checkbox` + `CheckboxGroup` + `RadioGroup` + `Rating` + `DatePicker` (Forms family — inputs)
 
 **Minor bump** — ships the **Forms family (inputs)**, extracted from the Admin ABM

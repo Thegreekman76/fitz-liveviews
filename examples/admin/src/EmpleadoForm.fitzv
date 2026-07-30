@@ -23,7 +23,7 @@
 // CSS stays GLOBAL (shell.fitz): `.abm-form` / `.form-row` / `.tab-panel` / … are
 // shared, so no `<style scoped>`.
 
-from form_helpers import form_banner, form_header_nav, form_footer_nav, panel_cls_datos, panel_cls_org, panel_cls_accesos, field_nombre, field_email, field_cargo, field_fecha, field_notas, field_estado, field_rating, field_depto, field_skills, reporta_options, pais_options, provincia_options, ciudad_options, permisos_html
+from form_helpers import form_banner, form_header_nav, form_footer_nav, panel_cls_datos, panel_cls_org, panel_cls_accesos, field_nombre, field_email, field_cargo, field_fecha, field_notas, field_estado, field_rating, field_depto, field_skills, field_reporta, field_pais, field_provincia, field_ciudad, field_permisos
 from models import Departamento, Pais, Provincia, Ciudad, Permiso, Skill, Empleado
 from i18n import t
 from fitz_liveviews import flv
@@ -89,32 +89,17 @@ component empleado_form {
           <div class="{panel_cls_org(f_tab)}">
             <div class="form-grid-2">
               {field_depto(deptos, f_depto, locale)}
-              <div class="form-row">
-                <label>{flv(t(locale, "form.reporta"))}</label>
-                <select name="reporta_a">{reporta_options(colegas, deptos, edit_id, f_reporta, locale)}</select>
-              </div>
+              {field_reporta(colegas, deptos, edit_id, f_reporta, locale)}
             </div>
             <div class="form-grid-3">
-              <div class="form-row">
-                <label>{flv(t(locale, "form.pais"))}</label>
-                <select name="pais_id" data-flv-change="cascade_pais">{pais_options(paises, f_pais)}</select>
-              </div>
-              <div class="form-row">
-                <label>{flv(t(locale, "form.provincia"))}</label>
-                <select name="provincia_id" data-flv-change="cascade_provincia">{provincia_options(provincias, f_provincia)}</select>
-              </div>
-              <div class="form-row">
-                <label>{flv(t(locale, "form.ciudad"))}</label>
-                <select name="ciudad_id" data-flv-change="cascade_ciudad">{ciudad_options(ciudades, f_ciudad)}</select>
-              </div>
+              {field_pais(paises, f_pais, locale)}
+              {field_provincia(provincias, f_provincia, locale)}
+              {field_ciudad(ciudades, f_ciudad, locale)}
             </div>
           </div>
 
           <div class="{panel_cls_accesos(f_tab)}">
-            <div class="form-row">
-              <label>{flv(t(locale, "form.permisos"))}</label>
-              <div class="perm-groups">{permisos_html(permisos, f_permisos)}</div>
-            </div>
+            {field_permisos(permisos, f_permisos, locale)}
             {field_skills(skills, f_skills, locale)}
           </div>
 

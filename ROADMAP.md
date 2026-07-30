@@ -760,9 +760,28 @@ Card · Badge · Alert · Input · Spinner · Icon · **Breadcrumbs** ✅ ·
   + `fitz build` verified; live Postgres form render + WS smoke + `fitz run` ↔ binary
   parity confirmed. (Input already packaged. CascadeSelect / GroupSelect / the grouped
   permission matrix stay app-specific → Session G.)
-- [ ] **Session G — Forms family, part 2 (composite)**: `FormLayout` / `FormRow`
-  · `CascadeSelect` · `GroupSelect` · `MultiSelect` · `Tabs` · `Stepper` ·
-  `TreeView`. The richer, stateful/interaction-heavy controls.
+- [x] **Session G — Forms family, part 2 (composite)** (v0.23.0): `FormLayout`
+  (`<form data-flv-submit>` + card) · `FormRow` (labeled row / `cols` grid) ·
+  `CascadeSelect` (= Select with `on_change`, adopted for país/prov/ciudad) ·
+  `GroupSelect` (`<select>` with `<optgroup>`s) · `MultiSelect` (grouped
+  `<fieldset>` checkbox matrix) · `Tabs` + `Stepper` (server-tracked section nav —
+  Tabs renders the nav, panels stay host-managed; Stepper is a CSS-counter wizard
+  indicator) · `TreeView` (an expandable hierarchy the host flattens into a
+  depth-based `List<TreeNode>` — the SSR template can't recurse). `form_layout_helpers`
+  carries `OptionGroup` / `Tab` / `Step` / `TreeNode` + `tree_arrow(...)`. Adopted in
+  `form_helpers.fitz` / `EmpleadoForm.fitzv` (reporta / permisos / cascade / tabs /
+  stepper) and `empleados.fitz` (the ubicaciones TreeView); the local
+  `reporta_options` / `permisos_html` / `pais_options` / `tab_btn` / `step_dot` /
+  `stepper_bar` / `tree_html` deleted; the tab/stepper/perm/tree-list/inline-select
+  CSS moved out of `admin_css()` (the tab panels, tree screen wrapper, shared
+  `.tree-arrow` and form row/grid layout stay). `toggle_pais`/`toggle_prov` read
+  `payload["value"]`. 11 gallery tests (218 total), docs, `ui-formlayout` /
+  `ui-formrow` / `ui-groupselect` / `ui-multiselect` / `ui-tabs` / `ui-stepper` /
+  `ui-treeview` snippets. `fitz check` + `fitz test` + `fitz build` verified; live
+  Postgres render + WS smoke + `fitz run` ↔ binary parity confirmed. (Note:
+  GroupSelect / MultiSelect must import `FieldOption` so the nested
+  `OptionGroup.options` resolves cross-module in `fitz build`.) **Closes the Forms
+  extraction** (inputs in v0.22.0 + composite here).
 - [ ] **Session H — Feedback & misc**: `Chip` · `CountBadge` (or a `Badge`
   `count` variant) · `Tooltip` (the CSS-only `data-tooltip`) · `Divider` ·
   `ExpansionPanel` (native `<details>`).

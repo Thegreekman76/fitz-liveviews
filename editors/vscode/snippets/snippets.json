@@ -601,5 +601,76 @@
       "let ${1:field} = date_picker_render(date_picker { name: \"${2:name}\", label: ${3:label}, value: ${4:iso_value} }).raw"
     ],
     "description": "Render the packaged DatePicker (labeled native <input type=date>; value is ISO YYYY-MM-DD). Import: from fitz_liveviews.ui.DatePicker import date_picker, date_picker_render"
+  },
+
+  "FormLayout — packaged form shell (Forms-composite)": {
+    "prefix": "ui-formlayout",
+    "body": [
+      "let ${1:form} = form_layout_render(form_layout { submit_event: \"${2:save}\", body: ${3:body_html} }).raw"
+    ],
+    "description": "Render the packaged FormLayout (<form data-flv-submit> + card; body is raw). Import: from fitz_liveviews.ui.FormLayout import form_layout, form_layout_render"
+  },
+
+  "FormRow — packaged labeled row / grid (Forms-composite)": {
+    "prefix": "ui-formrow",
+    "body": [
+      "let ${1:row} = form_row_render(form_row { label: ${2:label}, field: ${3:field_html} }).raw"
+    ],
+    "description": "Render the packaged FormRow (a labeled row, or cols>1 for a responsive grid; field is raw). Import: from fitz_liveviews.ui.FormRow import form_row, form_row_render"
+  },
+
+  "GroupSelect — packaged optgroup select (Forms-composite)": {
+    "prefix": "ui-groupselect",
+    "body": [
+      "let ${1:groups}: List<OptionGroup> = ${2:sections}.map(fn(g) => OptionGroup { label: ${3:g.name}, options: ${4:g.items}.map(fn(x) => FieldOption { label: ${5:x.name}, value: \"${6:x.id}\", on: ${7:x.id == current} }) })",
+      "let ${8:field} = group_select_render(group_select { name: \"${9:name}\", label: ${10:label}, groups: $1 }).raw"
+    ],
+    "description": "Render the packaged GroupSelect (<select> with <optgroup>s). Import: from fitz_liveviews.ui.GroupSelect import group_select, group_select_render + from fitz_liveviews.ui.form_layout_helpers import OptionGroup + from fitz_liveviews.ui.form_input_helpers import FieldOption"
+  },
+
+  "MultiSelect — packaged grouped checkbox matrix (Forms-composite)": {
+    "prefix": "ui-multiselect",
+    "body": [
+      "let ${1:groups}: List<OptionGroup> = ${2:sections}.map(fn(g) => OptionGroup { label: ${3:g.name}, options: ${4:g.items}.map(fn(x) => FieldOption { label: ${5:x.name}, value: \"${6:x.id}\", on: ${7:checked} }) })",
+      "let ${8:field} = multi_select_render(multi_select { name: \"${9:name}\", label: ${10:label}, groups: $1 }).raw"
+    ],
+    "description": "Render the packaged MultiSelect (grouped <fieldset> checkbox matrix sharing one name). Import: from fitz_liveviews.ui.MultiSelect import multi_select, multi_select_render + from fitz_liveviews.ui.form_layout_helpers import OptionGroup + from fitz_liveviews.ui.form_input_helpers import FieldOption"
+  },
+
+  "Tabs — packaged server-tracked tab nav (Forms-composite)": {
+    "prefix": "ui-tabs",
+    "body": [
+      "let ${1:items}: List<Tab> = [",
+      "  Tab { label: ${2:label_a}, value: \"${3:a}\", active: ${4:current == \"a\"} },",
+      "  Tab { label: ${5:label_b}, value: \"${6:b}\" },",
+      "]",
+      "let ${7:nav} = tabs_render(tabs { items: $1 }).raw"
+    ],
+    "description": "Render the packaged Tabs nav (server-tracked active; panels stay in the host DOM). Import: from fitz_liveviews.ui.Tabs import tabs, tabs_render + from fitz_liveviews.ui.form_layout_helpers import Tab"
+  },
+
+  "Stepper — packaged wizard indicator (Forms-composite)": {
+    "prefix": "ui-stepper",
+    "body": [
+      "let ${1:steps}: List<Step> = [",
+      "  Step { label: ${2:label_a}, state: \"${3|done,active,pending|}\" },",
+      "  Step { label: ${4:label_b}, state: \"pending\" },",
+      "]",
+      "let ${5:bar} = stepper_render(stepper { steps: $1 }).raw"
+    ],
+    "description": "Render the packaged Stepper (numbered wizard indicator; states done/active/pending). Import: from fitz_liveviews.ui.Stepper import stepper, stepper_render + from fitz_liveviews.ui.form_layout_helpers import Step"
+  },
+
+  "TreeView — packaged expandable hierarchy (Forms-composite)": {
+    "prefix": "ui-treeview",
+    "body": [
+      "// flatten your hierarchy into the currently-visible rows",
+      "let ${1:nodes}: List<TreeNode> = [",
+      "  TreeNode { label: ${2:root}, depth: 0, expanded: ${3:expanded}, event: \"${4:toggle}\", value: \"${5:id}\", icon: \"${6:🌎}\" },",
+      "  TreeNode { label: ${7:leaf}, depth: 1, leaf: true, icon: \"📍\" },",
+      "]",
+      "let ${8:tree} = tree_view_render(tree_view { nodes: $1 }).raw"
+    ],
+    "description": "Render the packaged TreeView (host flattens its hierarchy into a depth-based List<TreeNode>). Import: from fitz_liveviews.ui.TreeView import tree_view, tree_view_render + from fitz_liveviews.ui.form_layout_helpers import TreeNode"
   }
 }

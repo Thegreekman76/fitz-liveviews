@@ -176,27 +176,34 @@ hasnt("row_2_close", 'class="row-selected"')
 hasnt("row_2_close", 'class="row-expanded"')
 
 # --- EmpleadoForm ---
-# alta uses the guided Stepper; grid toolbar gone; save form present
-has("new_empleado", 'class="stepper"')
+# alta uses the guided packaged Stepper; grid toolbar gone; save form present
+has("new_empleado", 'flv-stepper')
 has("new_empleado", 'data-flv-submit="save_empleado"')
 hasnt("new_empleado", 'flv-grid-toolbar')
-# all 3 panels stay in the DOM (org's cascade select present even before switch)
+# all 3 panels stay in the DOM. The cascade país/prov/ciudad are the packaged
+# Select in on_change mode; the "reporta a" is the packaged GroupSelect.
 has("new_empleado", 'data-flv-change="cascade_pais"')
 has("new_empleado", 'data-flv-change="cascade_provincia"')
 has("new_empleado", 'data-flv-change="cascade_ciudad"')
-# permisos + skills panels present
+has("new_empleado", '<optgroup')                 # GroupSelect (reporta a)
+# permisos (packaged MultiSelect) + skills (packaged CheckboxGroup) present
 has("new_empleado", 'name="permisos"')
+has("new_empleado", '<fieldset')                 # MultiSelect group
 has("new_empleado", 'name="skills"')
-# rating stars present
+# rating stars present (packaged Rating)
 has("new_empleado", 'name="nivel"')
 # invalid save -> validation banner (packaged Alert, danger variant), still on the form
 has("save_invalid", 'data-variant="danger"')
 has("save_invalid", 'role="alert"')
 has("save_invalid", 'data-flv-submit="save_empleado"')
-# edición uses free Tabs, NOT the stepper
-has("edit_empleado", 'class="tab-nav"')
-hasnt("edit_empleado", 'class="stepper"')
+# edición uses the packaged Tabs, NOT the stepper
+has("edit_empleado", 'flv-tabs')
+hasnt("edit_empleado", 'flv-stepper')
 has("edit_empleado", 'data-flv-submit="save_empleado"')
+# --- TreeView (locations screen) ---
+# the packaged TreeView; branch toggles carry the id in data-flv-value-value
+has("show_tree", 'flv-tree')
+has("show_tree", 'data-flv-click="toggle_pais" data-flv-value-value=')
 # back to grid on cancel (both times)
 has("cancel_form", 'flv-grid-toolbar')
 has("cancel_form2", 'flv-grid-toolbar')

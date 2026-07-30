@@ -76,6 +76,14 @@ from fitz_liveviews.ui.RadioGroup import radio_group, radio_group_render
 from fitz_liveviews.ui.Rating import rating, rating_render
 from fitz_liveviews.ui.DatePicker import date_picker, date_picker_render
 from fitz_liveviews.ui.form_input_helpers import FieldOption, rating_stars
+from fitz_liveviews.ui.FormLayout import form_layout, form_layout_render
+from fitz_liveviews.ui.FormRow import form_row, form_row_render
+from fitz_liveviews.ui.GroupSelect import group_select, group_select_render
+from fitz_liveviews.ui.MultiSelect import multi_select, multi_select_render
+from fitz_liveviews.ui.Tabs import tabs, tabs_render
+from fitz_liveviews.ui.Stepper import stepper, stepper_render
+from fitz_liveviews.ui.TreeView import tree_view, tree_view_render
+from fitz_liveviews.ui.form_layout_helpers import OptionGroup, Tab, Step, TreeNode, tree_arrow
 ```
 
 They're **i18n-agnostic** (the host passes already-localized text), styled with
@@ -926,10 +934,42 @@ checkbox_group_render(checkbox_group { name: "skills", label: l_skills, options:
 rating_render(rating { name: "nivel", value: f_nivel, max: 5 }).raw
 ```
 
-!!! note "Still patterns (later Forms session)"
-    **CascadeSelect** (`data-flv-change` re-queries dependent options),
-    **GroupSelect** (`<optgroup>`), and the grouped-`<fieldset>` permission matrix
-    stay app-specific for now — the Admin ABM builds them inline.
+### FormLayout · FormRow · GroupSelect · MultiSelect · Tabs · Stepper · TreeView
+
+!!! tip "Packaged (Forms family — composite)"
+    The richer, layout + stateful/interaction controls are packaged too:
+    **FormLayout** (the `<form data-flv-submit>` shell + optional card), **FormRow**
+    (a labeled row, or a responsive `cols` grid), **GroupSelect** (`<select>` with
+    `<optgroup>`s), **MultiSelect** (a grouped-`<fieldset>` checkbox matrix),
+    **Tabs** + **Stepper** (server-tracked section nav), and **TreeView** (an
+    expandable hierarchy). All are **controlled**; the host owns the active
+    tab/step and the tree's expanded set. `OptionGroup { label, options }` / `Tab {
+    label, value, active }` / `Step { label, state }` / `TreeNode { label, depth,
+    leaf, expanded, event, value, icon }` come from `form_layout_helpers`.
+
+- **CascadeSelect** is just **Select** with `on_change` — the change fires a
+  `data-flv-change` event and the loop re-queries the dependent options
+  server-side (country → province → city), preserving the typed fields.
+- **GroupSelect** buckets options into `<optgroup>`s (a "reports to" grouped by
+  department). **MultiSelect** is the grouped multi-select — checkboxes in titled
+  `<fieldset>`s sharing one `name` (a module × permission matrix).
+- **Tabs** (edit) / **Stepper** (create wizard) both need **server-tracked active
+  state** (a LiveView re-render resets any CSS-only selection). Tabs renders the
+  nav buttons (`data-flv-form` so switching a tab serializes the typed values);
+  the panels stay in the host DOM. Stepper renders the numbered indicator (CSS
+  counter + `::after` connectors) — pair it with your Back / Next / Finish buttons.
+- **TreeView** can't recurse in the SSR template, so the host flattens its
+  hierarchy into the currently-visible `List<TreeNode>` (each with a `depth` indent
+  + `expanded` arrow); a branch toggle fires `event` with `value`, the host flips
+  its expanded-id set and re-flattens.
+
+```
+group_select_render(group_select { name: "reporta_a", label: l, groups: og_list, head_label: "— none —" }).raw
+multi_select_render(multi_select { name: "permisos", label: l, groups: og_list }).raw
+tabs_render(tabs { items: tab_list }).raw            // panels stay in the host
+stepper_render(stepper { steps: step_list }).raw     // + your own nav buttons
+tree_view_render(tree_view { nodes: flat_node_list }).raw
+```
 
 ### Tabs · Stepper
 

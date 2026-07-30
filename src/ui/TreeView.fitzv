@@ -1,0 +1,49 @@
+// TreeView.fitzv — packaged companion UI primitive (Phase 9, Forms-composite).
+//
+// Presentational / controlled: `tree_view_render(tree_view { ... }).raw`. An
+// expandable hierarchy (a country → province → city locations tree). The SSR
+// template can't recurse, so the host does the walking: it flattens its hierarchy
+// into a `List<TreeNode>` of the CURRENTLY-VISIBLE rows (each with its `depth` for
+// the indent, `expanded` for the arrow, `leaf` for plain rows). A branch node's
+// toggle fires `event` with `value` in `data-flv-value-value` — the host flips its
+// expanded-id set, re-flattens, and re-renders. `icon` is an optional leading
+// glyph. Style it by aliasing the --flv-* tokens.
+
+from form_layout_helpers import TreeNode, tree_arrow
+from fitz_liveviews import flv
+
+component tree_view {
+  state {
+    nodes: List<TreeNode> = []
+  }
+
+  <template>
+    <ul class="flv-tree">
+      {#for n in nodes}
+        {#if n.leaf}
+          <li class="flv-tree-leaf" style="padding-left: {n.depth}rem">{n.icon} {flv(n.label)}</li>
+        {#else}
+          <li><button class="flv-tree-node" style="padding-left: {n.depth}rem" data-flv-click="{n.event}" data-flv-value-value="{n.value}"><span class="flv-tree-arrow">{tree_arrow(n.expanded)}</span> {n.icon} {flv(n.label)}</button></li>
+        {/if}
+      {/for}
+    </ul>
+  </template>
+
+  <style scoped>
+    .flv-tree { list-style: none; margin: 0; padding: 0; }
+    .flv-tree-node {
+      display: flex; align-items: center; gap: .45rem; cursor: pointer;
+      border: none; background: none; color: var(--flv-text, #1a1a1a);
+      font-size: .9rem; padding: .25rem .4rem; border-radius: 6px;
+      width: 100%; text-align: left;
+    }
+    .flv-tree-node:hover { background: var(--flv-surface-2, #f5f5f7); }
+    .flv-tree-arrow {
+      color: var(--flv-text-muted, #55555c); font-size: .75rem;
+      width: 1rem; display: inline-block;
+    }
+    .flv-tree-leaf {
+      padding: .25rem .4rem; font-size: .85rem; color: var(--flv-text-muted, #55555c);
+    }
+  </style>
+}

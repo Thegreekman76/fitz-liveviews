@@ -39,6 +39,14 @@ from fitz_liveviews.ui.RadioGroup import radio_group, radio_group_render
 from fitz_liveviews.ui.Rating import rating, rating_render
 from fitz_liveviews.ui.DatePicker import date_picker, date_picker_render
 from fitz_liveviews.ui.form_input_helpers import FieldOption, rating_stars
+from fitz_liveviews.ui.FormLayout import form_layout, form_layout_render
+from fitz_liveviews.ui.FormRow import form_row, form_row_render
+from fitz_liveviews.ui.GroupSelect import group_select, group_select_render
+from fitz_liveviews.ui.MultiSelect import multi_select, multi_select_render
+from fitz_liveviews.ui.Tabs import tabs, tabs_render
+from fitz_liveviews.ui.Stepper import stepper, stepper_render
+from fitz_liveviews.ui.TreeView import tree_view, tree_view_render
+from fitz_liveviews.ui.form_layout_helpers import OptionGroup, Tab, Step, TreeNode, tree_arrow
 
 print("=== Theme tokens ===")
 print(ui_theme().raw)
@@ -248,3 +256,53 @@ print(rating_render(rating { name: "nivel", value: 3, max: 5 }).raw)
 
 print("=== DatePicker ===")
 print(date_picker_render(date_picker { name: "fecha_ingreso", label: "Fecha de ingreso", value: "2026-07-30" }).raw)
+
+// === Forms-composite family (Session G) ===
+
+print("=== FormLayout (card + submit) ===")
+print(form_layout_render(form_layout { submit_event: "save_user", body: "<p>campos acá</p>" }).raw)
+
+print("=== FormRow (labeled) ===")
+print(form_row_render(form_row { label: "Desempeño", field: "<div>★★★</div>" }).raw)
+
+print("=== FormRow (2-col grid) ===")
+print(form_row_render(form_row { field: "<span>a</span><span>b</span>", cols: 2 }).raw)
+
+print("=== GroupSelect (optgroups) ===")
+let gs_groups: List<OptionGroup> = [
+  OptionGroup { label: "Ingeniería", options: [FieldOption { label: "Ada", value: "1", on: true }, FieldOption { label: "Linus", value: "2" }] },
+  OptionGroup { label: "Ventas", options: [FieldOption { label: "Grace", value: "3" }] },
+]
+print(group_select_render(group_select { name: "reporta_a", label: "Reporta a", groups: gs_groups, head_label: "— nadie —", head_on: false }).raw)
+
+print("=== MultiSelect (permission matrix) ===")
+let ms_groups: List<OptionGroup> = [
+  OptionGroup { label: "Empleados", options: [FieldOption { label: "Ver", value: "1", on: true }, FieldOption { label: "Editar", value: "2" }] },
+  OptionGroup { label: "Reportes", options: [FieldOption { label: "Ver", value: "3", on: true }] },
+]
+print(multi_select_render(multi_select { name: "permisos", label: "Permisos", groups: ms_groups }).raw)
+
+print("=== Tabs (server-tracked active) ===")
+let tab_items: List<Tab> = [
+  Tab { label: "Datos", value: "datos", active: true },
+  Tab { label: "Organización", value: "org" },
+  Tab { label: "Accesos", value: "accesos" },
+]
+print(tabs_render(tabs { items: tab_items }).raw)
+
+print("=== Stepper (done / active / pending) ===")
+let step_items: List<Step> = [
+  Step { label: "Datos", state: "done" },
+  Step { label: "Organización", state: "active" },
+  Step { label: "Accesos", state: "pending" },
+]
+print(stepper_render(stepper { steps: step_items }).raw)
+
+print("=== TreeView (flattened locations) ===")
+let tree_nodes: List<TreeNode> = [
+  TreeNode { label: "Argentina", depth: 0, expanded: true, event: "toggle_pais", value: "1", icon: "🌎" },
+  TreeNode { label: "Santa Cruz", depth: 1, expanded: true, event: "toggle_prov", value: "10", icon: "" },
+  TreeNode { label: "El Chaltén", depth: 2, leaf: true, icon: "📍" },
+  TreeNode { label: "Chile", depth: 0, expanded: false, event: "toggle_pais", value: "2", icon: "🌎" },
+]
+print(tree_view_render(tree_view { nodes: tree_nodes }).raw)

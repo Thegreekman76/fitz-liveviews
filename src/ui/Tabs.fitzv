@@ -1,0 +1,46 @@
+// Tabs.fitzv — packaged companion UI primitive (Phase 9, Forms-composite).
+//
+// Presentational / controlled: `tabs_render(tabs { ... }).raw`. A tab bar that
+// organizes a long form (or any screen) into sections. It renders ONLY the nav
+// buttons — the panels stay in the host (keep them all in the DOM so a form save
+// serializes every field regardless of the visible tab). Build a `List<Tab>`
+// (`{ label, value, active }`); `active` is **server-tracked** (a LiveView
+// re-render resets any CSS-only selection, so the host owns it). Each button fires
+// `tab_event` (default `form_tab`) with the tab's `value` in `data-flv-value-tab`, and
+// carries `data-flv-form` so switching a tab serializes the typed values. Style it
+// by aliasing the --flv-* tokens.
+
+from form_layout_helpers import Tab
+from fitz_liveviews import flv
+
+component tabs {
+  state {
+    items: List<Tab> = []
+    tab_event: Str = "form_tab"
+  }
+
+  <template>
+    <div class="flv-tabs">
+      {#for tab in items}
+        {#if tab.active}<button type="button" class="flv-tab flv-tab-on" data-flv-form data-flv-click="{tab_event}" data-flv-value-tab="{tab.value}">{flv(tab.label)}</button>{#else}<button type="button" class="flv-tab" data-flv-form data-flv-click="{tab_event}" data-flv-value-tab="{tab.value}">{flv(tab.label)}</button>{/if}
+      {/for}
+    </div>
+  </template>
+
+  <style scoped>
+    .flv-tabs {
+      display: flex; gap: .25rem;
+      border-bottom: 1px solid var(--flv-border, #d9d9e0); margin-bottom: .3rem;
+    }
+    .flv-tab {
+      border: none; background: none; color: var(--flv-text-muted, #55555c);
+      cursor: pointer; padding: .55rem .95rem; font-size: .88rem; font-weight: 600;
+      border-bottom: 2px solid transparent; margin-bottom: -1px;
+    }
+    .flv-tab:hover { color: var(--flv-text, #1a1a1a); }
+    .flv-tab-on {
+      color: var(--flv-color-primary, #ce412b);
+      border-bottom-color: var(--flv-color-primary, #ce412b);
+    }
+  </style>
+}

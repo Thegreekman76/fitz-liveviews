@@ -23,7 +23,12 @@ from fitz_liveviews.ui.RadioGroup import radio_group, radio_group_render
 from fitz_liveviews.ui.Rating import rating, rating_render
 from fitz_liveviews.ui.CheckboxGroup import checkbox_group, checkbox_group_render
 from fitz_liveviews.ui.DatePicker import date_picker, date_picker_render
+from fitz_liveviews.ui.GroupSelect import group_select, group_select_render
+from fitz_liveviews.ui.MultiSelect import multi_select, multi_select_render
+from fitz_liveviews.ui.Tabs import tabs, tabs_render
+from fitz_liveviews.ui.Stepper import stepper, stepper_render
 from fitz_liveviews.ui.form_input_helpers import FieldOption
+from fitz_liveviews.ui.form_layout_helpers import OptionGroup, Tab, Step
 
 // --- set membership (copy of empleados.fitz's; see module header) ------------
 fn id_checked(csv: Str, id: Int) -> Bool {
@@ -48,78 +53,72 @@ fn field_depto(deptos: List<Departamento>, selected: Int, locale: Str) -> Str {
     return select_render(select { name: "departamento_id", label: t(locale, "form.depto"), options: opts }).raw
 }
 
-// A single `<option>` with `selected` when it matches (used by the cascade
-// selects, which stay inline — they're a CascadeSelect, a later component).
-fn option_tag(id: Int, label: Str, selected: Int) -> Str {
-    return match id == selected {
-        true => """<option value="{id}" selected>{flv(label)}</option>""",
-        false => """<option value="{id}">{flv(label)}</option>""",
+// País / provincia / ciudad — the packaged Select in CASCADE mode: `on_change`
+// fires a `data-flv-change` fall-through event, the loop re-queries the dependent
+// options server-side (the browser sends the picked value as `payload["value"]`).
+// Build a `List<FieldOption>` with a "none" head.
+fn field_pais(items: List<Pais>, selected: Int, locale: Str) -> Str {
+    let opts: List<FieldOption> = [FieldOption { label: "— País —", value: "0", on: selected == 0 }]
+    for p in items {
+        opts.push(FieldOption { label: p.nombre, value: "{p.id}", on: p.id == selected })
     }
+    return select_render(select { name: "pais_id", label: t(locale, "form.pais"), options: opts, on_change: "cascade_pais" }).raw
 }
 
-fn pais_options(items: List<Pais>, selected: Int) -> Str {
-    return """<option value="0">— País —</option>""" + h_join(items.map(fn(p) => html(option_tag(p.id, p.nombre, selected))))
-}
-
-fn provincia_options(items: List<Provincia>, selected: Int) -> Str {
-    return """<option value="0">— Provincia —</option>""" + h_join(items.map(fn(p) => html(option_tag(p.id, p.nombre, selected))))
-}
-
-fn ciudad_options(items: List<Ciudad>, selected: Int) -> Str {
-    return """<option value="0">— Ciudad —</option>""" + h_join(items.map(fn(c) => html(option_tag(c.id, c.nombre, selected))))
-}
-
-// GroupSelect (Slice 8) — a <select> with <optgroup>s: colleagues grouped by
-// department, for the "reporta a" field. `self_id` (the row being edited) is
-// excluded so an employee can't report to itself.
-fn reporta_options(colegas: List<Empleado>, deptos: List<Departamento>, self_id: Int, selected: Int, locale: Str) -> Str {
-    let none = t(locale, "form.reporta.none")
-    let head = match selected == 0 {
-        true => """<option value="0" selected>{none}</option>""",
-        false => """<option value="0">{none}</option>""",
+fn field_provincia(items: List<Provincia>, selected: Int, locale: Str) -> Str {
+    let opts: List<FieldOption> = [FieldOption { label: "— Provincia —", value: "0", on: selected == 0 }]
+    for p in items {
+        opts.push(FieldOption { label: p.nombre, value: "{p.id}", on: p.id == selected })
     }
-    let groups = ""
+    return select_render(select { name: "provincia_id", label: t(locale, "form.provincia"), options: opts, on_change: "cascade_provincia" }).raw
+}
+
+fn field_ciudad(items: List<Ciudad>, selected: Int, locale: Str) -> Str {
+    let opts: List<FieldOption> = [FieldOption { label: "— Ciudad —", value: "0", on: selected == 0 }]
+    for c in items {
+        opts.push(FieldOption { label: c.nombre, value: "{c.id}", on: c.id == selected })
+    }
+    return select_render(select { name: "ciudad_id", label: t(locale, "form.ciudad"), options: opts, on_change: "cascade_ciudad" }).raw
+}
+
+// "Reporta a" — the packaged GroupSelect: colleagues bucketed into `<optgroup>`s
+// by department. `self_id` (the row being edited) is excluded so an employee can't
+// report to itself. Empty departments are skipped.
+fn field_reporta(colegas: List<Empleado>, deptos: List<Departamento>, self_id: Int, selected: Int, locale: Str) -> Str {
+    let groups: List<OptionGroup> = []
     for d in deptos {
         let members = colegas.filter(fn(e) => e.departamento_id == d.id and e.id != self_id)
         if (members.len() > 0) {
-            let opts = ""
-            for e in members {
-                opts = opts + match e.id == selected {
-                    true => """<option value="{e.id}" selected>{flv(e.nombre)}</option>""",
-                    false => """<option value="{e.id}">{flv(e.nombre)}</option>""",
-                }
-            }
-            groups = groups + """<optgroup label="{flv(d.nombre)}">{opts}</optgroup>"""
+            let opts: List<FieldOption> = members.map(fn(e) => FieldOption { label: e.nombre, value: "{e.id}", on: e.id == selected })
+            groups.push(OptionGroup { label: d.nombre, options: opts })
         }
     }
-    return head + groups
+    return group_select_render(group_select { name: "reporta_a", label: t(locale, "form.reporta"), groups: groups, head_label: t(locale, "form.reporta.none"), head_on: selected == 0 }).raw
 }
 
 // --- permisos + skills -------------------------------------------------------
 
-// Permisos as a fieldset per module (list ordered by `modulo`), one checkbox
-// per permiso, pre-checked from `checked_csv`. All share `name="permisos"`.
-fn permisos_html(permisos: List<Permiso>, checked_csv: Str) -> Str {
-    let out = ""
+// Permisos — the packaged MultiSelect: one titled `<fieldset>` per module (the
+// list arrives ordered by `modulo`), one checkbox per permiso, all sharing
+// `name="permisos"`. Buckets the permisos into `List<OptionGroup>` by module.
+fn field_permisos(permisos: List<Permiso>, checked_csv: Str, locale: Str) -> Str {
+    let groups: List<OptionGroup> = []
     let cur_mod = ""
+    let cur_opts: List<FieldOption> = []
     for p in permisos {
         if (p.modulo != cur_mod) {
             if (cur_mod != "") {
-                out = out + "</div></fieldset>"
+                groups.push(OptionGroup { label: cur_mod, options: cur_opts })
             }
-            out = out + """<fieldset class="perm-group"><legend>{flv(p.modulo)}</legend><div class="perm-checks">"""
             cur_mod = p.modulo
+            cur_opts = []
         }
-        let checked = match id_checked(checked_csv, p.id) {
-            true => "checked",
-            false => "",
-        }
-        out = out + """<label class="perm-check"><input type="checkbox" name="permisos" value="{p.id}" {checked} /> {flv(p.nombre)}</label>"""
+        cur_opts.push(FieldOption { label: p.nombre, value: "{p.id}", on: id_checked(checked_csv, p.id) })
     }
     if (cur_mod != "") {
-        out = out + "</div></fieldset>"
+        groups.push(OptionGroup { label: cur_mod, options: cur_opts })
     }
-    return out
+    return multi_select_render(multi_select { name: "permisos", label: t(locale, "form.permisos"), groups: groups }).raw
 }
 
 // Skills field — the packaged CheckboxGroup (chip multiselect; all share
@@ -131,17 +130,9 @@ fn field_skills(skills: List<Skill>, checked_csv: Str, locale: Str) -> Str {
 
 // --- tabs / stepper / rating -------------------------------------------------
 
-// One form tab button (Slice 8). Opts into form serialization (`data-flv-form`).
-fn tab_btn(label: Str, val: Str, f_tab: Str) -> Str {
-    let cls = match val == f_tab {
-        true => "tab-btn tab-on",
-        false => "tab-btn",
-    }
-    return """<button type="button" class="{cls}" data-flv-form data-flv-click="form_tab" data-flv-value-tab="{val}">{flv(label)}</button>"""
-}
-
 // CSS class for a tab panel — only the active one shows, but ALL panels stay in
-// the DOM so the form serializes every field on save regardless of tab.
+// the DOM so the form serializes every field on save regardless of tab. (The tab
+// NAV is the packaged Tabs component; the panels stay host-managed here.)
 fn tab_panel_cls(val: Str, f_tab: Str) -> Str {
     return match val == f_tab {
         true => "tab-panel tab-active",
@@ -158,24 +149,35 @@ fn step_order(val: Str) -> Int {
     }
 }
 
-fn step_dot(num: Str, label: Str, val: Str, f_tab: Str) -> Str {
+// The Stepper step state for `val` given the active `f_tab`: "done" (behind),
+// "active" (current) or "pending" (ahead).
+fn step_state(val: Str, f_tab: Str) -> Str {
     let ov = step_order(val)
     let cur = step_order(f_tab)
-    let cls = match ov < cur {
-        true => "step step-done",
+    return match ov < cur {
+        true => "done",
         false => match ov == cur {
-            true => "step step-active",
-            false => "step",
+            true => "active",
+            false => "pending",
         },
     }
-    return """<div class="{cls}"><span class="step-num">{num}</span><span class="step-label">{flv(label)}</span></div>"""
 }
 
-fn stepper_bar(f_tab: Str, locale: Str) -> Str {
-    let s1 = step_dot("1", t(locale, "form.tab.datos"), "datos", f_tab)
-    let s2 = step_dot("2", t(locale, "form.tab.org"), "org", f_tab)
-    let s3 = step_dot("3", t(locale, "form.tab.accesos"), "accesos", f_tab)
-    return """<div class="stepper">{s1}<div class="step-line"></div>{s2}<div class="step-line"></div>{s3}</div>"""
+// The three form sections as a Tab list (edición) / a Step list (alta wizard).
+fn form_tab_items(f_tab: Str, locale: Str) -> List<Tab> {
+    return [
+        Tab { label: t(locale, "form.tab.datos"), value: "datos", active: f_tab == "datos" },
+        Tab { label: t(locale, "form.tab.org"), value: "org", active: f_tab == "org" },
+        Tab { label: t(locale, "form.tab.accesos"), value: "accesos", active: f_tab == "accesos" },
+    ]
+}
+
+fn form_step_items(f_tab: Str, locale: Str) -> List<Step> {
+    return [
+        Step { label: t(locale, "form.tab.datos"), state: step_state("datos", f_tab) },
+        Step { label: t(locale, "form.tab.org"), state: step_state("org", f_tab) },
+        Step { label: t(locale, "form.tab.accesos"), state: step_state("accesos", f_tab) },
+    ]
 }
 
 // Desempeño field — the packaged Rating (0-5 star input, pure CSS). The label
@@ -218,12 +220,12 @@ fn field_email(value: Str, locale: Str) -> Str => input_render(input { name: "em
 fn field_cargo(value: Str, locale: Str) -> Str => input_render(input { name: "cargo", label: t(locale, "form.cargo"), value: value, placeholder: t(locale, "form.cargo.ph"), autocomplete: "off" }).raw
 fn field_fecha(value: Str, locale: Str) -> Str => date_picker_render(date_picker { name: "fecha_ingreso", label: t(locale, "form.fecha"), value: value }).raw
 
-// Header nav — alta (edit_id == 0) is a guided Stepper; edición uses free Tabs.
+// Header nav — alta (edit_id == 0) is the packaged Stepper (guided wizard);
+// edición is the packaged Tabs (free navigation). Both are server-tracked.
 fn form_header_nav(edit_id: Int, f_tab: Str, locale: Str) -> Str {
-    let tabs = tab_btn(t(locale, "form.tab.datos"), "datos", f_tab) + tab_btn(t(locale, "form.tab.org"), "org", f_tab) + tab_btn(t(locale, "form.tab.accesos"), "accesos", f_tab)
     return match edit_id == 0 {
-        true => stepper_bar(f_tab, locale),
-        false => """<div class="tab-nav">{tabs}</div>""",
+        true => stepper_render(stepper { steps: form_step_items(f_tab, locale) }).raw,
+        false => tabs_render(tabs { items: form_tab_items(f_tab, locale) }).raw,
     }
 }
 

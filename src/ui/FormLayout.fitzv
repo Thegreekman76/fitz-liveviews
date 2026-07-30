@@ -1,0 +1,39 @@
+// FormLayout.fitzv — packaged companion UI primitive (Phase 9, Forms-composite).
+//
+// Presentational / controlled: `form_layout_render(form_layout { ... }).raw`. The
+// `<form data-flv-submit>` shell every form field lives in — a vertical stack,
+// optionally inside a bordered card. `body` is the RAW markup you build (the
+// packaged inputs, the FormRows, the Tabs / Stepper nav). Submit fires
+// `submit_event` (fall-through) carrying every field by `name`. Style it by
+// aliasing the --flv-* tokens.
+
+from fitz_liveviews import flv
+
+component form_layout {
+  state {
+    submit_event: Str = "save"
+    body: Str = ""
+    card: Bool = true
+  }
+
+  <template>
+    {#if card}
+      <div class="flv-form-card">
+        <form class="flv-form" data-flv-submit="{submit_event}">{body}</form>
+      </div>
+    {#else}
+      <form class="flv-form" data-flv-submit="{submit_event}">{body}</form>
+    {/if}
+  </template>
+
+  <style scoped>
+    .flv-form-card {
+      background: var(--flv-surface, #ffffff);
+      border: 1px solid var(--flv-border, #d9d9e0);
+      border-radius: 10px;
+      box-shadow: var(--flv-shadow-card, 0 1px 3px rgba(0, 0, 0, .08));
+      padding: 1.25rem; max-width: 640px;
+    }
+    .flv-form { display: flex; flex-direction: column; gap: .9rem; }
+  </style>
+}

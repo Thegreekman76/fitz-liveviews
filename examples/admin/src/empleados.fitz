@@ -34,6 +34,8 @@ from fitz_liveviews.ui.SortableHeader import sortable_header, sortable_header_re
 from fitz_liveviews.ui.GridToolbar import grid_toolbar, grid_toolbar_render
 from fitz_liveviews.ui.GridFilters import grid_filters, grid_filters_render
 from fitz_liveviews.ui.grid_helpers import Pill
+from fitz_liveviews.ui.TreeView import tree_view, tree_view_render
+from fitz_liveviews.ui.form_layout_helpers import TreeNode
 from EmpleadoRow import empleado_row, empleado_row_render
 from EmpleadoForm import empleado_form, empleado_form_render
 
@@ -240,38 +242,27 @@ fn ids_csv(rows: List<Empleado>) -> Str {
 // Tree view (Slice 4e) — the país → provincia → ciudad hierarchy as an
 // expandable tree. Expanded país / provincia nodes are tracked as comma-joined
 // id sets; each toggle is a server event that re-renders the whole tree.
-fn tree_html(paises: List<Pais>, provincias: List<Provincia>, ciudades: List<Ciudad>, exp_pais: Str, exp_prov: Str) -> Str {
-    let out = ""
+fn tree_nodes(paises: List<Pais>, provincias: List<Provincia>, ciudades: List<Ciudad>, exp_pais: Str, exp_prov: Str) -> List<TreeNode> {
+    // Flatten the país → provincia → ciudad hierarchy into the currently-visible
+    // rows for the packaged TreeView (the SSR template can't recurse). Each branch
+    // toggle sends its id as payload["value"]; a leaf is a plain row.
+    let nodes: List<TreeNode> = []
     for p in paises {
         let pexp = id_checked(exp_pais, p.id)
-        let arrow = match pexp {
-            true => "▾",
-            false => "▸",
-        }
-        out = out + """<li><button class="tree-node" data-flv-click="toggle_pais" data-flv-value-id="{p.id}"><span class="tree-arrow">{arrow}</span> {flv(p.nombre)}</button>"""
+        nodes.push(TreeNode { label: p.nombre, depth: 0, expanded: pexp, event: "toggle_pais", value: "{p.id}", icon: "🌎" })
         if (pexp) {
-            out = out + """<ul class="tree">"""
             for pr in provincias.filter(fn(x) => x.pais_id == p.id) {
                 let prexp = id_checked(exp_prov, pr.id)
-                let arr2 = match prexp {
-                    true => "▾",
-                    false => "▸",
-                }
-                out = out + """<li><button class="tree-node" data-flv-click="toggle_prov" data-flv-value-id="{pr.id}"><span class="tree-arrow">{arr2}</span> {flv(pr.nombre)}</button>"""
+                nodes.push(TreeNode { label: pr.nombre, depth: 1, expanded: prexp, event: "toggle_prov", value: "{pr.id}", icon: "🗺️" })
                 if (prexp) {
-                    out = out + """<ul class="tree">"""
                     for c in ciudades.filter(fn(x) => x.provincia_id == pr.id) {
-                        out = out + """<li class="tree-leaf">📍 {flv(c.nombre)}</li>"""
+                        nodes.push(TreeNode { label: c.nombre, depth: 2, leaf: true, icon: "📍" })
                     }
-                    out = out + "</ul>"
                 }
-                out = out + "</li>"
             }
-            out = out + "</ul>"
         }
-        out = out + "</li>"
     }
-    return out
+    return nodes
 }
 
 // Read-only star display (Slice 8c) — filled/empty stars for the expand-row.
@@ -769,7 +760,7 @@ async fn tree_screen(exp_pais: Str, exp_prov: Str, locale: Str) -> Html {
         Ok(x) => x,
         Err(e) => return grid_error(e, locale),
     }
-    let tree = tree_html(paises, provincias, ciudades, exp_pais, exp_prov)
+    let tree = tree_view_render(tree_view { nodes: tree_nodes(paises, provincias, ciudades, exp_pais, exp_prov) }).raw
     let tr_title = t(locale, "tree.title")
     let tr_sub = t(locale, "tree.subtitle")
     let tr_back = t(locale, "tree.back")
@@ -778,9 +769,7 @@ async fn tree_screen(exp_pais: Str, exp_prov: Str, locale: Str) -> Html {
         <h2>{flv(tr_title)}</h2>
         <p>{flv(tr_sub)}</p>
       </div>
-      <div class="grid-card tree-card">
-        <ul class="tree tree-root">{tree}</ul>
-      </div>
+      <div class="grid-card tree-card">{tree}</div>
       <div class="tree-foot">
         <button class="btn-clear" data-flv-click="show_grid">{flv(tr_back)}</button>
       </div>
@@ -1345,10 +1334,10 @@ async fn empleados_socket(ws: WsConn<LiveFrame>, cookie: Str?) {
             mode = "grid"
         }
         if (ev == "toggle_pais") {
-            tree_exp_pais = toggle_id(tree_exp_pais, pget_int(frame.payload, "id", 0))
+            tree_exp_pais = toggle_id(tree_exp_pais, pget_int(frame.payload, "value", 0))
         }
         if (ev == "toggle_prov") {
-            tree_exp_prov = toggle_id(tree_exp_prov, pget_int(frame.payload, "id", 0))
+            tree_exp_prov = toggle_id(tree_exp_prov, pget_int(frame.payload, "value", 0))
         }
         // --- selection / multi-delete (Slice 5) ---
         if (ev == "toggle_sel") {
