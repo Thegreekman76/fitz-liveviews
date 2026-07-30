@@ -1,0 +1,61 @@
+// Breadcrumbs.fitzv — a breadcrumb trail as a stateless, presentational
+// LiveComponent with SCOPED styles (self-contained, drop-in reusable).
+//
+// Companion UI library component (Phase 9 — Shell family). Like Pager it is
+// CONTROLLED: the `items` list and `aria_label` are owned by the host and
+// arrive as "props". The host renders it fresh with
+// `breadcrumbs_render(breadcrumbs { items: crumbs, aria_label: "..." }).raw`,
+// calling the generated render fn directly (NOT `component_with`) — no
+// per-connection store. It declares NO event handlers (crumbs are plain links).
+//
+// API: pass a `List<Crumb>` (from `fitz_liveviews.ui.shell_types`). Every crumb
+// with `href != ""` renders as a link; the last hop uses `href == ""` to render
+// as the current page (`aria-current="page"`, no link). N levels — the trail
+// grows as deep as the list. Separators are drawn by CSS, so the host never
+// interleaves separator nodes.
+//
+// Styling: `<style scoped>` with `--flv-*` theme tokens + literal fallbacks, so
+// it looks right with no theme stylesheet and re-themes via the token vars
+// (see themes/default.css). The leading separator is hidden with `:first-child`.
+
+from shell_types import Crumb
+from fitz_liveviews import flv
+
+component breadcrumbs {
+  state {
+    items: List<Crumb> = []
+    aria_label: Str = "Breadcrumb"
+  }
+
+  <template>
+    <nav class="flv-breadcrumbs" aria-label="{aria_label}">
+      {#for c in items}
+        <span class="flv-crumb-sep" aria-hidden="true">/</span>
+        {#if c.href == ""}
+          <span class="flv-crumb-current" aria-current="page">{flv(c.label)}</span>
+        {#else}
+          <a class="flv-crumb-link" href="{c.href}">{flv(c.label)}</a>
+        {/if}
+      {/for}
+    </nav>
+  </template>
+
+  <style scoped>
+    .flv-breadcrumbs {
+      display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+      font-size: .82rem;
+      color: var(--flv-text-muted, #6b7280);
+    }
+    .flv-crumb-sep { opacity: .5; }
+    .flv-crumb-sep:first-child { display: none; }
+    .flv-crumb-link {
+      color: var(--flv-color-primary, #ce412b);
+      text-decoration: none;
+    }
+    .flv-crumb-link:hover { text-decoration: underline; }
+    .flv-crumb-current {
+      color: var(--flv-text, #1a1a1a);
+      font-weight: 600;
+    }
+  </style>
+}

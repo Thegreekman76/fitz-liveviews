@@ -1,0 +1,13 @@
+// shell_types.fitz — shared data models for the packaged shell components
+// (Breadcrumbs today; Sidebar/Topbar nav model as the family grows).
+//
+// Kept in a plain `.fitz` sibling (not a `.fitzv`) because `.fitzv` files hold
+// only `component` blocks — types live alongside, imported by both the
+// component and the host app. Same split as `pager_helpers` / `icon` / `theme`.
+
+// One breadcrumb hop. `href == ""` marks the CURRENT (last) crumb, rendered as
+// plain text with `aria-current="page"` instead of a link.
+type Crumb {
+  label: Str
+  href: Str = ""
+}

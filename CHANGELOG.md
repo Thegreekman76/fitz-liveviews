@@ -5,6 +5,56 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.17.0] — 2026-07-30 — Keyed-grid verification + grouped mode keyed + `Breadcrumbs` component
+
+**Minor bump** — closes the keyed-diffing follow-up (verify + grouped-mode gap)
+and ships the first **Shell-family** packaged component, `Breadcrumbs`. Built
+against Fitz core **v0.29.1** (the `{#for x in xs key=x.id}` sugar).
+
+### Keyed grid — verified + grouped mode now keyed
+
+- **The `{#for key=}` sugar does NOT fit the Admin grid — and that's correct.**
+  The live grid's `<tbody>` is built imperatively in classic Fitz (rows are the
+  `EmpleadoRow` **component**, and `<Child />` inside `{#for}` is WASM-only in
+  SSR; the grid also interleaves a detail `<tr>` on expand + group-header `<tr>`s,
+  which break the sugar's "exactly one root element per iteration" rule). Keyed
+  diffing is **already active** via `EmpleadoRow`'s hand-written
+  `data-flv-key="emp-{id}"` — exactly what the sugar emits. Forcing the sugar
+  would mean inlining the row markup and dropping the `EmpleadoRow` extraction, a
+  regression. The finding is documented in `ROADMAP.md` (Keyed diffing section).
+- **Grouped mode is now keyed too.** `group_section`'s header row gained
+  `data-flv-key="grp-{key}"` and the empty-state row gained
+  `data-flv-key="grid-empty"`, so every `<tbody>` level (flat, grouped, empty) is
+  fully keyed — a mixed keyed/unkeyed level previously fell back to a positional
+  diff.
+- **Durable regression coverage (`src/lib.fitz`, +7 `@test`).** New `keyed_grid_*`
+  tests exercise the real `diff_html` engine and assert: alta → one `insert_keyed`
+  (no cascade), delete → one `remove_keyed`, sort → one `move_keyed`, filter →
+  keyed removes, content edits addressed **by key**, expand-detail as one keyed
+  insert, and a grouped headers+rows level staying keyed. These replace the
+  one-off jsdom replay with in-repo `fitz test` coverage.
+
+### Added — `Breadcrumbs` (Shell family, part 1)
+
+- **`fitz_liveviews.ui.Breadcrumbs`** — a controlled/presentational navigation
+  trail. Pass a `List<Crumb>` (from `fitz_liveviews.ui.shell_types`); every crumb
+  with `href != ""` is a link and the last hop (`href == ""`) renders as the
+  current page (`aria-current="page"`). N levels; CSS-drawn separators (no
+  interleaved nodes). `<style scoped>` over `--flv-*` tokens. Props: `items`,
+  `aria_label`.
+- **`fitz_liveviews.ui.shell_types`** — `type Crumb { label: Str, href: Str = "" }`.
+- **Adopted in the Admin ABM**: `render_breadcrumbs` now renders the component;
+  the bar placement (padding + bottom border) stays with the host as `.crumb-bar`.
+  Verified `fitz check` + `fitz build` (docker path) of the admin.
+- 4 gallery `@test` (160 total), `docs/ui-components.md` section, VSCode snippet
+  (`ui-breadcrumbs`), and `data-flv-key` added to the injection grammar.
+
+### Extraction roadmap
+
+- `ROADMAP.md` §9.D lays out the full Admin-ABM extraction toward the ~22-25
+  target, split into cohesive future sessions (Shell parts 2/3, Dashboard,
+  DataGrid, Forms ×2, Feedback). 12 components packaged so far.
+
 ## [v0.16.0] — 2026-07-29 — Keyed diffing (list insert/move/remove)
 
 **Minor bump** — teaches the server-side diff engine to match list children by

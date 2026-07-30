@@ -302,7 +302,10 @@ fn group_section(key: Str, label: Str, members: List<Empleado>, collapsed: Str, 
         true => "▾",
         false => "▸",
     }
-    let head = """<tr class="grp-row"><td colspan="9" class="grp-cell"><button class="grp-toggle" data-flv-click="toggle_group" data-flv-value-key="{key}"><span class="tree-arrow">{arrow}</span> <strong>{flv(label)}</strong> <span class="grp-count">{n}</span></button></td></tr>"""
+    // The header carries a data-flv-key so the grouped tbody is a fully keyed
+    // level (headers + member rows), matching the flat grid. Without it the
+    // unkeyed header would force the whole tbody back to a positional diff.
+    let head = """<tr class="grp-row" data-flv-key="grp-{key}"><td colspan="9" class="grp-cell"><button class="grp-toggle" data-flv-click="toggle_group" data-flv-value-key="{key}"><span class="tree-arrow">{arrow}</span> <strong>{flv(label)}</strong> <span class="grp-count">{n}</span></button></td></tr>"""
     let rows = match open {
         true => h_join(members.map(fn(e) => empleado_row_render(empleado_row { id: e.id, nombre: e.nombre, email: e.email, cargo: e.cargo, depto: depto_name(deptos, e.departamento_id), activo: e.activo, checked: id_checked(sel, e.id), expanded: id_checked(expanded, e.id), locale: locale }))),
         false => "",
@@ -659,7 +662,7 @@ async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, so
     let body_str = ""
     if (rows.len() == 0) {
         let empty_msg = t(locale, "grid.empty")
-        body_str = """<tr><td colspan="9" class="grid-empty">{empty_msg}</td></tr>"""
+        body_str = """<tr data-flv-key="grid-empty"><td colspan="9" class="grid-empty">{empty_msg}</td></tr>"""
     } else {
         if (group_by == "") {
             for e in rows {

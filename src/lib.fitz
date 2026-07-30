@@ -2748,3 +2748,179 @@ fn cw_component_with_isolates_per_connection_instances() {
   assert(r1.raw.contains("Count: 11"))
   assert(r2.raw.contains("Count: 20"))
 }
+
+// -----------------------------------------------------------------------------
+// Keyed grid reconciliation (Admin ABM) — insert / remove / sort / filter
+// -----------------------------------------------------------------------------
+//
+// These model the live grid's `<tbody>`: rows carry `data-flv-key="emp-N"`
+// (EmpleadoRow.fitzv) so `diff_html` reconciles by key. Each test asserts the
+// structural op set is KEYED (insert_keyed / move_keyed / remove_keyed) and
+// that a mid-list edit does NOT fall back to a positional cascade (no `text` /
+// `replace` / `append` / `remove` on the untouched siblings). Whitespace between
+// rows is real (indented tbody) to exercise the whitespace-ignoring keyed path.
+
+// How many patches in `ps` have op == `op`.
+fn count_op(ps: List<Patch>, op: Str) -> Int {
+  return ps.filter(fn(p) => p.op == op).len()
+}
+
+// True if any patch uses a positional (non-keyed) structural/content op — the
+// cascade we want keyed diffing to avoid.
+fn has_positional_op(ps: List<Patch>) -> Bool {
+  for p in ps {
+    if (p.op == "replace") { return true }
+    if (p.op == "append") { return true }
+    if (p.op == "remove") { return true }
+    if (p.op == "text" and p.key == "") { return true }
+  }
+  return false
+}
+
+// A 3-row tbody, indented (whitespace text nodes between rows).
+fn tb3() -> Str {
+  return """<tbody>
+    <tr data-flv-key="emp-1"><td>Ada</td></tr>
+    <tr data-flv-key="emp-2"><td>Bob</td></tr>
+    <tr data-flv-key="emp-3"><td>Cid</td></tr>
+  </tbody>"""
+}
+
+@test
+fn keyed_grid_insert_mid_list_is_one_insert_keyed_no_cascade() {
+  // Alta: a new employee row appears between emp-1 and emp-2.
+  let new = """<tbody>
+    <tr data-flv-key="emp-1"><td>Ada</td></tr>
+    <tr data-flv-key="emp-9"><td>Nya</td></tr>
+    <tr data-flv-key="emp-2"><td>Bob</td></tr>
+    <tr data-flv-key="emp-3"><td>Cid</td></tr>
+  </tbody>"""
+  let ps = diff_html(tb3(), new)
+  assert_eq(count_op(ps, "insert_keyed"), 1)
+  assert_eq(count_op(ps, "move_keyed"), 0)
+  assert_eq(count_op(ps, "remove_keyed"), 0)
+  assert(not has_positional_op(ps))
+  // The insert is anchored before emp-2 and carries the new row markup.
+  let ins = ps.filter(fn(p) => p.op == "insert_keyed")
+  assert_eq(ins[0].before, "emp-2")
+  assert(ins[0].content.contains("emp-9"))
+}
+
+@test
+fn keyed_grid_remove_mid_list_is_one_remove_keyed_no_cascade() {
+  // Delete emp-2 from the middle: one remove_keyed, siblings untouched.
+  let new = """<tbody>
+    <tr data-flv-key="emp-1"><td>Ada</td></tr>
+    <tr data-flv-key="emp-3"><td>Cid</td></tr>
+  </tbody>"""
+  let ps = diff_html(tb3(), new)
+  assert_eq(count_op(ps, "remove_keyed"), 1)
+  assert_eq(count_op(ps, "insert_keyed"), 0)
+  assert_eq(count_op(ps, "move_keyed"), 0)
+  assert(not has_positional_op(ps))
+  let rem = ps.filter(fn(p) => p.op == "remove_keyed")
+  assert_eq(rem[0].key, "emp-2")
+}
+
+@test
+fn keyed_grid_sort_reorder_is_move_keyed_not_cascade() {
+  // Sort flips the order to emp-3, emp-1, emp-2 — LCS keeps emp-1/emp-2 stable,
+  // so exactly one move_keyed relocates emp-3. No content/positional churn.
+  let new = """<tbody>
+    <tr data-flv-key="emp-3"><td>Cid</td></tr>
+    <tr data-flv-key="emp-1"><td>Ada</td></tr>
+    <tr data-flv-key="emp-2"><td>Bob</td></tr>
+  </tbody>"""
+  let ps = diff_html(tb3(), new)
+  assert_eq(count_op(ps, "move_keyed"), 1)
+  assert_eq(count_op(ps, "insert_keyed"), 0)
+  assert_eq(count_op(ps, "remove_keyed"), 0)
+  assert(not has_positional_op(ps))
+  let mv = ps.filter(fn(p) => p.op == "move_keyed")
+  assert_eq(mv[0].key, "emp-3")
+  assert_eq(mv[0].before, "emp-1")
+}
+
+@test
+fn keyed_grid_filter_drops_rows_as_remove_keyed() {
+  // A filter narrows the visible rows to emp-2, emp-4 — the dropped rows leave
+  // as keyed removes, not a positional rewrite of the whole tbody.
+  let old = """<tbody>
+    <tr data-flv-key="emp-1"><td>Ada</td></tr>
+    <tr data-flv-key="emp-2"><td>Bob</td></tr>
+    <tr data-flv-key="emp-3"><td>Cid</td></tr>
+    <tr data-flv-key="emp-4"><td>Dan</td></tr>
+  </tbody>"""
+  let new = """<tbody>
+    <tr data-flv-key="emp-2"><td>Bob</td></tr>
+    <tr data-flv-key="emp-4"><td>Dan</td></tr>
+  </tbody>"""
+  let ps = diff_html(old, new)
+  assert_eq(count_op(ps, "remove_keyed"), 2)
+  assert_eq(count_op(ps, "insert_keyed"), 0)
+  assert(not has_positional_op(ps))
+}
+
+@test
+fn keyed_grid_content_change_is_addressed_by_key() {
+  // Editing emp-2's name while emp-9 is inserted: the content patch is keyed
+  // (carries key == "emp-2"), never a positional path that index drift breaks.
+  let new = """<tbody>
+    <tr data-flv-key="emp-1"><td>Ada</td></tr>
+    <tr data-flv-key="emp-9"><td>Nya</td></tr>
+    <tr data-flv-key="emp-2"><td>Bob L.</td></tr>
+    <tr data-flv-key="emp-3"><td>Cid</td></tr>
+  </tbody>"""
+  let ps = diff_html(tb3(), new)
+  assert_eq(count_op(ps, "insert_keyed"), 1)
+  // The text edit on emp-2 is addressed by key, not by a shifted position.
+  let edits = ps.filter(fn(p) => p.op == "text")
+  assert_eq(edits.len(), 1)
+  assert_eq(edits[0].key, "emp-2")
+  assert_eq(edits[0].content, "Bob L.")
+}
+
+@test
+fn keyed_grid_expand_detail_row_is_one_insert_keyed() {
+  // Slice 7: toggling a row expands a detail <tr> right after it. Both the row
+  // and its detail carry keys, so the insert is a single keyed op (the 72->3
+  // patch win that motivated keyed diffing).
+  let new = """<tbody>
+    <tr data-flv-key="emp-1"><td>Ada</td></tr>
+    <tr data-flv-key="emp-2"><td>Bob</td></tr>
+    <tr data-flv-key="detail-2"><td>detalle</td></tr>
+    <tr data-flv-key="emp-3"><td>Cid</td></tr>
+  </tbody>"""
+  let ps = diff_html(tb3(), new)
+  assert_eq(count_op(ps, "insert_keyed"), 1)
+  assert(not has_positional_op(ps))
+  let ins = ps.filter(fn(p) => p.op == "insert_keyed")
+  assert_eq(ins[0].before, "emp-3")
+  assert(ins[0].content.contains("detail-2"))
+}
+
+@test
+fn keyed_grid_grouped_headers_keyed_after_grp_key() {
+  // Grouped mode: group-header rows now carry data-flv-key="grp-<key>" too, so
+  // a whole tbody of headers + rows stays a keyed level (previously the unkeyed
+  // header forced a positional fallback). Removing one member row is one keyed
+  // remove, not a cascade.
+  let old = """<tbody>
+    <tr data-flv-key="grp-depto-1"><td>Ingenieria</td></tr>
+    <tr data-flv-key="emp-1"><td>Ada</td></tr>
+    <tr data-flv-key="emp-2"><td>Bob</td></tr>
+    <tr data-flv-key="grp-depto-2"><td>Ventas</td></tr>
+    <tr data-flv-key="emp-5"><td>Eve</td></tr>
+  </tbody>"""
+  let new = """<tbody>
+    <tr data-flv-key="grp-depto-1"><td>Ingenieria</td></tr>
+    <tr data-flv-key="emp-1"><td>Ada</td></tr>
+    <tr data-flv-key="grp-depto-2"><td>Ventas</td></tr>
+    <tr data-flv-key="emp-5"><td>Eve</td></tr>
+  </tbody>"""
+  let ps = diff_html(old, new)
+  assert_eq(count_op(ps, "remove_keyed"), 1)
+  assert(not has_positional_op(ps))
+  let rem = ps.filter(fn(p) => p.op == "remove_keyed")
+  assert_eq(rem[0].key, "emp-2")
+}

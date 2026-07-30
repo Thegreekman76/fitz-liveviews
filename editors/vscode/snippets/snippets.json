@@ -402,5 +402,17 @@
     "prefix": "ui-modal-show",
     "body": ["let _ = dispatch_to(\"modal\", ${1:cid}, \"show\", { \"title\": ${2:title}, \"body\": ${3:body_html} })"],
     "description": "Open the Modal, seeding its title + RAW body HTML. Close it with a `close` dispatch (or the × / backdrop click)"
+  },
+
+  "Breadcrumbs — packaged, controlled (Shell family)": {
+    "prefix": "ui-breadcrumbs",
+    "body": [
+      "let ${1:crumbs}: List<Crumb> = [",
+      "  Crumb { label: ${2:home_label}, href: \"${3:/}\" },",
+      "  Crumb { label: ${4:current_label}, href: \"\" },",
+      "]",
+      "let ${5:trail} = breadcrumbs_render(breadcrumbs { items: $1, aria_label: ${6:aria} }).raw"
+    ],
+    "description": "Render the packaged Breadcrumbs from a List<Crumb> (href == \"\" marks the current page). Import: from fitz_liveviews.ui.Breadcrumbs import breadcrumbs, breadcrumbs_render + from fitz_liveviews.ui.shell_types import Crumb"
   }
 }

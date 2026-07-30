@@ -52,6 +52,8 @@ from fitz_liveviews.ui.Input import input, input_render
 from fitz_liveviews.ui.Spinner import spinner, spinner_render
 from fitz_liveviews.ui.icon import icon
 from fitz_liveviews.ui.theme import ui_theme
+from fitz_liveviews.ui.Breadcrumbs import breadcrumbs, breadcrumbs_render
+from fitz_liveviews.ui.shell_types import Crumb
 ```
 
 They're **i18n-agnostic** (the host passes already-localized text), styled with
@@ -382,6 +384,33 @@ they render un-themed too). Two ways to theme them:
 Unit tests for all three live in
 [`examples/ui-gallery/tests/components_test.fitz`](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/ui-gallery/tests)
 (`fitz test` from the gallery).
+
+### Breadcrumbs — navigation trail
+
+The first packaged piece of the **Shell family**. Pass a `List<Crumb>` (from
+`fitz_liveviews.ui.shell_types`); every crumb with `href != ""` renders as a
+link, and the last hop uses `href == ""` to render as the current page
+(`aria-current="page"`, no link). N levels — the trail grows with the list.
+Separators are drawn by CSS, so you never interleave separator nodes. It's
+controlled/presentational: render it fresh with `breadcrumbs_render(...)`; it
+declares no events.
+
+```
+from fitz_liveviews.ui.Breadcrumbs import breadcrumbs, breadcrumbs_render
+from fitz_liveviews.ui.shell_types import Crumb
+
+let crumbs: List<Crumb> = [
+    Crumb { label: "Admin", href: "/" },
+    Crumb { label: "Empleados", href: "/empleados" },
+    Crumb { label: "Ada Lovelace", href: "" },   // current page
+]
+let trail = breadcrumbs_render(breadcrumbs { items: crumbs, aria_label: "Ruta" }).raw
+```
+
+The widget styles the trail only (colors, separators, wrap); where the bar sits
+in your chrome — padding, a bottom border — stays with the host (the Admin ABM
+wraps it in a `.crumb-bar`). Props: `items: List<Crumb>` and `aria_label: Str`
+(default `"Breadcrumb"`). Styled with `<style scoped>` over `--flv-*` tokens.
 
 ---
 

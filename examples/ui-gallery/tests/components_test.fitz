@@ -18,6 +18,8 @@ from fitz_liveviews.ui.Card import card, card_render
 from fitz_liveviews.ui.Alert import alert, alert_render
 from fitz_liveviews.ui.Input import input, input_render
 from fitz_liveviews.ui.Modal import modal, modal_render, modal_show, modal_close
+from fitz_liveviews.ui.Breadcrumbs import breadcrumbs, breadcrumbs_render
+from fitz_liveviews.ui.shell_types import Crumb
 
 // --- Pager (presentational / controlled) ---
 
@@ -368,4 +370,45 @@ from fitz_liveviews.ui.Modal import modal, modal_render, modal_show, modal_close
     let closed = modal_close(opened, { })
     assert_eq(closed.open, false)
     assert_eq(closed.body, "")
+}
+
+// --- Breadcrumbs (presentational / controlled, Shell family) ---
+
+@test fn breadcrumbs_renders_links_and_current() {
+    let cs: List<Crumb> = [
+        Crumb { label: "Home", href: "/" },
+        Crumb { label: "Users", href: "/users" },
+        Crumb { label: "Ada", href: "" },
+    ]
+    let h = breadcrumbs_render(breadcrumbs { items: cs }).raw
+    // Linked crumbs render as <a href>; the current (href == "") as a span.
+    assert(h.contains("href=\"/\""))
+    assert(h.contains("href=\"/users\""))
+    assert(h.contains("aria-current=\"page\""))
+    assert(h.contains("Ada"))
+    // The current crumb is NOT a link (no empty href leaks through).
+    assert(not h.contains("href=\"\""))
+}
+
+@test fn breadcrumbs_escapes_labels() {
+    let cs: List<Crumb> = [Crumb { label: "<b>x</b>", href: "" }]
+    let h = breadcrumbs_render(breadcrumbs { items: cs }).raw
+    assert(h.contains("&lt;b&gt;"))
+}
+
+@test fn breadcrumbs_empty_is_just_the_nav() {
+    let cs: List<Crumb> = []
+    let h = breadcrumbs_render(breadcrumbs { items: cs }).raw
+    // The <nav> renders; with no items there are no link/current elements. The
+    // scoped <style> always emits (it names the classes), so key on the markup
+    // that only appears per-item: an <a> tag and aria-current.
+    assert(h.contains("flv-breadcrumbs"))
+    assert(not h.contains("<a "))
+    assert(not h.contains("aria-current"))
+}
+
+@test fn breadcrumbs_sets_aria_label() {
+    let cs: List<Crumb> = [Crumb { label: "Home", href: "" }]
+    let h = breadcrumbs_render(breadcrumbs { items: cs, aria_label: "Migas" }).raw
+    assert(h.contains("aria-label=\"Migas\""))
 }

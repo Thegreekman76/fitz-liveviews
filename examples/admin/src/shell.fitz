@@ -16,6 +16,8 @@
 
 from i18n import t, other_locale, lang_flag
 from fitz_liveviews import Html, html, flv, html_response
+from fitz_liveviews.ui.Breadcrumbs import breadcrumbs, breadcrumbs_render
+from fitz_liveviews.ui.shell_types import Crumb
 
 // ---------------------------------------------------------------------------
 // Redirect helper — used by protected pages when there's no valid session.
@@ -103,11 +105,15 @@ fn render_topbar(title: Str, user_name: Str, locale: Str) -> Str {
 // dashboard. Trivial today (two levels); ready to grow for nested screens.
 fn render_breadcrumbs(title: Str, locale: Str) -> Str {
     let home = t(locale, "crumb.admin")
-    return """<nav class="breadcrumbs" aria-label="{flv(home)}">
-      <a href="/">{flv(home)}</a>
-      <span class="crumb-sep">/</span>
-      <span class="crumb-current">{flv(title)}</span>
-    </nav>"""
+    // The trail itself is the packaged `Breadcrumbs` companion component; the
+    // host only supplies the crumb data + the bar placement (padding + border
+    // via `.crumb-bar`). `href == ""` marks the current (last) crumb.
+    let crumbs: List<Crumb> = [
+        Crumb { label: home, href: "/" },
+        Crumb { label: title, href: "" },
+    ]
+    let trail = breadcrumbs_render(breadcrumbs { items: crumbs, aria_label: home }).raw
+    return """<div class="crumb-bar">{trail}</div>"""
 }
 
 // First 1-2 letters for the avatar chip.
@@ -579,15 +585,9 @@ fn shell_css() -> Str {
   .modal h3 \{ margin: 0 0 .5rem; \}
   .modal p \{ color: var(--muted); margin: 0 0 1.25rem; \}
   .modal-actions \{ display: flex; gap: .5rem; justify-content: flex-end; \}
-  /* Breadcrumbs (Slice 7) */
-  .breadcrumbs \{
-    display: flex; align-items: center; gap: .5rem; font-size: .82rem;
-    padding: .5rem 1.5rem; color: var(--muted); border-bottom: 1px solid var(--border);
-  \}
-  .breadcrumbs a \{ color: var(--primary); text-decoration: none; \}
-  .breadcrumbs a:hover \{ text-decoration: underline; \}
-  .crumb-sep \{ opacity: .5; \}
-  .crumb-current \{ color: var(--text); font-weight: 600; \}
+  /* Breadcrumbs bar (Slice 7) — placement only; the trail is the packaged
+     fitz_liveviews.ui.Breadcrumbs component (scoped styles travel with it). */
+  .crumb-bar \{ padding: .5rem 1.5rem; border-bottom: 1px solid var(--border); \}
   /* Column grouping (Slice 6) */
   .grid-group \{ align-items: center; \}
   tr.grp-row \{ background: color-mix(in srgb, var(--primary) 8%, var(--surface)); \}

@@ -148,8 +148,13 @@ Compact patches over the wire, DOM state preserved on the client.
       Backward-compatible (unkeyed levels stay positional). The Admin ABM's
       expand-row went 72 → 3 patches. Opt-in today via an explicit
       `data-flv-key` attribute on list items.
-- [ ] **Sugar**: `{#for x in xs key=x.id}` in the SSR template DSL to emit
-      `data-flv-key` automatically (the engine above already consumes it).
+- [x] **Sugar**: `{#for x in xs key=x.id}` in the SSR template DSL (Fitz core
+      v0.29.1) — the `key=<expr>` clause desugars in `expand` to a
+      `data-flv-key="{<expr>}"` interpolation attr on the loop body's single
+      root element, which the keyed engine above consumes. The key expr is
+      scoped with the loop var, type-checked, and byte-for-byte for keyless
+      `{#for}`. WASM target sets it as a plain DOM attr (parity). Validated
+      `fitz run` ↔ native binary (identical `<li data-flv-key="...">`).
 - [ ] Auth integration (`@authenticated @live(...)`, user injected)
 - [ ] `@on_mount` and `@on_disconnect` lifecycle hooks
 - [ ] `@every(N secs)` for server-pushed periodic updates
@@ -463,10 +468,41 @@ by replaying the real client `applyPatches` in jsdom across an accumulating
 expand/collapse/sort/filter sequence, and by `fitz run` ↔ binary byte parity on
 the WS smoke). Backward-compatible: unkeyed levels keep the positional diff.
 
-**Still open** — the ergonomic sugar `{#for x in xs key=x.id}` in the SSR
-template DSL (emit `data-flv-key` automatically; the engine already consumes it).
-**Secondary reliability debts still to schedule**: reconnect with state replay,
-backpressure on the outbox, and multi-instance coordination.
+**Shipped in Fitz core v0.29.1** — the ergonomic sugar `{#for x in xs key=x.id}`
+in the SSR template DSL (desugars to `data-flv-key="{<expr>}"` on the loop body's
+root element; the engine already consumes it). Keyed diffing is no longer opt-in
+via a hand-written attribute.
+
+> **The sugar does NOT fit the Admin grid — and that's correct (v0.16.x
+> follow-up, 2026-07-30).** The live grid's `<tbody>` is built imperatively in
+> classic Fitz (`empleados.fitz`: `for e in rows { body_str += empleado_row_render(...).raw }`),
+> not as a `.fitzv` `{#for}`, for three reasons the sugar can't work around:
+> (1) the rows are the `EmpleadoRow` **component**, and `<Child />` inside `{#for}`
+> is WASM-only in SSR (Fitz core Phase 11.7); (2) the sugar requires the loop body
+> to have **exactly one root element per iteration**, but the grid interleaves a
+> second `<tr class="detail-row">` on expand and adds `<tr class="grp-row">`
+> headers in grouped mode; (3) keyed diffing is **already active** — `EmpleadoRow`
+> carries `data-flv-key="emp-{id}"` on its single `<tr>` root, which is exactly
+> what the sugar emits. Forcing the sugar would mean inlining the row markup and
+> dropping the `EmpleadoRow` extraction — a regression. So the grid keeps its
+> hand-written keys; the sugar remains the right tool for **inline** single-element
+> lists in a `.fitzv` template (none in the Admin ABM today: `GridFilters`'
+> `{#for d in deptos}` body is an `{#if}/{#else}` pair, not a single root, and
+> pills don't reorder).
+>
+> **Grouped mode is now keyed too (2026-07-30).** `group_section`'s header row
+> gained `data-flv-key="grp-{key}"` and the empty-state row gained
+> `data-flv-key="grid-empty"`, so every `<tbody>` level (flat, grouped, empty) is
+> fully keyed — a mixed keyed/unkeyed level previously fell back to a positional
+> diff. **Durable regression coverage**: `src/lib.fitz` gained 7 `@test` against
+> the real `diff_html` engine (`keyed_grid_*`) proving alta→`insert_keyed`,
+> delete→`remove_keyed`, sort→`move_keyed`, filter→`remove_keyed`, content edits
+> addressed by key, expand-detail as one keyed insert, and the grouped-headers
+> level staying keyed — none falling back to a positional cascade. These replace
+> the one-off jsdom replay with in-repo `fitz test` coverage.
+
+**Secondary reliability debts still to schedule (deferred)**: reconnect with
+state replay, backpressure on the outbox, and multi-instance coordination.
 
 ## Phase 9 — Companion UI library 🧩
 
@@ -622,6 +658,66 @@ real, no por completeness.
 **Decisión pendiente que NO se cierra hasta 9.A**: aesthetic
 direction (Opción A/B/C arriba). Documentado como debt residual
 hasta que 9.A arranque.
+
+### 9.D — Full Admin-ABM extraction (all remaining components, split across sessions)
+
+The Admin ABM redefined the shortlist upward (8 → ~22-25). Cuts 1+2 (v0.12.0 /
+v0.13.0) shipped 11 packaged primitives; **v0.15.x adds `Breadcrumbs`** (first
+Shell-family piece). This is the committed plan to extract **everything left**,
+one cohesive cluster per session. Each session follows the same recipe: design a
+clean, ergonomic API (props consistent with `fitz_liveviews.ui.*`, `--flv-*`
+tokens, `<style scoped>`, no gotchas) → package under `src/ui/` → adopt in the
+Admin ABM (the validation, so APIs are proven against real code, not speculative)
+→ gallery `@test` + `docs/ui-components.md` + a VSCode snippet → verify
+`fitz check` + `fitz test` + `fitz build` (docker path) + a 320px visual pass.
+
+**Already packaged (12):** Pager · Toast · ConfirmDialog · Modal · Button ·
+Card · Badge · Alert · Input · Spinner · Icon · **Breadcrumbs** ✅.
+
+- [x] **Session A — Shell family, part 1: `Breadcrumbs`** (v0.15.x, this
+  session). Packaged `fitz_liveviews.ui.Breadcrumbs` + `shell_types.Crumb`
+  (N-level, CSS separators, `href == ""` = current). Adopted in the admin
+  (`render_breadcrumbs` → the component; `.crumb-bar` keeps the bar placement).
+  4 gallery tests, docs, snippet. `fitz build` of the admin verified.
+- [ ] **Session B — Shell family, part 2: `ThemeToggle`**. The reusable theme
+  machinery: `theme_boot_script()` (anti-FOUC head script) + `theme_cycle_script()`
+  (light/dark/auto cycle over `localStorage` + `data-theme`) + a `theme_toggle`
+  button component. Generalize the admin's `theme_init_js` / `flvCycleTheme`
+  (parameterize the `localStorage` key + labels). Adopt in the admin topbar +
+  `page_layout`. **Lower risk than Sidebar/Topbar** — scripts + one button.
+- [ ] **Session C — Shell family, part 3: `Sidebar` + `Topbar` + `AppShell`**
+  (the heavy one — needs its own focused session + visual verification). Requires:
+  (a) a nav data model (`NavItem` / `NavGroup` for the nested `<details>` menu);
+  (b) splitting the monolithic `shell_css()` into `ui_shell_css()` (chrome:
+  `.sidebar` / `.topbar` / drawer / collapse / responsive) vs the admin's
+  screen-specific CSS; (c) `AppShell` as a document-layout render fn (title, lang,
+  head-extra, sidebar/topbar/crumbs, body + baked chrome CSS + behavior scripts).
+  Keep class names to preserve visuals; verify at 320px. **Do NOT big-bang without
+  a visual pass.**
+- [ ] **Session D — Dashboard family**: `StatCard` (label/value/hint/accent) ·
+  `BarChart` (CSS bars) · `ProgressBar` (determinate). From `dashboard.fitz` +
+  shell CSS (`.stat-card` / `.chart-*` / `.pbar-*`).
+- [ ] **Session E — DataGrid family**: promote the admin `.fitzv` `GridToolbar`
+  + `GridFilters` into the package · `DataGrid` (table + sortable headers +
+  `data-label` mobile cards) · `SortableHeader` · selection / multi-delete
+  controls · grouping controls. (Pager already packaged; `EmpleadoRow` stays
+  app-specific — it's the domain row.)
+- [ ] **Session F — Forms family, part 1 (inputs)**: `Textarea` · `Select` ·
+  `Checkbox` / `CheckboxGroup` · `Radio` / `RadioGroup` · `Rating` ·
+  `DatePicker`. From `EmpleadoForm.fitzv` + `form_helpers.fitz` + form CSS.
+- [ ] **Session G — Forms family, part 2 (composite)**: `FormLayout` / `FormRow`
+  · `CascadeSelect` · `GroupSelect` · `MultiSelect` · `Tabs` · `Stepper` ·
+  `TreeView`. The richer, stateful/interaction-heavy controls.
+- [ ] **Session H — Feedback & misc**: `Chip` · `CountBadge` (or a `Badge`
+  `count` variant) · `Tooltip` (the CSS-only `data-tooltip`) · `Divider` ·
+  `ExpansionPanel` (native `<details>`).
+
+> **Ordering rationale**: Breadcrumbs first (cleanest, self-contained, proves the
+> Shell-family recipe). ThemeToggle next (scripts + one button, low risk).
+> Sidebar/Topbar/AppShell get a dedicated session because the document-layout +
+> CSS-split needs a visual 320px pass. Dashboard/DataGrid/Forms/Feedback follow
+> the existing admin `.fitzv` extractions. Reconnect / backpressure / multi-instance
+> reliability debts stay **deferred** (tracked in the Keyed diffing section).
 
 ## Phase 7 — Beyond MVP (deferred, opportunistic) 🔮
 
