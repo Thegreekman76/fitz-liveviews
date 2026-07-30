@@ -15,6 +15,10 @@
     -->
     <style>
       :root {
+        /* Let the browser paint form controls, scrollbars, and the
+           default canvas in the matching scheme. */
+        color-scheme: light dark;
+
         --flv-color-primary: #ce412b;
         --flv-color-success: #2e7d32;
         --flv-color-danger:  #c62828;
@@ -45,6 +49,14 @@
         }
       }
 
+      /* Paint the FULL viewport, not just the 680px column. The body is
+         centered with a max-width, so its sides expose the <html> canvas;
+         backgrounding <html> keeps the whole page on `--page-bg` in both
+         schemes (the earlier pure-black was the browser's default canvas
+         showing through). */
+      html {
+        background: var(--page-bg);
+      }
       body {
         font-family: system-ui, -apple-system, sans-serif;
         max-width: 680px;

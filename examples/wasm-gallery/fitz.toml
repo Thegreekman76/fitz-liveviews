@@ -26,3 +26,21 @@ name = "counter"
 main = "Counter.fitzv"
 target = "wasm-client"
 mount = "#app"
+
+[[bin]]
+name = "toggle"
+main = "Toggle.fitzv"
+target = "wasm-client"
+mount = "#app"
+
+[[bin]]
+name = "tabs"
+main = "Tabs.fitzv"
+target = "wasm-client"
+mount = "#app"
+
+[[bin]]
+name = "stepper"
+main = "Stepper.fitzv"
+target = "wasm-client"
+mount = "#app"

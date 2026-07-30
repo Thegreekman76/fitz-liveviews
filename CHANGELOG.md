@@ -21,11 +21,34 @@ this file summarises what shipped at each release.
   (<https://thegreekman76.github.io/fitz-liveviews/live/>). GitHub Pages allows one
   deployment per repo, so mkdocs (`site/`) + the gallery (`site/live/`) deploy
   together.
+- **`docs/live-gallery.md`** + a **"Live gallery"** nav item — the gallery is
+  embedded via an `<iframe>` on a real docs page rather than linked directly. A
+  direct same-origin nav link was intercepted by Material's `navigation.instant`
+  SPA loader and mashed into the docs shell (visible only until a hard refresh);
+  the iframe isolates the self-contained wasm page cleanly.
 
 > Client-WASM is a **parallel component set**, not a recompile of the SSR
 > companion UI (the core's wasm loader is sibling-file-only, has no `dep_registry`,
 > and uses a DOM-ops render model). See [`docs/client-wasm-plan.md`](docs/client-wasm-plan.md).
 > The formal version bump ships with CW.5.
+
+### Added — the client component set (CW.2, in progress)
+
+- **`Toggle.fitzv`** — a Bool switch. Note: the `.fitzv` view lexer rejects `!` in
+  event bodies (only `!=`), so the flip is `on = on == false`.
+- **`Tabs.fitzv`** — client-side panel switching (`Int` state + `{#if active == N}`
+  comparison conditions + `{#if}{#else}` to highlight the active tab). The headline
+  of the client-WASM story: zero round-trips, instant panel swap.
+- **`Stepper.fitzv`** — a bounded `[0, 10]` number input using an `if`-as-value
+  expression on the RHS of the event-body assignment.
+- Each is a standalone `[[bin]]` in `examples/wasm-gallery/fitz.toml`; all compile
+  to wasm. The composed live gallery page lands in CW.3.
+
+### Fixed
+
+- The `wasm-gallery` host page painted only the centered 680px column, exposing the
+  browser's default (near-black) canvas on the sides in dark mode. Backgrounding
+  `<html>` + `color-scheme: light dark` now paints the full viewport in both schemes.
 
 ## [v0.24.0] — 2026-07-30 — `Chip` + `CountBadge` + `Tooltip` + `Divider` + `ExpansionPanel` (Feedback family)
 

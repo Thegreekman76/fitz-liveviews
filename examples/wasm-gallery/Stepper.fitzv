@@ -1,0 +1,78 @@
+// Stepper.fitzv — a bounded number input (CW.2). Like Counter, but the
+// value is clamped to [0, 10] with an `if`-as-value expression in the
+// event body. Standalone: imports nothing, `{...}`, local `@click`.
+//
+// Exercises: `Int` state, `if`-as-value on the RHS of an assignment,
+// comparisons, and disabling look via `{#if}` at the bounds.
+
+component Stepper {
+  state { qty: Int = 1 }
+
+  event dec() { qty = if (qty > 0) { qty - 1 } else { qty } }
+  event inc() { qty = if (qty < 10) { qty + 1 } else { qty } }
+
+  <template>
+    <div class="stepper">
+      <span class="cap">Cantidad</span>
+      <div class="control">
+        {#if qty > 0}
+          <button class="step" @click="dec">-</button>
+        {#else}
+          <button class="step off">-</button>
+        {/if}
+        <span class="num">{qty}</span>
+        {#if qty < 10}
+          <button class="step" @click="inc">+</button>
+        {#else}
+          <button class="step off">+</button>
+        {/if}
+      </div>
+    </div>
+  </template>
+
+  <style scoped>
+    .stepper {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-family: system-ui, sans-serif;
+      color: var(--flv-text, #1a1a1a);
+    }
+    .cap {
+      font-size: 0.85rem;
+      color: var(--flv-text-muted, #55555c);
+    }
+    .control {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--flv-border, #d9d9e0);
+      border-radius: var(--flv-radius-md, 8px);
+      overflow: hidden;
+      width: fit-content;
+    }
+    .step {
+      width: 40px;
+      height: 40px;
+      border: none;
+      background: var(--flv-surface-2, #f5f5f7);
+      color: var(--flv-text, #1a1a1a);
+      font-size: 1.3rem;
+      cursor: pointer;
+      transition: background .12s ease;
+    }
+    .step:hover {
+      background: var(--flv-border, #d9d9e0);
+    }
+    .off {
+      opacity: .4;
+      cursor: not-allowed;
+    }
+    .num {
+      min-width: 3ch;
+      text-align: center;
+      font-weight: 700;
+      font-size: 1.1rem;
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+}

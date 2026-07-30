@@ -1,0 +1,78 @@
+// Tabs.fitzv — client-side panel switching (CW.2). The headline of the
+// client-WASM story: zero round-trips, the active panel swaps instantly
+// in the browser. Standalone: imports nothing, `{...}`, local `@click`.
+//
+// Exercises: `Int` state, comparison conditions in `{#if active == N}`,
+// and `{#if}{#else}` to highlight the active tab button.
+
+component Tabs {
+  state { active: Int = 0 }
+
+  event show0() { active = 0 }
+  event show1() { active = 1 }
+  event show2() { active = 2 }
+
+  <template>
+    <div class="tabs">
+      <div class="bar">
+        {#if active == 0}
+          <button class="tab active" @click="show0">Resumen</button>
+        {#else}
+          <button class="tab" @click="show0">Resumen</button>
+        {/if}
+        {#if active == 1}
+          <button class="tab active" @click="show1">Detalles</button>
+        {#else}
+          <button class="tab" @click="show1">Detalles</button>
+        {/if}
+        {#if active == 2}
+          <button class="tab active" @click="show2">Ajustes</button>
+        {#else}
+          <button class="tab" @click="show2">Ajustes</button>
+        {/if}
+      </div>
+      <div class="panel">
+        {#if active == 0}<p>Vista general del proyecto. Todo corre client-side.</p>{/if}
+        {#if active == 1}<p>Detalles finos: el estado vive en Rust dentro del WASM.</p>{/if}
+        {#if active == 2}<p>Ajustes: sin servidor, sin round-trip, sin recarga.</p>{/if}
+      </div>
+    </div>
+  </template>
+
+  <style scoped>
+    .tabs {
+      font-family: system-ui, sans-serif;
+      color: var(--flv-text, #1a1a1a);
+      max-width: 380px;
+    }
+    .bar {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--flv-border, #d9d9e0);
+    }
+    .tab {
+      border: none;
+      background: transparent;
+      color: var(--flv-text-muted, #55555c);
+      padding: 10px 14px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color .12s ease;
+    }
+    .tab:hover {
+      color: var(--flv-text, #1a1a1a);
+    }
+    .active {
+      color: var(--flv-color-primary, #ce412b);
+      border-bottom-color: var(--flv-color-primary, #ce412b);
+      font-weight: 600;
+    }
+    .panel {
+      padding: 16px 4px;
+      line-height: 1.55;
+      color: var(--flv-text-muted, #55555c);
+    }
+  </style>
+}
