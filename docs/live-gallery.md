@@ -1,8 +1,9 @@
 # Live gallery
 
-Real Fitz LiveViews components compiled to **WebAssembly** and running in
-**your browser** — no server, no WebSocket. The state lives in Rust inside
-the WASM instance; every interaction reacts client-side.
+Eight real Fitz LiveViews components compiled to **WebAssembly** and running
+in **your browser** — no server, no WebSocket. Each widget owns its state in
+Rust inside the WASM instance; every interaction reacts client-side. It's all
+one bundle (~34 KB gzipped), composed from eight standalone `.fitzv`.
 
 <div class="live-embed">
   <!--
@@ -16,7 +17,7 @@ the WASM instance; every interaction reacts client-side.
     src="https://thegreekman76.github.io/fitz-liveviews/live/"
     title="Fitz LiveViews — live client-WASM gallery"
     loading="lazy"
-    style="width:100%; height:520px; border:1px solid var(--md-default-fg-color--lightest); border-radius:8px;">
+    style="width:100%; height:760px; border:1px solid var(--md-default-fg-color--lightest); border-radius:8px;">
   </iframe>
 </div>
 
@@ -34,9 +35,10 @@ fitz build --target wasm-client
 ```
 
 which emits a `wasm-bindgen` + `web-sys` crate, runs `wasm-pack`, and
-produces a `.wasm` bundle (the counter is ~12 KB gzipped). The look reuses
-the same `--flv-*` design tokens as the server-rendered companion UI, so
-client and SSR components look identical.
+produces a `.wasm` bundle. A single component is ~12 KB gzipped; the full
+composed gallery (`Gallery.fitzv`, which composes the eight via cross-file
+`<Child/>`) is ~34 KB. The look reuses the same `--flv-*` design tokens as
+the server-rendered companion UI, so client and SSR components look identical.
 
 > **Client-WASM vs SSR.** The companion UI (`src/ui/`) is server-rendered
 > and diffed over a WebSocket — best for shared/DB-driven state. Client-WASM

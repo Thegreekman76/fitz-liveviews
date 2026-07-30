@@ -830,13 +830,15 @@ rationale + capability envelope in [`docs/client-wasm-plan.md`](docs/client-wasm
       `wasm-pack` compiles, bundle serves over HTTP with correct MIME
       (`application/wasm`), generated `lib.rs` wires `mount("#app")` + three click
       listeners + `{count}` render + scoped `var(--flv-*)` styles.
-- [ ] **CW.2 — The client-side component set** — the genuinely-client-interactive
-      widgets as standalone client `.fitzv` (Counter, Toggle, Tabs, Accordion,
-      Rating, Stepper, Modal, a small TodoList exercising `{#for}` + payload),
-      reusing the SSR look.
-- [ ] **CW.3 — The live gallery page** — compose the components into one
-      interactive gallery (single-root `Gallery.fitzv` via cross-file `<Child/>`,
-      or several bins each mounting its own `#slot`) + client-side theme toggle.
+- [x] **CW.2 — The client-side component set** (2026-07-30) — eight standalone
+      client `.fitzv`, all compile to wasm: Counter, Toggle, Tabs, Stepper, Rating,
+      Accordion, Modal, and a TodoList (`{#for}` + `data-flv-submit`/`data-flv-value`
+      payloads + sibling `todo_helpers.fitz`). Envelope notes: the view lexer rejects
+      `!` and inline `==`/`!=` in event bodies, and the wasm emitter defers unary `-1`.
+- [x] **CW.3 — The live gallery page** (2026-07-30) — `Gallery.fitzv` composes the
+      eight via cross-file `<Child/>` into one bundle (~34 KB gzipped), mounted at
+      `/live/` and embedded in `/live-gallery/`. Client-side theme toggle still TODO
+      (the page is theme-aware via `prefers-color-scheme`).
 - [ ] **CW.4 — Docs + SSR-vs-client decision matrix** — `docs/client-wasm.md`,
       "▶ see it live" links from `docs/ui-components.md`.
 - [ ] **CW.5 — CI + release** — bump + CHANGELOG + `.vsix` (if grammar/snippets

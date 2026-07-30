@@ -1,0 +1,76 @@
+// Gallery.fitzv — the composed live gallery (CW.3). One root component
+// that composes the eight standalone client widgets via cross-file
+// `<Child />` composition (core v0.25.0+). Each child owns its own state
+// (persistent per-instance), so every widget in the grid is independently
+// interactive — all from a SINGLE wasm bundle, one mount into `#app`.
+//
+// The children live in sibling `.fitzv` files, imported like classic Fitz
+// modules. TodoList pulls in `todo_helpers.fitz` transitively.
+
+from Counter import Counter
+from Toggle import Toggle
+from Tabs import Tabs
+from Stepper import Stepper
+from Rating import Rating
+from Accordion import Accordion
+from Modal import Modal
+from TodoList import TodoList
+
+component Gallery {
+  state { heading: Str = "Componentes en vivo" }
+
+  <template>
+    <div class="gallery">
+      <p class="lead">{heading} — cada uno es un `.fitzv` compilado a WebAssembly, con su propio estado en Rust. Tocalos: reaccionan client-side, sin servidor.</p>
+      <div class="grid">
+        <section class="cell"><span class="name">Counter</span><div class="demo"><Counter /></div></section>
+        <section class="cell"><span class="name">Toggle</span><div class="demo"><Toggle /></div></section>
+        <section class="cell"><span class="name">Tabs</span><div class="demo"><Tabs /></div></section>
+        <section class="cell"><span class="name">Stepper</span><div class="demo"><Stepper /></div></section>
+        <section class="cell"><span class="name">Rating</span><div class="demo"><Rating /></div></section>
+        <section class="cell"><span class="name">Accordion</span><div class="demo"><Accordion /></div></section>
+        <section class="cell"><span class="name">Modal</span><div class="demo"><Modal /></div></section>
+        <section class="cell"><span class="name">TodoList</span><div class="demo"><TodoList /></div></section>
+      </div>
+    </div>
+  </template>
+
+  <style scoped>
+    .gallery {
+      font-family: system-ui, sans-serif;
+      color: var(--flv-text, #1a1a1a);
+    }
+    .lead {
+      color: var(--flv-text-muted, #55555c);
+      margin: 0 0 20px;
+      line-height: 1.55;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+      align-items: start;
+    }
+    .cell {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 18px;
+      background: var(--flv-surface, #ffffff);
+      border: 1px solid var(--flv-border, #d9d9e0);
+      border-radius: var(--flv-radius-md, 8px);
+      box-shadow: var(--flv-shadow-card, 0 6px 20px rgba(0, 0, 0, .12));
+    }
+    .name {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--flv-color-primary, #ce412b);
+    }
+    .demo {
+      display: flex;
+      justify-content: center;
+    }
+  </style>
+}

@@ -59,7 +59,7 @@
       }
       body {
         font-family: system-ui, -apple-system, sans-serif;
-        max-width: 680px;
+        max-width: 960px;
         margin: 0 auto;
         padding: 40px 16px;
         line-height: 1.6;
@@ -83,30 +83,30 @@
   <body>
     <h1>Galería client-WASM — Fitz LiveViews</h1>
     <p class="lede">
-      Un componente <code>Counter.fitzv</code> compilado a WebAssembly con
-      <code>fitz build --target wasm-client</code>. El estado vive en Rust
-      dentro de la instancia WASM; cada click re-renderiza el subárbol.
-      Todo corre en el browser — sin servidor, sin WebSocket.
+      Ocho componentes <code>.fitzv</code> compilados a WebAssembly con
+      <code>fitz build --target wasm-client</code>, en un solo bundle. Cada
+      uno tiene su propio estado en Rust dentro de la instancia WASM. Todo
+      corre en el browser — sin servidor, sin WebSocket.
     </p>
 
-    <div id="app"><!-- Counter monta acá --></div>
+    <div id="app"><!-- Gallery monta acá --></div>
 
     <p class="foot">
-      Si ves este texto pero no el contador, o el bundle WASM no cargó
+      Si ves este texto pero no los componentes, o el bundle WASM no cargó
       (mirá la consola de DevTools) o la página se abrió por
       <code>file://</code>. Los módulos ES necesitan origen HTTP: serví con
       <code>python -m http.server 8000</code> o equivalente.
     </p>
 
     <script type="module">
-      // `fitz build --target wasm-client` copies the bundle to
-      // `target/wasm/counter/`; `build.sh` mirrors it to `./pkg/` next to
+      // `fitz build --bin gallery` copies the bundle to
+      // `target/wasm/gallery/`; `build.sh` mirrors it to `./pkg/` next to
       // this file so local serving and the GitHub Pages layout share one
       // relative path. The default export (`__wbg_init`) instantiates the
       // module and runs the `#[wasm_bindgen(start)]` mount automatically.
-      import init from './pkg/counter.js';
+      import init from './pkg/gallery.js';
       init().catch((err) => {
-        console.error('Failed to load counter WASM:', err);
+        console.error('Failed to load gallery WASM:', err);
         document.getElementById('app').textContent =
           'WASM failed to load. Check the DevTools console.';
       });

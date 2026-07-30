@@ -68,3 +68,9 @@ name = "todolist"
 main = "TodoList.fitzv"
 target = "wasm-client"
 mount = "#app"
+
+[[bin]]
+name = "gallery"
+main = "Gallery.fitzv"
+target = "wasm-client"
+mount = "#app"

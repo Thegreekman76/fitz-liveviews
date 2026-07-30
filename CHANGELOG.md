@@ -56,11 +56,21 @@ page lands in CW.3.
   `data-flv-value-*` click payload). The `!=` remove predicate lives in the sibling
   `todo_helpers.fitz` (the view lexer rejects inline `!=` in event bodies).
 
+### Added — the composed live gallery (CW.3)
+
+- **`Gallery.fitzv`** — a single root component that composes all eight widgets via
+  cross-file `<Child/>` composition (core v0.25.0+). Each child keeps its own state
+  (persistent per-instance), so every widget in the responsive grid is independently
+  interactive — from **one** wasm bundle, ~34 KB gzipped, mounted into `#app`.
+- The live `/live/` page (and the `/live-gallery/` iframe that embeds it) now shows
+  the whole set. `docs.yml`, `index.html`, and `build.sh` build/mount the `gallery`
+  bin; the iframe height grew to fit the grid.
+
 ### Fixed
 
 - **CI: `docs.yml` wasm build failed once the manifest declared more than one
   `[[bin]]`** — `fitz build --target wasm-client` is ambiguous with several bins.
-  The step now passes `--bin counter` (CW.3 switches it to the composed gallery bin).
+  The step now passes `--bin gallery` (the composed gallery root).
 - The `wasm-gallery` host page painted only the centered 680px column, exposing the
   browser's default (near-black) canvas on the sides in dark mode. Backgrounding
   `<html>` + `color-scheme: light dark` now paints the full viewport in both schemes.
