@@ -5,8 +5,13 @@ Usage: python grid_smoke.py <port> <out_file>
 
 Logs in, opens /live/empleados, fires a fixed event sequence, and writes each
 response frame's `html` to <out_file> with per-event markers. Run it against
-`fitz run` and against the native binary, then diff the two out_files: identical
-=> run<->binario parity. Also asserts a few grid/form invariants inline.
+`fitz run` and against the native binary, then diff the two out_files. They are
+bit-a-bit identical MODULO two expected, cosmetic differences: (1) the
+per-connection `instance_id` uuids the Toast/ConfirmDialog carry (a fresh
+`Uuid.v4()` per socket), and (2) blank-line / trailing whitespace inside
+multi-line string literals (a known run<->binario core artifact — browsers
+collapse it). Normalize both away and the grid content matches exactly. The
+inline invariants below assert the behavior directly.
 
 Covers the LiveComponents refactor: GridToolbar, GridFilters, EmpleadoRow
 (checked/expanded via toggle_sel/toggle_row) and EmpleadoForm (alta stepper,
@@ -17,7 +22,7 @@ which would diverge between the two independent runs (different ids / row counts
 and break the bit-a-bit diff. The visual/save happy-path is checked by hand in
 the browser (same reason the previous smoke never fired a real delete).
 """
-import json, sys
+import json, re, sys
 import requests
 from websocket import create_connection
 
@@ -65,8 +70,8 @@ step("search_clear", "search", {"q": ""})
 step("estado_active", "estado_active", {})
 step("estado_inactive", "estado_inactive", {})
 step("estado_all", "estado_all", {})
-step("filter_depto_1", "filter_depto", {"depto": "1"})
-step("filter_depto_all", "filter_depto", {"depto": "0"})
+step("filter_depto_1", "filter_depto", {"value": "1"})
+step("filter_depto_all", "filter_depto", {"value": "0"})
 step("group_depto", "group_depto", {})
 step("group_estado", "group_estado", {})
 step("group_none", "group_none", {})
@@ -111,32 +116,53 @@ def has(label, needle):
 def hasnt(label, needle):
     assert needle not in by[label], f"[{label}] should NOT have: {needle!r}"
 
-# toolbar present in the grid frames
-has("init", 'class="grid-toolbar"')
+# A packaged GridFilters pill is `<button class="flv-pill[ flv-pill-active] …scoped"
+# data-flv-click="EVENT" data-flv-value-value="VAL">`. The scope suffixes make an
+# exact class match brittle, so key on the pill's (event, value) and inspect its
+# class list for `flv-pill-active`.
+def pill_active(label, event, val=""):
+    html = by[label]
+    m = re.search(
+        r'<button class="([^"]*)"[^>]*data-flv-click="' + re.escape(event) +
+        r'" data-flv-value-value="' + re.escape(val) + r'"', html)
+    assert m, f"[{label}] no pill event={event!r} value={val!r}"
+    assert "flv-pill-active" in m.group(1), f"[{label}] pill {event}/{val} not active"
+
+def pill_inactive(label, event, val=""):
+    html = by[label]
+    m = re.search(
+        r'<button class="([^"]*)"[^>]*data-flv-click="' + re.escape(event) +
+        r'" data-flv-value-value="' + re.escape(val) + r'"', html)
+    assert m, f"[{label}] no pill event={event!r} value={val!r}"
+    assert "flv-pill-active" not in m.group(1), f"[{label}] pill {event}/{val} should be inactive"
+
+# packaged GridToolbar present in the grid frames (search form + fall-through)
+has("init", 'flv-grid-toolbar')
 has("init", 'data-flv-submit="search"')
 # search value reflected in the input
 has("search_ada", 'value="ada"')
 has("search_clear", 'name="q" value=""')
-# estado pill active state (exactly the clicked one is pill-active)
-has("estado_active", 'class="pill pill-active" data-flv-click="estado_active"')
-hasnt("estado_active", 'class="pill pill-active" data-flv-click="estado_all"')
-has("estado_all", 'class="pill pill-active" data-flv-click="estado_all"')
+# estado pill active state (exactly the clicked one is flv-pill-active)
+pill_active("estado_active", "estado_active")
+pill_inactive("estado_active", "estado_all")
+pill_active("estado_all", "estado_all")
 # export link carries the active filters
 has("estado_active", 'href="/empleados/export.csv?q=&estado=active&depto=0"')
 has("filter_depto_1", 'href="/empleados/export.csv?q=&estado=all&depto=1"')
-# action buttons fall-through events present
+# action buttons fall-through events present (in the GridToolbar `actions` slot)
 has("init", 'data-flv-click="new_empleado"')
 has("init", 'data-flv-click="show_tree"')
-# filters bar: depto pills + group bar present
-has("init", 'class="grid-filters grid-deptos"')
-has("init", 'class="grid-filters grid-group"')
-has("init", 'data-flv-click="filter_depto" data-flv-value-depto="0"')
+# packaged GridFilters bars: depto pills + group bar present. The depto pill
+# carries the id in `data-flv-value-value` (the loop reads payload["value"]).
+has("init", 'flv-grid-filters')
+has("init", 'data-flv-click="filter_depto" data-flv-value-value="0"')
+has("init", 'data-flv-click="group_none"')
 # depto=1 pill active after filtering to depto 1; "Todos" (0) no longer active
-has("filter_depto_1", 'class="pill pill-active" data-flv-click="filter_depto" data-flv-value-depto="1"')
-hasnt("filter_depto_1", 'class="pill pill-active" data-flv-click="filter_depto" data-flv-value-depto="0"')
+pill_active("filter_depto_1", "filter_depto", "1")
+pill_inactive("filter_depto_1", "filter_depto", "0")
 # group-by pill active state
-has("group_depto", 'class="pill pill-active" data-flv-click="group_depto"')
-has("group_none", 'class="pill pill-active" data-flv-click="group_none"')
+pill_active("group_depto", "group_depto")
+pill_active("group_none", "group_none")
 
 # --- EmpleadoRow (checked / expanded) ---
 # id 1 selected -> row-selected class + a checked row checkbox for id 1
@@ -153,7 +179,7 @@ hasnt("row_2_close", 'class="row-expanded"')
 # alta uses the guided Stepper; grid toolbar gone; save form present
 has("new_empleado", 'class="stepper"')
 has("new_empleado", 'data-flv-submit="save_empleado"')
-hasnt("new_empleado", 'class="grid-toolbar"')
+hasnt("new_empleado", 'flv-grid-toolbar')
 # all 3 panels stay in the DOM (org's cascade select present even before switch)
 has("new_empleado", 'data-flv-change="cascade_pais"')
 has("new_empleado", 'data-flv-change="cascade_provincia"')
@@ -172,7 +198,7 @@ has("edit_empleado", 'class="tab-nav"')
 hasnt("edit_empleado", 'class="stepper"')
 has("edit_empleado", 'data-flv-submit="save_empleado"')
 # back to grid on cancel (both times)
-has("cancel_form", 'class="grid-toolbar"')
-has("cancel_form2", 'class="grid-toolbar"')
+has("cancel_form", 'flv-grid-toolbar')
+has("cancel_form2", 'flv-grid-toolbar')
 
 print(f"OK {len(frames)} frames, invariants passed -> {OUT}")

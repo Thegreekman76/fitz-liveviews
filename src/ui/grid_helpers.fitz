@@ -1,0 +1,33 @@
+// grid_helpers.fitz — data helpers for the packaged DataGrid family
+// (`DataGrid` / `SortableHeader` / `GridToolbar` / `GridFilters`). Kept a plain
+// `.fitz` sibling (not a `.fitzv`) because `.fitzv` files hold only `component`
+// blocks — the `Pill` datum type + the sort-arrow helper live alongside,
+// imported by both the components and the host. Same split as `pager_helpers` /
+// `chart_helpers` / `shell_types`.
+
+// One filter pill for `GridFilters`. The host supplies an already-localized
+// `label`, the fall-through `event` name the pill fires on click, an optional
+// `value` payload (emitted as `data-flv-value-value`, read by the host loop as
+// `payload["value"]`), and `active` to render it selected. Two shapes work:
+//   - distinct event per pill, no value  (e.g. estado_all / group_none)
+//   - one shared event + a value payload  (e.g. filter_depto with the depto id)
+type Pill {
+  label: Str
+  event: Str
+  value: Str = ""
+  active: Bool = false
+}
+
+// The sort direction glyph for a `SortableHeader`: " ▲" ascending / " ▼"
+// descending on the active column, "" on the rest. Kept a free function (not a
+// nested `{#if}` in the template) so the arrow logic reads in one place; the
+// component interpolates `{sort_arrow(col, active_col, dir)}` in text position.
+fn sort_arrow(col: Str, active_col: Str, dir: Str) -> Str {
+  if (col != active_col) {
+    return ""
+  }
+  if (dir == "desc") {
+    return " ▼"
+  }
+  return " ▲"
+}

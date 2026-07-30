@@ -725,11 +725,26 @@ Card · Badge · Alert · Input · Spinner · Icon · **Breadcrumbs** ✅ ·
   / `ui-progressbar` snippets. `fitz check` + `fitz test` + `fitz build` verified;
   live-server render confirmed (4 StatCards + 4-dept BarChart + 2 ProgressBars,
   old classes gone).
-- [ ] **Session E — DataGrid family**: promote the admin `.fitzv` `GridToolbar`
-  + `GridFilters` into the package · `DataGrid` (table + sortable headers +
-  `data-label` mobile cards) · `SortableHeader` · selection / multi-delete
-  controls · grouping controls. (Pager already packaged; `EmpleadoRow` stays
-  app-specific — it's the domain row.)
+- [x] **Session E — DataGrid family** (v0.21.0): `DataGrid` (card + scroll +
+  `<table>` shell + the `data-label` → mobile-cards `@media`, reaching host rows
+  via scoped descendant *element* selectors) · `SortableHeader` (clickable `<th>`
+  firing `sort` + ▲/▼ arrow) · `GridToolbar` (generalized: search `<form>` + a
+  raw `actions` slot; the estado pills + CSV export are gone from the component)
+  · `GridFilters` (generalized: a data-driven `List<Pill>` bar — one instance per
+  dimension, distinct-event or shared-event+`value` shapes). `grid_helpers`
+  carries `type Pill { label, event, value, active }` + `sort_arrow(...)`. The
+  app-local `GridToolbar.fitzv` / `GridFilters.fitzv` + the local `sort_th`
+  helpers deleted; adopted in BOTH `empleados.fitz` and `departamentos.fitz`; the
+  grid table/toolbar/pill/mobile CSS moved out of `admin_css()` (`.grid-card` /
+  `.col-*` / `.btn-clear` stay — reused by the DB-error panel + forms + rows).
+  `filter_depto` now reads `payload["value"]`. 18 gallery tests (192 total), docs,
+  `ui-datagrid` / `ui-sortheader` / `ui-gridtoolbar` / `ui-gridfilters` snippets.
+  `fitz check` + `fitz test` + `fitz build` verified; live Postgres render + WS
+  smoke (30 frames) + `fitz run` ↔ binary parity confirmed. (Pager already
+  packaged; `EmpleadoRow` stays app-specific — it's the domain row. Selection /
+  multi-delete + grouping *controls* stay app-specific too: they're tied to the
+  domain events; the generic table shell + headers + toolbar + filter bar are
+  what generalized.)
 - [ ] **Session F — Forms family, part 1 (inputs)**: `Textarea` · `Select` ·
   `Checkbox` / `CheckboxGroup` · `Radio` / `RadioGroup` · `Rating` ·
   `DatePicker`. From `EmpleadoForm.fitzv` + `form_helpers.fitz` + form CSS.

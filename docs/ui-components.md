@@ -63,6 +63,11 @@ from fitz_liveviews.ui.StatCard import stat_card, stat_card_render
 from fitz_liveviews.ui.BarChart import bar_chart, bar_chart_render
 from fitz_liveviews.ui.ProgressBar import progress_bar, progress_bar_render
 from fitz_liveviews.ui.chart_helpers import Bar, bar_scale, pct_of
+from fitz_liveviews.ui.DataGrid import data_grid, data_grid_render
+from fitz_liveviews.ui.SortableHeader import sortable_header, sortable_header_render
+from fitz_liveviews.ui.GridToolbar import grid_toolbar, grid_toolbar_render
+from fitz_liveviews.ui.GridFilters import grid_filters, grid_filters_render
+from fitz_liveviews.ui.grid_helpers import Pill, sort_arrow
 ```
 
 They're **i18n-agnostic** (the host passes already-localized text), styled with
@@ -755,23 +760,69 @@ sort, pagination, selection, grouping, expand — is a tiny event that re-querie
 Postgres server-side and diff-patches the result back to *that* socket only.
 Grid state is per-connection in the `@ws` loop.
 
-### Columns · sortable headers
+!!! tip "Packaged (DataGrid family)"
+    The reusable, presentational pieces of the grid ship as packaged components:
+    **DataGrid** (the card + scroll + table shell + mobile-card transform),
+    **SortableHeader** (a clickable `<th>` with the ▲/▼ arrow), **GridToolbar**
+    (the search box + an actions slot) and **GridFilters** (a data-driven pill
+    bar). All four are **controlled** — the host owns the query state and passes
+    it as props; the components declare no event handlers, so every `data-flv-*`
+    event falls through to your `@ws` loop. The **rows** (`EmpleadoRow`) stay
+    app-specific — they're the domain shape. See the imports above.
+
+### The grid shell — DataGrid
+
+`data_grid_render(...)` renders the `.grid-card` → `.grid-scroll` → `<table>`
+shell plus the mobile-card `@media` (each row's `<td data-label="…">` becomes a
+stacked card at ≤640px — a scoped descendant selector reaches the host rows). You
+pass the `<thead>`'s `<tr>` as `head`, the rows as `body` (raw), and the footer as
+`info` (left text) + `foot` (right content, e.g. a Pager). An empty `body` renders
+a centered empty row spanning `cols` columns.
 
 ```
-fn sort_th(label: Str, col: Str, cls: Str, sort_col: Str, sort_dir: Str) -> Str {
-    let arrow = match col == sort_col { true => match sort_dir == "desc" { true => " ▼", false => " ▲" }, false => "" }
-    return """<th class="{cls} th-sort" data-flv-click="sort" data-flv-value-col="{col}">{flv(label)}{arrow}</th>"""
-}
+let grid = data_grid_render(data_grid {
+  head: head, body: body_html, info: "Page {p} of {tp}", foot: pager_html,
+  empty: "No rows", cols: 9,
+}).raw
+```
+
+### Columns · sortable headers — SortableHeader
+
+`sortable_header_render(...)` renders a `<th>` that fires `sort` carrying the
+column key; the active column shows an ▲/▼ arrow. Mix sortable headers with plain
+`<th>`s to build the `head` you hand to DataGrid.
+
+```
+let th = sortable_header_render(sortable_header {
+  label: "Name", col: "name", cls: "col-name", active_col: sort_col, dir: sort_dir,
+}).raw
 ```
 
 The `sort` event flips `sort_dir` when the same column is clicked again, then
 re-queries with a dynamic `.order_by(col, ascending: asc)`.
 
-### Search · filters (pills)
+### Search · filters (pills) — GridToolbar + GridFilters
 
-A `<form data-flv-submit="search">` sends the query; filter pills send a
-`data-flv-click` event. Each event resets the page and re-queries with chained
-`.where` (the ORM ANDs them), `.ilike("%q%")` for search.
+**GridToolbar** is the search box: a `<form data-flv-submit="search">` plus an
+optional clear button and a raw `actions` slot for domain buttons (new / export /
+…). **GridFilters** is a data-driven pill bar — pass a `List<Pill>` (each with a
+`label`, a fall-through `event`, an optional `value` payload, and `active`), and it
+renders the pills. One instance renders any dimension: a fixed set (estado /
+group-by, distinct event per pill) or a dynamic one (one pill per department,
+sharing an event + a `value` the loop reads as `payload["value"]`).
+
+```
+let bar = grid_filters_render(grid_filters {
+  pills: [
+    Pill { label: "All",    event: "filter_dept", value: "0", active: dept == 0 },
+    Pill { label: "Eng",    event: "filter_dept", value: "1", active: dept == 1 },
+  ],
+  filter_label: "Department",
+}).raw
+```
+
+Each event resets the page and re-queries with chained `.where` (the ORM ANDs
+them), `.ilike("%q%")` for search.
 
 ### Pagination
 

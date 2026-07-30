@@ -1,0 +1,124 @@
+// DataGrid.fitzv — the live table shell as a stateless, presentational
+// LiveComponent with SCOPED styles (self-contained, drop-in reusable).
+//
+// Companion UI library component (Phase 9, Session E — DataGrid family). Like
+// Pager, this is CONTROLLED / presentational: the rendered `head` (the `<tr>` of
+// `<th>`s), the `body` (the rows), the `foot` (right-side footer content, e.g. a
+// Pager), the `info` (left footer text) and the `empty` message all arrive as
+// "props". The parent's `@ws` loop owns the query state and re-renders the grid
+// fresh every frame with `data_grid_render(data_grid { head, body, foot, info,
+// empty, cols }).raw`, calling the generated render fn directly (NOT
+// `component_with`), so there is no per-connection store.
+//
+// The component declares NO event handlers. Interactivity lives in the `head`
+// and `body` markup the host builds — sortable headers (SortableHeader), row
+// actions, checkboxes — whose `data-flv-*` events fall through to the parent's
+// loop. When `body == ""` the grid renders a centered empty row spanning `cols`
+// columns.
+//
+// `head` / `body` / `foot` are RAW HTML you build in the host (so a grid holds
+// any columns/rows). `info` / `empty` are escaped text.
+//
+// Styling: `<style scoped>` — every styled class carries the component's scope
+// suffix so the CSS never leaks, while the descendant ELEMENT selectors
+// (`thead th`, `tbody td`, `td::before`) still reach the host-provided rows
+// because they sit inside the scoped `table.flv-grid`. That's how the
+// mobile-card transform (`@media (max-width: 640px)`) styles rows the component
+// never renders itself: each row's `<td data-label="...">` becomes a stacked
+// card with the label as a `::before`. Colors come from `--flv-*` theme tokens
+// with literal fallbacks (see themes/default.css).
+
+from fitz_liveviews import flv
+
+component data_grid {
+  state {
+    head: Str = ""
+    body: Str = ""
+    foot: Str = ""
+    info: Str = ""
+    empty: Str = ""
+    cols: Int = 1
+  }
+
+  <template>
+    <div class="flv-grid-card">
+      <div class="flv-grid-scroll">
+        <table class="flv-grid">
+          <thead>{head}</thead>
+          <tbody>
+            {#if body == ""}
+              <tr data-flv-key="flv-grid-empty"><td class="flv-grid-empty" colspan="{cols}">{flv(empty)}</td></tr>
+            {#else}
+              {body}
+            {/if}
+          </tbody>
+        </table>
+      </div>
+      {#if info != ""}
+        <div class="flv-grid-foot"><span class="flv-grid-info">{flv(info)}</span>{foot}</div>
+      {/if}
+    </div>
+  </template>
+
+  <style scoped>
+    .flv-grid-card {
+      background: var(--flv-surface, #ffffff);
+      border: 1px solid var(--flv-border, #d9d9e0);
+      border-radius: 10px;
+      box-shadow: var(--flv-shadow-card, 0 1px 3px rgba(0, 0, 0, .08));
+      overflow: hidden;
+    }
+    .flv-grid-scroll { overflow-x: auto; }
+    table.flv-grid {
+      width: 100%; border-collapse: collapse; font-size: .9rem;
+      color: var(--flv-text, #1a1a1a);
+    }
+    table.flv-grid thead th {
+      text-align: left; padding: .7rem 1rem; font-size: .72rem;
+      text-transform: uppercase; letter-spacing: .05em;
+      color: var(--flv-text-muted, #55555c); font-weight: 700;
+      border-bottom: 1px solid var(--flv-border, #d9d9e0);
+      background: var(--flv-surface-2, #f5f5f7); white-space: nowrap;
+    }
+    table.flv-grid tbody td {
+      padding: .7rem 1rem; border-bottom: 1px solid var(--flv-border, #d9d9e0);
+      vertical-align: middle;
+    }
+    table.flv-grid tbody tr:last-child td { border-bottom: none; }
+    table.flv-grid tbody tr:hover { background: var(--flv-surface-2, #f5f5f7); }
+    .flv-grid-empty {
+      text-align: center; color: var(--flv-text-muted, #55555c); padding: 2rem 1rem;
+    }
+    .flv-grid-foot {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: .75rem; padding: .75rem 1rem;
+      border-top: 1px solid var(--flv-border, #d9d9e0); flex-wrap: wrap;
+    }
+    .flv-grid-info { font-size: .82rem; color: var(--flv-text-muted, #55555c); }
+
+    /* Grid → cards on mobile: each row becomes a stacked card, the column
+       label (from the host's `data-label`) is a `::before`. Descendant ELEMENT
+       selectors reach the host rows because they sit inside the scoped table. */
+    @media (max-width: 640px) {
+      table.flv-grid thead { display: none; }
+      table.flv-grid, table.flv-grid tbody, table.flv-grid tr, table.flv-grid td {
+        display: block; width: 100%;
+      }
+      table.flv-grid tr {
+        border: 1px solid var(--flv-border, #d9d9e0); border-radius: 10px;
+        margin-bottom: .75rem; padding: .35rem .25rem;
+        background: var(--flv-surface, #ffffff);
+      }
+      table.flv-grid tbody td {
+        border: none; display: flex; justify-content: space-between; gap: 1rem;
+        padding: .4rem .85rem; text-align: right;
+      }
+      table.flv-grid tbody td::before {
+        content: attr(data-label); color: var(--flv-text-muted, #55555c);
+        font-weight: 700; font-size: .7rem; text-transform: uppercase;
+        letter-spacing: .04em; text-align: left;
+      }
+      .flv-grid-empty { justify-content: center; }
+    }
+  </style>
+}

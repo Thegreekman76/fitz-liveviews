@@ -29,6 +29,11 @@ from fitz_liveviews.ui.StatCard import stat_card, stat_card_render
 from fitz_liveviews.ui.BarChart import bar_chart, bar_chart_render
 from fitz_liveviews.ui.ProgressBar import progress_bar, progress_bar_render
 from fitz_liveviews.ui.chart_helpers import Bar, bar_scale, pct_of
+from fitz_liveviews.ui.DataGrid import data_grid, data_grid_render
+from fitz_liveviews.ui.SortableHeader import sortable_header, sortable_header_render
+from fitz_liveviews.ui.GridToolbar import grid_toolbar, grid_toolbar_render
+from fitz_liveviews.ui.GridFilters import grid_filters, grid_filters_render
+from fitz_liveviews.ui.grid_helpers import Pill, sort_arrow
 from fitz_liveviews import html
 
 // --- Pager (presentational / controlled) ---
@@ -688,4 +693,138 @@ fn sample_nav() -> List<NavGroup> {
 @test fn progress_bar_escapes_label() {
     let h = progress_bar_render(progress_bar { label: "<b>x</b>", value: 1, max: 2, pct: 50 }).raw
     assert(h.contains("&lt;b&gt;"))
+}
+
+// === DataGrid family (Session E) — DataGrid / SortableHeader / GridToolbar /
+// GridFilters (presentational, controlled) + grid_helpers (Pill / sort_arrow).
+
+// --- sort_arrow (helper) ---
+
+@test fn sort_arrow_marks_active_column_by_direction() {
+    assert_eq(sort_arrow("nombre", "nombre", "asc"), " ▲")
+    assert_eq(sort_arrow("nombre", "nombre", "desc"), " ▼")
+    assert_eq(sort_arrow("email", "nombre", "asc"), "")   // inactive column
+}
+
+// --- SortableHeader ---
+
+@test fn sortable_header_renders_th_with_sort_event_and_col_payload() {
+    let h = sortable_header_render(sortable_header { label: "Nombre", col: "nombre", active_col: "id", dir: "asc" }).raw
+    assert(h.contains("data-flv-click=\"sort\""))
+    assert(h.contains("data-flv-value-col=\"nombre\""))
+    assert(h.contains("flv-th-sort"))
+    assert(h.contains("Nombre"))
+    // inactive column: no arrow
+    assert(not h.contains("▲"))
+    assert(not h.contains("▼"))
+}
+
+@test fn sortable_header_active_column_shows_arrow_and_merges_class() {
+    let asc = sortable_header_render(sortable_header { label: "ID", col: "id", cls: "col-id", active_col: "id", dir: "asc" }).raw
+    assert(asc.contains("ID ▲"))
+    assert(asc.contains("col-id"))
+    let desc = sortable_header_render(sortable_header { label: "ID", col: "id", active_col: "id", dir: "desc" }).raw
+    assert(desc.contains("ID ▼"))
+}
+
+@test fn sortable_header_custom_sort_event() {
+    let h = sortable_header_render(sortable_header { label: "X", col: "x", sort_event: "reorder" }).raw
+    assert(h.contains("data-flv-click=\"reorder\""))
+}
+
+// --- GridToolbar ---
+
+@test fn grid_toolbar_search_form_submits_and_escapes_value() {
+    let h = grid_toolbar_render(grid_toolbar { q: "a\"b", placeholder: "Buscar", search_label: "Buscar" }).raw
+    assert(h.contains("data-flv-submit=\"search\""))
+    assert(h.contains("name=\"q\""))
+    assert(h.contains("value=\"a&quot;b\""))     // escaped
+    assert(h.contains("placeholder=\"Buscar\""))
+    assert(h.contains(">Buscar</button>"))         // search button label
+}
+
+@test fn grid_toolbar_clear_button_only_when_labeled() {
+    let with_clear = grid_toolbar_render(grid_toolbar { clear_label: "Limpiar", search_event: "search" }).raw
+    // the clear button re-fires the search event with an empty q payload
+    assert(with_clear.contains("data-flv-value-q=\"\""))
+    assert(with_clear.contains(">Limpiar</button>"))
+    let without = grid_toolbar_render(grid_toolbar { }).raw
+    assert(not without.contains("data-flv-value-q"))
+}
+
+@test fn grid_toolbar_renders_raw_actions_slot() {
+    let h = grid_toolbar_render(grid_toolbar { actions: "<button class=\"btn-primary\">+ New</button>" }).raw
+    assert(h.contains("flv-grid-actions"))
+    assert(h.contains("<button class=\"btn-primary\">+ New</button>"))  // RAW
+}
+
+@test fn grid_toolbar_custom_search_event() {
+    let h = grid_toolbar_render(grid_toolbar { search_event: "buscar_dep" }).raw
+    assert(h.contains("data-flv-submit=\"buscar_dep\""))
+}
+
+// --- GridFilters ---
+
+@test fn grid_filters_renders_pills_with_events_and_active() {
+    let pills: List<Pill> = [
+        Pill { label: "Todos", event: "estado_all", active: true },
+        Pill { label: "Activos", event: "estado_active" },
+    ]
+    let h = grid_filters_render(grid_filters { pills: pills, filter_label: "Estado" }).raw
+    assert(h.contains(">Estado</span>"))              // filter label
+    assert(h.contains("data-flv-click=\"estado_all\""))
+    assert(h.contains("data-flv-click=\"estado_active\""))
+    assert(h.contains("flv-pill-active"))             // the active pill
+    assert(h.contains(">Todos</button>"))
+}
+
+@test fn grid_filters_value_payload_shape() {
+    // one shared event + a value the host loop reads as payload["value"]
+    let pills: List<Pill> = [
+        Pill { label: "Todos", event: "filter_depto", value: "0", active: true },
+        Pill { label: "Ing", event: "filter_depto", value: "7" },
+    ]
+    let h = grid_filters_render(grid_filters { pills: pills }).raw
+    assert(h.contains("data-flv-value-value=\"0\""))
+    assert(h.contains("data-flv-value-value=\"7\""))
+}
+
+@test fn grid_filters_escapes_labels_and_hides_label_when_empty() {
+    let pills: List<Pill> = [Pill { label: "<b>x</b>", event: "e" }]
+    let h = grid_filters_render(grid_filters { pills: pills }).raw
+    assert(h.contains("&lt;b&gt;"))
+    // no filter_label → no label span
+    assert(not h.contains("flv-filter-label flv-filter-label-"))
+}
+
+// --- DataGrid ---
+
+@test fn data_grid_renders_head_body_and_footer_info() {
+    let h = data_grid_render(data_grid {
+        head: "<tr><th>ID</th></tr>",
+        body: "<tr data-flv-key=\"r-1\"><td data-label=\"ID\">1</td></tr>",
+        info: "Página 1 de 3",
+        foot: "<div class=\"pager\"></div>",
+        cols: 1
+    }).raw
+    assert(h.contains("flv-grid-card"))
+    assert(h.contains("<table class=\"flv-grid"))
+    assert(h.contains("<tr><th>ID</th></tr>"))               // head RAW
+    assert(h.contains("data-label=\"ID\""))                  // body RAW
+    assert(h.contains("flv-grid-foot"))
+    assert(h.contains("Página 1 de 3"))
+    assert(h.contains("<div class=\"pager\"></div>"))        // foot RAW
+}
+
+@test fn data_grid_empty_body_renders_centered_empty_row() {
+    let h = data_grid_render(data_grid { head: "<tr><th>ID</th></tr>", body: "", empty: "Sin datos", cols: 4 }).raw
+    assert(h.contains("flv-grid-empty"))
+    assert(h.contains("colspan=\"4\""))
+    assert(h.contains("Sin datos"))
+}
+
+@test fn data_grid_no_info_omits_footer() {
+    let h = data_grid_render(data_grid { head: "<tr></tr>", body: "<tr><td>x</td></tr>" }).raw
+    // the scoped <style> always names .flv-grid-foot; key on the wrapper element
+    assert(not h.contains("flv-grid-foot flv-grid-foot-"))
 }

@@ -1,0 +1,42 @@
+// SortableHeader.fitzv — one clickable column header (`<th>`) as a stateless,
+// presentational LiveComponent with SCOPED styles.
+//
+// Companion UI library component (Phase 9, Session E — DataGrid family). Renders
+// a `<th>` that fires the `sort_event` (default `sort`) on click, carrying the column
+// key in `data-flv-value-col`. The active column shows an ▲/▼ arrow via the
+// imported `sort_arrow` helper. It declares NO event handlers — the click falls
+// through to the parent's `@ws` loop, which flips `dir` when the same column is
+// clicked again and re-queries with a dynamic `.order_by(col, ascending:)`.
+//
+// Composes inside `DataGrid`: the host builds the `<thead>`'s `<tr>` mixing
+// `sortable_header_render(...).raw` for sortable columns with plain `<th>` for
+// the rest, then passes it as the grid's `head`. Because the `<th>` sits inside
+// the scoped `table.flv-grid`, DataGrid's `thead th` rule paints the base look;
+// this component only adds the pointer + hover affordance.
+//
+// `label` is escaped; `cls` is an extra (host-global) column class merged into
+// the class attribute (e.g. a width helper). Colors come from `--flv-*` theme
+// tokens with literal fallbacks.
+
+from grid_helpers import sort_arrow
+from fitz_liveviews import flv
+
+component sortable_header {
+  state {
+    label: Str = ""
+    col: Str = ""
+    active_col: Str = ""
+    dir: Str = "asc"
+    cls: Str = ""
+    sort_event: Str = "sort"
+  }
+
+  <template>
+    <th class="flv-th-sort {cls}" data-flv-click="{sort_event}" data-flv-value-col="{col}">{flv(label)}{sort_arrow(col, active_col, dir)}</th>
+  </template>
+
+  <style scoped>
+    .flv-th-sort { cursor: pointer; user-select: none; }
+    .flv-th-sort:hover { color: var(--flv-color-primary, #ce412b); }
+  </style>
+}

@@ -26,6 +26,11 @@ from fitz_liveviews.ui.Input import input, input_render
 from fitz_liveviews.ui.Modal import modal, modal_render, modal_show, modal_close
 from fitz_liveviews.ui.ThemeToggle import theme_toggle, theme_toggle_render
 from fitz_liveviews.ui.theme_scripts import theme_boot_script, theme_cycle_script
+from fitz_liveviews.ui.DataGrid import data_grid, data_grid_render
+from fitz_liveviews.ui.SortableHeader import sortable_header, sortable_header_render
+from fitz_liveviews.ui.GridToolbar import grid_toolbar, grid_toolbar_render
+from fitz_liveviews.ui.GridFilters import grid_filters, grid_filters_render
+from fitz_liveviews.ui.grid_helpers import Pill, sort_arrow
 
 print("=== Theme tokens ===")
 print(ui_theme().raw)
@@ -145,3 +150,56 @@ print(theme_boot_script("flv-gallery-theme").raw)
 
 print("=== Theme cycle script (goes before </body>) ===")
 print(theme_cycle_script("flv-gallery-theme", "☀️ Claro", "🌙 Oscuro", "🖥️ Auto").raw)
+
+// === DataGrid family (Session E) ===
+
+print("=== SortableHeader (active, ascending) ===")
+print(sortable_header_render(sortable_header { label: "Nombre", col: "nombre", active_col: "nombre", dir: "asc" }).raw)
+
+print("=== SortableHeader (inactive, no arrow) ===")
+print(sortable_header_render(sortable_header { label: "Email", col: "email", active_col: "nombre", dir: "asc" }).raw)
+
+print("=== GridToolbar (search + clear + actions) ===")
+print(grid_toolbar_render(grid_toolbar {
+  q: "ada",
+  placeholder: "Buscar…",
+  search_label: "Buscar",
+  clear_label: "Limpiar",
+  actions: "<button class=\"btn-primary\">+ Nuevo</button>"
+}).raw)
+
+print("=== GridFilters (estado pills — distinct events) ===")
+let estado_pills: List<Pill> = [
+  Pill { label: "Todos", event: "estado_all", active: true },
+  Pill { label: "Activos", event: "estado_active" },
+  Pill { label: "Inactivos", event: "estado_inactive" },
+]
+print(grid_filters_render(grid_filters { pills: estado_pills, filter_label: "Estado" }).raw)
+
+print("=== GridFilters (depto pills — one event + value payload) ===")
+let depto_pills: List<Pill> = [
+  Pill { label: "Todos", event: "filter_depto", value: "0", active: true },
+  Pill { label: "Ingeniería", event: "filter_depto", value: "1" },
+  Pill { label: "Ventas", event: "filter_depto", value: "2" },
+]
+print(grid_filters_render(grid_filters { pills: depto_pills, filter_label: "Departamento" }).raw)
+
+print("=== DataGrid (head + body + info + pager foot) ===")
+let dg_head = "<tr>" + sortable_header_render(sortable_header { label: "ID", col: "id", cls: "col-id", active_col: "id", dir: "asc" }).raw + sortable_header_render(sortable_header { label: "Nombre", col: "nombre", active_col: "id", dir: "asc" }).raw + "<th>Estado</th></tr>"
+let dg_body = "<tr data-flv-key=\"r-1\"><td data-label=\"ID\" class=\"col-id\">1</td><td data-label=\"Nombre\"><strong>Ada</strong></td><td data-label=\"Estado\"><span class=\"badge badge-ok\">Activo</span></td></tr>"
+print(data_grid_render(data_grid {
+  head: dg_head,
+  body: dg_body,
+  info: "Página 1 de 1",
+  foot: "<div class=\"pager\"></div>",
+  cols: 3
+}).raw)
+
+print("=== DataGrid (empty state) ===")
+print(data_grid_render(data_grid {
+  head: dg_head,
+  body: "",
+  empty: "No hay empleados",
+  info: "0 empleados",
+  cols: 3
+}).raw)

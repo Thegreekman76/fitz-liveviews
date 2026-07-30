@@ -29,8 +29,11 @@ from fitz_liveviews import Html, html, flv, h_join, html_response, live_embed, L
 from fitz_liveviews.ui.ConfirmDialog import confirm_dialog, confirm_dialog_render, confirm_dialog_ask, confirm_dialog_cancel
 from fitz_liveviews.ui.Toast import toast, toast_render, toast_show, toast_dismiss
 from fitz_liveviews.ui.Pager import pager, pager_render
-from GridToolbar import grid_toolbar, grid_toolbar_render
-from GridFilters import grid_filters, grid_filters_render
+from fitz_liveviews.ui.DataGrid import data_grid, data_grid_render
+from fitz_liveviews.ui.SortableHeader import sortable_header, sortable_header_render
+from fitz_liveviews.ui.GridToolbar import grid_toolbar, grid_toolbar_render
+from fitz_liveviews.ui.GridFilters import grid_filters, grid_filters_render
+from fitz_liveviews.ui.grid_helpers import Pill
 from EmpleadoRow import empleado_row, empleado_row_render
 from EmpleadoForm import empleado_form, empleado_form_render
 
@@ -77,18 +80,9 @@ fn depto_name(deptos: List<Departamento>, id: Int) -> Str {
     }
 }
 
-// A sortable column header: clicking it sends a `sort` event carrying the
-// column key; the current sort column shows an ▲/▼ arrow.
-fn sort_th(label: Str, col: Str, cls: Str, sort_col: Str, sort_dir: Str) -> Str {
-    let arrow = match col == sort_col {
-        true => match sort_dir == "desc" {
-            true => " ▼",
-            false => " ▲",
-        },
-        false => "",
-    }
-    return """<th class="{cls} th-sort" data-flv-click="sort" data-flv-value-col="{col}">{flv(label)}{arrow}</th>"""
-}
+// Sortable column headers are the packaged `fitz_liveviews.ui.SortableHeader`
+// component now — rendered inline in `render_grid` with
+// `sortable_header_render(...)`.
 
 
 // ---------------------------------------------------------------------------
@@ -346,11 +340,44 @@ fn grouped_body(rows: List<Empleado>, deptos: List<Departamento>, group_by: Str,
 }
 
 fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, total: Int, total_pages: Int, q: Str, estado: Str, depto: Int, sort_col: Str, sort_dir: Str, sel: Str, cid: Str, group_by: Str, grp_collapsed: Str, body: Html, locale: Str) -> Html {
-    // Departamento filter bar + "Agrupar por" bar — a presentational
-    // LiveComponent (GridFilters.fitzv). `deptos` / `depto` / `group_by` are
-    // the grid's query state, passed as props; the pill events fall through to
-    // the parent loop (the component declares no handlers).
-    let filters_html: Str = grid_filters_render(grid_filters { deptos: deptos, depto: depto, group_by: group_by, locale: locale }).raw
+    // Toolbar (search + action buttons) — the packaged GridToolbar. `q` is the
+    // grid's query state, passed as a prop; the search/clear events fall through
+    // to the parent loop. The domain buttons (export / tree / new) are the raw
+    // `actions` slot the host builds; their events fall through too.
+    let export_href = "/empleados/export.csv?q={url_enc(q)}&estado={estado}&depto={depto}"
+    let actions = """<a class="btn-clear btn-export" href="{export_href}">⬇ {flv(t(locale, "grid.export"))}</a>
+      <button class="btn-clear btn-tree" data-flv-click="show_tree">🌳 {flv(t(locale, "grid.locations"))}</button>
+      <button class="btn-primary btn-nuevo" data-flv-click="new_empleado">+ {flv(t(locale, "grid.new"))}</button>"""
+    let toolbar_html: Str = grid_toolbar_render(grid_toolbar {
+        q: q,
+        placeholder: t(locale, "grid.search.ph"),
+        search_label: t(locale, "grid.search"),
+        clear_label: t(locale, "grid.clear"),
+        actions: actions
+    }).raw
+    // Filter pill bars — one packaged GridFilters per dimension. Each pill fires
+    // a fall-through event; the depto pills carry the id as a `value` payload the
+    // loop reads as `payload["value"]`. i18n stays in the host: labels are
+    // already-localized.
+    let estado_pills: List<Pill> = [
+        Pill { label: t(locale, "grid.f.all"), event: "estado_all", active: estado == "all" },
+        Pill { label: t(locale, "grid.f.active"), event: "estado_active", active: estado == "active" },
+        Pill { label: t(locale, "grid.f.inactive"), event: "estado_inactive", active: estado == "inactive" },
+    ]
+    let estado_html: Str = grid_filters_render(grid_filters { pills: estado_pills, filter_label: t(locale, "grid.col.estado") }).raw
+    let depto_pills: List<Pill> = [
+        Pill { label: t(locale, "grid.f.all"), event: "filter_depto", value: "0", active: depto == 0 },
+    ]
+    for d in deptos {
+        depto_pills.push(Pill { label: d.nombre, event: "filter_depto", value: "{d.id}", active: d.id == depto })
+    }
+    let depto_html: Str = grid_filters_render(grid_filters { pills: depto_pills, filter_label: t(locale, "grid.f.depto") }).raw
+    let group_pills: List<Pill> = [
+        Pill { label: t(locale, "grid.group.none"), event: "group_none", active: group_by == "" },
+        Pill { label: t(locale, "grid.group.depto"), event: "group_depto", active: group_by == "depto" },
+        Pill { label: t(locale, "grid.group.estado"), event: "group_estado", active: group_by == "estado" },
+    ]
+    let group_html: Str = grid_filters_render(grid_filters { pills: group_pills, filter_label: t(locale, "grid.group.by") }).raw
     // Select-all checkbox reflects the ids ON THIS PAGE.
     let page_ids = ids_csv(rows)
     let all_checked = match all_in(sel, page_ids) {
@@ -367,8 +394,6 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
         </div>""",
         false => "",
     }
-    // Export link — respects the active filters (not the selection).
-    let export_href = "/empleados/export.csv?q={url_enc(q)}&estado={estado}&depto={depto}"
     // Toast — the companion UI library's per-connection Toast component
     // (fitz_liveviews.ui.Toast), same `cid` instance id as the ConfirmDialog.
     // The parent dispatches `show` after a save/delete and `dismiss` at the top
@@ -391,37 +416,55 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
     })
     let modal: Str = dlg.raw
     // Pager — the library's stateless presentational Pager component
-    // (fitz_liveviews.ui.Pager). `page`
-    // and `total_pages` are the grid's query state (owned by the @ws loop, not
-    // the pager), passed as props: the render fn is called directly with a
-    // fresh `pager { ... }` every frame, so there's no per-connection store.
-    // The pager declares no event handlers, so its buttons' `page_prev` /
-    // `page_next` / `goto_page` events fall through to the parent loop.
+    // (fitz_liveviews.ui.Pager). `page` and `total_pages` are the grid's query
+    // state (owned by the @ws loop, not the pager), passed as props; the render
+    // fn is called directly with a fresh `pager { ... }` every frame. Its
+    // buttons' `page_prev` / `page_next` / `goto_page` events fall through to the
+    // parent loop. It rides in the DataGrid's `foot` slot (flat mode only).
     let pager_html: Str = pager_render(pager { page: page, total_pages: total_pages }).raw
-    // Footer: pager in flat mode, a plain count when grouped.
+    // Footer text: page X of Y in flat mode, a plain count when grouped. It goes
+    // in the DataGrid's `info` slot (escaped there, so no flv() here); the pager
+    // rides in `foot` (flat mode only). Labels are precomputed to keep the nested
+    // t(...) calls out of the interpolated string (single-quote nesting gotcha).
     let pg_lbl = t(locale, "grid.page")
     let of_lbl = t(locale, "grid.of")
     let grouped_lbl = t(locale, "grid.grouped_count")
-    let foot: Str = match group_by == "" {
-        true => """<div class="grid-foot">
-          <span class="grid-info">{flv(pg_lbl)} {page} {flv(of_lbl)} {total_pages}</span>
-          {pager_html}
-        </div>""",
-        false => """<div class="grid-foot"><span class="grid-info">{total} {flv(grouped_lbl)}</span></div>""",
+    let info: Str = match group_by == "" {
+        true => "{pg_lbl} {page} {of_lbl} {total_pages}",
+        false => "{total} {grouped_lbl}",
     }
-    // Sortable headers.
-    let th_id = sort_th("ID", "id", "col-id", sort_col, sort_dir)
-    let th_nombre = sort_th(t(locale, "grid.col.nombre"), "nombre", "", sort_col, sort_dir)
-    let th_email = sort_th(t(locale, "grid.col.email"), "email", "", sort_col, sort_dir)
-    let th_cargo = sort_th(t(locale, "grid.col.cargo"), "cargo", "", sort_col, sort_dir)
-    let th_estado = sort_th(t(locale, "grid.col.estado"), "estado", "", sort_col, sort_dir)
+    let pager_foot: Str = match group_by == "" {
+        true => pager_html,
+        false => "",
+    }
+    // Sortable headers — the packaged SortableHeader. Each fires `sort` carrying
+    // its column key; the active column shows an ▲/▼ arrow. Plain (non-sortable)
+    // columns stay literal `<th>`s.
+    let th_id = sortable_header_render(sortable_header { label: "ID", col: "id", cls: "col-id", active_col: sort_col, dir: sort_dir }).raw
+    let th_nombre = sortable_header_render(sortable_header { label: t(locale, "grid.col.nombre"), col: "nombre", active_col: sort_col, dir: sort_dir }).raw
+    let th_email = sortable_header_render(sortable_header { label: t(locale, "grid.col.email"), col: "email", active_col: sort_col, dir: sort_dir }).raw
+    let th_cargo = sortable_header_render(sortable_header { label: t(locale, "grid.col.cargo"), col: "cargo", active_col: sort_col, dir: sort_dir }).raw
+    let th_estado = sortable_header_render(sortable_header { label: t(locale, "grid.col.estado"), col: "estado", active_col: sort_col, dir: sort_dir }).raw
     let th_depto = t(locale, "grid.col.depto")
     let th_acc = t(locale, "grid.col.acciones")
-    // Toolbar (search + estado pills + action buttons) — a presentational
-    // LiveComponent (GridToolbar.fitzv). `q` / `estado` / `export_href` are the
-    // grid's query state, passed as props; its form/button events fall through
-    // to the parent loop (the component declares no handlers).
-    let toolbar_html: Str = grid_toolbar_render(grid_toolbar { q: q, estado: estado, export_href: export_href, ph_search: t(locale, "grid.search.ph"), locale: locale }).raw
+    // The `<thead>`'s `<tr>`: the expand + select-all cols, the sortable headers,
+    // the (non-sortable) depto + actions cols. Passed to DataGrid as `head`.
+    let head = """<tr>
+      <th class="col-exp"></th>
+      <th class="col-sel"><input type="checkbox" data-flv-click="toggle_sel_all" data-flv-value-ids="{page_ids}"{all_checked} /></th>
+      {th_id}{th_nombre}{th_email}{th_cargo}<th>{flv(th_depto)}</th>{th_estado}<th class="col-actions">{flv(th_acc)}</th>
+    </tr>"""
+    // The grid shell — the packaged DataGrid. `head` / `body` are raw markup;
+    // when `body` is empty it renders a centered empty row spanning all 9 columns.
+    // `info` + `foot` build the footer (count on the left, pager on the right).
+    let grid: Str = data_grid_render(data_grid {
+        head: head,
+        body: body.raw,
+        info: info,
+        foot: pager_foot,
+        empty: t(locale, "grid.empty"),
+        cols: 9
+    }).raw
     let g_title = t(locale, "nav.empleados")
     let g_sub = t(locale, "grid.subtitle")
     return html("""<div id="empleados-live" class="grid-wrap">
@@ -430,31 +473,11 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
         <p>{flv(g_sub)} · {total}</p>
       </div>
       {toolbar_html}
-      {filters_html}
+      {estado_html}
+      {depto_html}
+      {group_html}
       {sel_bar}
-      <div class="grid-card">
-        <div class="grid-scroll">
-          <table class="grid">
-            <thead>
-              <tr>
-                <th class="col-exp"></th>
-                <th class="col-sel"><input type="checkbox" data-flv-click="toggle_sel_all" data-flv-value-ids="{page_ids}"{all_checked} /></th>
-                {th_id}
-                {th_nombre}
-                {th_email}
-                {th_cargo}
-                <th>{flv(th_depto)}</th>
-                {th_estado}
-                <th class="col-actions">{flv(th_acc)}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {body.raw}
-            </tbody>
-          </table>
-        </div>
-        {foot}
-      </div>
+      {grid}
       {toast}
       {modal}
     </div>""")
@@ -661,8 +684,9 @@ async fn grid_html(page: Int, q: Str, estado: Str, depto: Int, sort_col: Str, so
     // to `grouped_body` (no detail — expand is a flat-mode feature).
     let body_str = ""
     if (rows.len() == 0) {
-        let empty_msg = t(locale, "grid.empty")
-        body_str = """<tr data-flv-key="grid-empty"><td colspan="9" class="grid-empty">{empty_msg}</td></tr>"""
+        // Empty state is rendered by the packaged DataGrid (its `empty` prop),
+        // so leave the body empty here.
+        body_str = ""
     } else {
         if (group_by == "") {
             for e in rows {
@@ -1127,7 +1151,7 @@ async fn empleados_socket(ws: WsConn<LiveFrame>, cookie: Str?) {
             page = 1
         }
         if (ev == "filter_depto") {
-            depto = pget_int(frame.payload, "depto", 0)
+            depto = pget_int(frame.payload, "value", 0)
             page = 1
         }
         if (ev == "sort") {

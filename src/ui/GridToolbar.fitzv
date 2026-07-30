@@ -1,0 +1,79 @@
+// GridToolbar.fitzv — the grid's search box + an actions slot as a stateless,
+// presentational LiveComponent with SCOPED styles.
+//
+// Companion UI library component (Phase 9, Session E — DataGrid family).
+// Generalized from the Admin ABM's app-specific toolbar: the estado/depto pills
+// moved to `GridFilters`, the domain buttons (new / export / …) become the raw
+// `actions` slot, and i18n left the component (the host passes already-localized
+// labels). Like Pager, it's CONTROLLED: `q` is the grid's query state, passed as
+// a prop; the parent re-renders the toolbar fresh every frame.
+//
+// It declares NO event handlers. The `<form>` fires `search_event` (default
+// `search`) on submit — the input's `q` rides in the payload. The optional clear
+// button (shown only when `clear_label != ""`) fires the same event with an
+// empty `q` payload, resetting the search. Both fall through to the parent loop.
+//
+// `placeholder` / `search_label` / `clear_label` are bare, already-localized
+// state fields — NOT inline `t(locale, "…")` calls, because a string-literal
+// argument inside a `{...}` attribute value trips the template's attribute
+// scanner (nested quotes). `actions` is RAW HTML you build in the host (the
+// right-side buttons). Colors come from `--flv-*` theme tokens with fallbacks.
+
+from fitz_liveviews import flv
+
+component grid_toolbar {
+  state {
+    q: Str = ""
+    placeholder: Str = ""
+    search_label: Str = "Search"
+    clear_label: Str = ""
+    search_event: Str = "search"
+    actions: Str = ""
+  }
+
+  <template>
+    <div class="flv-grid-toolbar">
+      <form class="flv-grid-search" data-flv-submit="{search_event}">
+        <input name="q" value="{flv(q)}" placeholder="{flv(placeholder)}" autocomplete="off" />
+        <button class="flv-btn-search" type="submit">{flv(search_label)}</button>
+        {#if clear_label != ""}
+          <button class="flv-btn-clear" type="button" data-flv-click="{search_event}" data-flv-value-q="">{flv(clear_label)}</button>
+        {/if}
+      </form>
+      {#if actions != ""}<div class="flv-grid-actions">{actions}</div>{/if}
+    </div>
+  </template>
+
+  <style scoped>
+    .flv-grid-toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: .75rem; margin-bottom: .85rem; flex-wrap: wrap;
+    }
+    .flv-grid-search { display: flex; gap: .4rem; flex: 1 1 260px; min-width: 200px; }
+    .flv-grid-search input {
+      flex: 1; min-width: 0;
+      border: 1px solid var(--flv-border, #d9d9e0);
+      background: var(--flv-surface, #ffffff);
+      color: var(--flv-text, #1a1a1a);
+      border-radius: 8px; padding: .5rem .75rem; font-size: .88rem;
+    }
+    .flv-grid-search input:focus {
+      outline: none; border-color: var(--flv-color-primary, #ce412b);
+    }
+    .flv-btn-search {
+      border: 1px solid var(--flv-color-primary, #ce412b);
+      background: var(--flv-color-primary, #ce412b); color: #fff;
+      border-radius: 8px; padding: .5rem .9rem; cursor: pointer;
+      font-weight: 600; font-size: .84rem;
+    }
+    .flv-btn-clear {
+      border: 1px solid var(--flv-border, #d9d9e0);
+      background: var(--flv-surface, #ffffff);
+      color: var(--flv-text-muted, #55555c);
+      border-radius: 8px; padding: .5rem .8rem; cursor: pointer; font-size: .84rem;
+    }
+    .flv-grid-actions {
+      display: flex; gap: .4rem; align-items: center; flex-wrap: wrap;
+    }
+  </style>
+}

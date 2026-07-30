@@ -491,5 +491,53 @@
       "let ${1:bar} = progress_bar_render(progress_bar { label: ${2:label}, value: ${3:value}, max: ${4:total}, pct: pct_of($3, $4), accent: \"${5|blue,green,amber|}\" }).raw"
     ],
     "description": "Render the packaged ProgressBar; pct_of(value, max) computes the percent (guarded). Import: from fitz_liveviews.ui.ProgressBar import progress_bar, progress_bar_render + from fitz_liveviews.ui.chart_helpers import pct_of"
+  },
+
+  "DataGrid — packaged live table shell (DataGrid family)": {
+    "prefix": "ui-datagrid",
+    "body": [
+      "let ${1:grid} = data_grid_render(data_grid {",
+      "  head: ${2:head},",
+      "  body: ${3:body},",
+      "  info: ${4:info},",
+      "  foot: ${5:pager_html},",
+      "  empty: ${6:empty_msg},",
+      "  cols: ${7:1}",
+      "}).raw"
+    ],
+    "description": "Render the packaged DataGrid (card + scroll + table + mobile cards). head/body/foot are raw markup; empty body renders a centered empty row spanning `cols`. Import: from fitz_liveviews.ui.DataGrid import data_grid, data_grid_render"
+  },
+
+  "SortableHeader — packaged clickable column header (DataGrid family)": {
+    "prefix": "ui-sortheader",
+    "body": [
+      "let ${1:th} = sortable_header_render(sortable_header { label: ${2:label}, col: \"${3:col}\", cls: \"${4:col-class}\", active_col: ${5:sort_col}, dir: ${6:sort_dir} }).raw"
+    ],
+    "description": "Render the packaged SortableHeader (<th> firing `sort` with the column key + an ▲/▼ arrow on the active column). Import: from fitz_liveviews.ui.SortableHeader import sortable_header, sortable_header_render"
+  },
+
+  "GridToolbar — packaged search box + actions slot (DataGrid family)": {
+    "prefix": "ui-gridtoolbar",
+    "body": [
+      "let ${1:toolbar} = grid_toolbar_render(grid_toolbar {",
+      "  q: ${2:q},",
+      "  placeholder: ${3:placeholder},",
+      "  search_label: ${4:search_label},",
+      "  clear_label: ${5:clear_label},",
+      "  actions: ${6:actions_html}",
+      "}).raw"
+    ],
+    "description": "Render the packaged GridToolbar (search form that fires `search`, plus a raw right-side `actions` slot). Import: from fitz_liveviews.ui.GridToolbar import grid_toolbar, grid_toolbar_render"
+  },
+
+  "GridFilters — packaged pill bar (DataGrid family)": {
+    "prefix": "ui-gridfilters",
+    "body": [
+      "let ${1:pills}: List<Pill> = [",
+      "  Pill { label: ${2:label}, event: \"${3:event}\", value: \"${4:value}\", active: ${5:cond} },",
+      "]",
+      "let ${6:bar} = grid_filters_render(grid_filters { pills: $1, filter_label: ${7:filter_label} }).raw"
+    ],
+    "description": "Render the packaged GridFilters (a filter pill bar). Each Pill fires its own fall-through `event` (+ optional `value` payload read as payload[\"value\"]). Import: from fitz_liveviews.ui.GridFilters import grid_filters, grid_filters_render + from fitz_liveviews.ui.grid_helpers import Pill"
   }
 }

@@ -46,6 +46,16 @@ from fitz_liveviews.ui.Alert import alert, alert_render
 from fitz_liveviews.ui.StatCard import stat_card, stat_card_render
 from fitz_liveviews.ui.BarChart import bar_chart, bar_chart_render
 from fitz_liveviews.ui.ProgressBar import progress_bar, progress_bar_render
+// DataGrid family (Session E) — the table shell + sortable headers + toolbar +
+// filter pills, rendered by empleados.fitz / departamentos.fitz. Imported HERE
+// so the compiler auto-registers them and their cross-module render-fn
+// signatures resolve to `-> Html`. `Pill` (grid_helpers) is imported so the
+// cross-module `List<Pill>` in GridFilters' state resolves.
+from fitz_liveviews.ui.DataGrid import data_grid, data_grid_render
+from fitz_liveviews.ui.SortableHeader import sortable_header, sortable_header_render
+from fitz_liveviews.ui.GridToolbar import grid_toolbar, grid_toolbar_render
+from fitz_liveviews.ui.GridFilters import grid_filters, grid_filters_render
+from fitz_liveviews.ui.grid_helpers import Pill, sort_arrow
 
 @server(3000, "0.0.0.0")
 fn main() => 0

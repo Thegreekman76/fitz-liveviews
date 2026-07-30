@@ -27,6 +27,9 @@ from i18n import t, pick, confirm_msg, locale_from_cookie
 from fitz_liveviews import Html, html, flv, html_response, live_embed, LiveFrame, diff_html, component_with, dispatch_component_events, dispatch_to, component_state
 from fitz_liveviews.ui.ConfirmDialog import confirm_dialog, confirm_dialog_render, confirm_dialog_ask, confirm_dialog_cancel
 from fitz_liveviews.ui.Toast import toast, toast_render, toast_show, toast_dismiss
+from fitz_liveviews.ui.DataGrid import data_grid, data_grid_render
+from fitz_liveviews.ui.SortableHeader import sortable_header, sortable_header_render
+from fitz_liveviews.ui.GridToolbar import grid_toolbar, grid_toolbar_render
 
 // --- payload helpers (Map<Str, Str>) --------------------------------------
 
@@ -46,18 +49,9 @@ fn pget_int(p: Map<Str, Str>, k: Str, dflt: Int) -> Int {
 
 // --- small render helpers -------------------------------------------------
 
-// A sortable column header — clicking it sends `sort` with the column key; the
-// active column shows an ▲/▼ arrow.
-fn sort_th(label: Str, col: Str, cls: Str, sort_col: Str, sort_dir: Str) -> Str {
-    let arrow = match col == sort_col {
-        true => match sort_dir == "desc" {
-            true => " ▼",
-            false => " ▲",
-        },
-        false => "",
-    }
-    return """<th class="{cls} th-sort" data-flv-click="sort" data-flv-value-col="{col}">{flv(label)}{arrow}</th>"""
-}
+// Sortable column headers are the packaged `fitz_liveviews.ui.SortableHeader`
+// component now — rendered inline in `render_grid` with
+// `sortable_header_render(...)`.
 
 // Count the employees assigned to a department (linear over the preloaded list —
 // the demo has a handful of areas).
@@ -99,18 +93,16 @@ fn grid_error(e: Str, locale: Str) -> Html {
 // --- grid render ----------------------------------------------------------
 
 fn render_grid(body: Html, total: Int, q: Str, sort_col: Str, sort_dir: Str, cid: Str, locale: Str) -> Html {
-    // Toolbar — search + "new" button. (A dedicated inline toolbar; GridToolbar
-    // is Empleados-specific with its estado pills + CSV export.)
-    let ph = t(locale, "dep.search.ph")
-    let toolbar = """<div class="grid-toolbar">
-      <form class="grid-search" data-flv-submit="search">
-        <input name="q" value="{flv(q)}" placeholder="{ph}" autocomplete="off" />
-        <button type="submit" class="btn-clear">{t(locale, "grid.search")}</button>
-      </form>
-      <div class="grid-actions">
-        <button class="btn-primary" data-flv-click="new_departamento">+ {t(locale, "dep.new")}</button>
-      </div>
-    </div>"""
+    // Toolbar — search + "new" button — via the packaged GridToolbar (no filter
+    // pills / no CSV export here, so no `clear` button and just the new-department
+    // action). Both events fall through to the parent loop.
+    let actions = """<button class="btn-primary" data-flv-click="new_departamento">+ {flv(t(locale, "dep.new"))}</button>"""
+    let toolbar: Str = grid_toolbar_render(grid_toolbar {
+        q: q,
+        placeholder: t(locale, "dep.search.ph"),
+        search_label: t(locale, "grid.search"),
+        actions: actions
+    }).raw
     // Reused per-connection library components (same instance id `cid` as
     // Empleados). i18n stays out of the library: Toast takes already-localized
     // `message` payloads; ConfirmDialog gets its static labels seeded here.
@@ -122,12 +114,26 @@ fn render_grid(body: Html, total: Int, q: Str, sort_col: Str, sort_dir: Str, cid
         confirm_label: t(locale, "confirm.delete")
     })
     let modal: Str = dlg.raw
-    // Sortable headers.
-    let th_id = sort_th("ID", "id", "col-id", sort_col, sort_dir)
-    let th_nombre = sort_th(t(locale, "dep.col.nombre"), "nombre", "", sort_col, sort_dir)
-    let th_codigo = sort_th(t(locale, "dep.col.codigo"), "codigo", "", sort_col, sort_dir)
+    // Sortable headers — the packaged SortableHeader. Plain columns (empleados
+    // count, actions) stay literal `<th>`s.
+    let th_id = sortable_header_render(sortable_header { label: "ID", col: "id", cls: "col-id", active_col: sort_col, dir: sort_dir }).raw
+    let th_nombre = sortable_header_render(sortable_header { label: t(locale, "dep.col.nombre"), col: "nombre", active_col: sort_col, dir: sort_dir }).raw
+    let th_codigo = sortable_header_render(sortable_header { label: t(locale, "dep.col.codigo"), col: "codigo", active_col: sort_col, dir: sort_dir }).raw
     let th_emp = t(locale, "dep.col.empleados")
     let th_acc = t(locale, "dep.col.acciones")
+    let head = """<tr>
+      {th_id}{th_nombre}{th_codigo}<th class="col-num">{flv(th_emp)}</th><th class="col-actions">{flv(th_acc)}</th>
+    </tr>"""
+    // The grid shell — the packaged DataGrid. No pager here, so the footer is
+    // just the total count (`info`); when `body` is empty it renders a centered
+    // empty row spanning all 5 columns.
+    let grid: Str = data_grid_render(data_grid {
+        head: head,
+        body: body.raw,
+        info: "{total}",
+        empty: t(locale, "dep.empty"),
+        cols: 5
+    }).raw
     let g_title = t(locale, "nav.departamentos")
     let g_sub = t(locale, "dep.subtitle")
     return html("""<div id="departamentos-live" class="grid-wrap">
@@ -136,25 +142,7 @@ fn render_grid(body: Html, total: Int, q: Str, sort_col: Str, sort_dir: Str, cid
         <p>{flv(g_sub)} · {total}</p>
       </div>
       {toolbar}
-      <div class="grid-card">
-        <div class="grid-scroll">
-          <table class="grid">
-            <thead>
-              <tr>
-                {th_id}
-                {th_nombre}
-                {th_codigo}
-                <th class="col-num">{flv(th_emp)}</th>
-                <th class="col-actions">{flv(th_acc)}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {body.raw}
-            </tbody>
-          </table>
-        </div>
-        <div class="grid-foot"><span class="grid-info">{total}</span></div>
-      </div>
+      {grid}
       {toast_html}
       {modal}
     </div>""")
@@ -183,10 +171,9 @@ async fn grid_html(q: Str, sort_col: Str, sort_dir: Str, cid: Str, locale: Str) 
     }
     let rows = all_deptos.filter(fn(d) => dep_matches(d, q))
     let body_str = ""
-    if (rows.len() == 0) {
-        let empty_msg = t(locale, "dep.empty")
-        body_str = """<tr><td colspan="5" class="grid-empty">{empty_msg}</td></tr>"""
-    } else {
+    // Empty state is rendered by the packaged DataGrid (its `empty` prop), so an
+    // empty body is fine.
+    if (rows.len() > 0) {
         for d in rows {
             body_str = body_str + dep_row(d, emp_count(all_emp, d.id), locale)
         }

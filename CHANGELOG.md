@@ -5,6 +5,74 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.21.0] — 2026-07-30 — `DataGrid` + `SortableHeader` + `GridToolbar` + `GridFilters` (DataGrid family)
+
+**Minor bump** — ships the **DataGrid family**, extracted from the Admin ABM into
+the package: the live table shell, the sortable column header, the search toolbar
+and the filter pill bar. The whole grid CSS (table shell, mobile-card transform,
+sortable headers, toolbar, pills) moved out of the app's `admin_css()` and into
+the components' `<style scoped>` blocks. Built against Fitz core **v0.29.1**.
+
+### Added — `DataGrid` / `SortableHeader` / `GridToolbar` / `GridFilters`
+
+- **`fitz_liveviews.ui.DataGrid`** — `data_grid { head, body, foot, info, empty,
+  cols }`. The card + horizontal-scroll + `<table>` shell, plus the **grid → cards
+  mobile transform** (`@media (max-width: 640px)`: each row's `<td data-label>`
+  becomes a stacked card). `head`/`body`/`foot` are raw markup you build; `info` +
+  `foot` form the footer; an empty `body` renders a centered empty row spanning
+  `cols`. The scoped CSS reaches the host-provided rows via descendant *element*
+  selectors inside the scoped `table.flv-grid` — that's how the mobile cards style
+  rows the component never renders itself.
+- **`fitz_liveviews.ui.SortableHeader`** — `sortable_header { label, col,
+  active_col, dir, cls, sort_event }`. A clickable `<th>` that fires `sort` (or a
+  custom `sort_event`) carrying the column key in `data-flv-value-col`; the active
+  column shows an ▲/▼ arrow (via the `sort_arrow` helper). Mix with plain `<th>`s
+  to build the grid's `head`.
+- **`fitz_liveviews.ui.GridToolbar`** — `grid_toolbar { q, placeholder,
+  search_label, clear_label, search_event, actions }`. A search `<form>` firing
+  `search` (the input's `q` rides in the payload) + an optional clear button + a
+  raw right-side `actions` slot for domain buttons.
+- **`fitz_liveviews.ui.GridFilters`** — `grid_filters { pills: List<Pill>,
+  filter_label }`. A data-driven filter pill bar. One instance renders any
+  dimension: a distinct event per pill (estado / group-by) or one shared event +
+  a `value` payload the loop reads as `payload["value"]` (a department id).
+- **`fitz_liveviews.ui.grid_helpers`** — the data helpers: `type Pill { label,
+  event, value, active }` and `sort_arrow(col, active_col, dir) -> Str`.
+- All four are `.fitzv` SFCs with `<style scoped>` over `--flv-*` tokens (literal
+  fallbacks), controlled (no event handlers — events fall through to the host
+  loop), and i18n-agnostic (the host passes already-localized labels). They render
+  identically under `fitz run` and the `fitz build` binary.
+
+### Changed — Admin ABM adoption
+
+- `empleados.fitz` and `departamentos.fitz` now render the packaged DataGrid
+  family: `data_grid_render` / `sortable_header_render` / `grid_toolbar_render` /
+  `grid_filters_render`. The estado / departamento / group-by filters are three
+  `GridFilters` instances; the sortable headers are `SortableHeader`; the table
+  shell + empty state + footer are `DataGrid`. The app-specific `EmpleadoRow`
+  stays (it's the domain row).
+- The app-local `GridToolbar.fitzv` / `GridFilters.fitzv` (Empleados-specific,
+  with baked-in estado pills + i18n) were **deleted** — the packaged, generalized
+  versions replace them. The local `sort_th` helpers are gone too.
+- `admin_css()` shrank: the grid table shell (`.grid-scroll` / `table.grid` /
+  `.grid-empty` / `.grid-foot` / `.grid-info`), the mobile-card `@media`, the
+  sortable-header (`.th-sort`), the toolbar (`.grid-toolbar` / `.grid-search` /
+  `.btn-search` / `.grid-actions`) and the pill (`.grid-filters` / `.pill` /
+  `.filter-label` / `.grid-deptos` / `.grid-group`) styles all travel with their
+  components now. `.grid-card` / `.col-*` / `.btn-clear` / `.badge` stay — they're
+  reused by the DB-error panel, forms, and domain rows.
+- The `filter_depto` handler now reads `payload["value"]` (was `payload["depto"]`)
+  — the generic GridFilters emits `data-flv-value-value`.
+
+### Verified
+
+- `fitz test` (ui-gallery) — **192 unit tests pass** (18 new for the DataGrid
+  family + `sort_arrow`).
+- `fitz check` + `fitz build` on the Admin ABM (native binary). Rendered against
+  a local PostgreSQL; the WS smoke (`dev/grid_smoke.py`, 30 frames) passes and
+  `fitz run` ↔ native binary are **bit-a-bit identical** in grid content (modulo
+  per-connection uuids + multi-line-literal whitespace).
+
 ## [v0.20.0] — 2026-07-30 — `StatCard` + `BarChart` + `ProgressBar` (Dashboard family)
 
 **Minor bump** — ships the **Dashboard family**, extracted from the Admin ABM

@@ -1,0 +1,65 @@
+// GridFilters.fitzv — a filter pill bar as a stateless, presentational
+// LiveComponent with SCOPED styles.
+//
+// Companion UI library component (Phase 9, Session E — DataGrid family).
+// Generalized from the Admin ABM's estado/depto/group pills into ONE data-driven
+// bar: the host passes a `List<Pill>` (already-localized `label`, the fall-through
+// `event`, an optional `value` payload, and `active`) plus an optional
+// `filter_label`. One instance renders any filter dimension — a fixed set of
+// options (estado, group-by) or a dynamic one (one pill per department).
+//
+// Like Pager, it's CONTROLLED and declares NO event handlers: each pill fires its
+// own `event` (carrying `data-flv-value-value` when the host set a `value`) and
+// the parent's `@ws` loop handles it — flip the active dimension, re-query,
+// re-render. Two shapes work: a distinct event per pill (estado_all / group_none)
+// or one shared event + a value the loop reads as `payload["value"]` (a depto id).
+//
+// `Pill` lives in the sibling `grid_helpers` module (imported by both this
+// component and the host). Colors come from `--flv-*` theme tokens with literal
+// fallbacks (see themes/default.css).
+
+from grid_helpers import Pill
+from fitz_liveviews import flv
+
+component grid_filters {
+  state {
+    pills: List<Pill> = []
+    filter_label: Str = ""
+  }
+
+  <template>
+    <div class="flv-grid-filters">
+      {#if filter_label != ""}<span class="flv-filter-label">{flv(filter_label)}</span>{/if}
+      {#for p in pills}
+        {#if p.active}
+          <button class="flv-pill flv-pill-active" data-flv-click="{p.event}" data-flv-value-value="{p.value}">{flv(p.label)}</button>
+        {#else}
+          <button class="flv-pill" data-flv-click="{p.event}" data-flv-value-value="{p.value}">{flv(p.label)}</button>
+        {/if}
+      {/for}
+    </div>
+  </template>
+
+  <style scoped>
+    .flv-grid-filters {
+      display: flex; gap: .35rem; flex-wrap: wrap; align-items: center;
+      margin-bottom: .85rem;
+    }
+    .flv-filter-label {
+      font-size: .8rem; color: var(--flv-text-muted, #55555c);
+      font-weight: 700; margin-right: .15rem;
+    }
+    .flv-pill {
+      border: 1px solid var(--flv-border, #d9d9e0);
+      background: var(--flv-surface, #ffffff);
+      color: var(--flv-text, #1a1a1a);
+      border-radius: 999px; padding: .4rem .85rem; cursor: pointer;
+      font-size: .82rem; font-weight: 600;
+    }
+    .flv-pill:hover { border-color: var(--flv-color-primary, #ce412b); }
+    .flv-pill-active {
+      background: var(--flv-color-primary, #ce412b); color: #fff;
+      border-color: var(--flv-color-primary, #ce412b);
+    }
+  </style>
+}
