@@ -5,7 +5,21 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
-## [Unreleased]
+## [v0.25.0] — 2026-07-30 — Client-WASM live gallery
+
+**Minor bump** — ships a **live, interactive component gallery** hosted on GitHub
+Pages: eight `.fitzv` components compiled to **WebAssembly**, running in the
+visitor's browser (no server, no WebSocket), composed into one ~34 KB (gzipped)
+bundle. This is the visibility engine — real widgets you can touch, no install.
+It's a *parallel* client-side set (not a recompile of the SSR companion UI) that
+reuses the same `--flv-*` tokens so it looks identical. Built against Fitz core
+**v0.29.1**. No change to the `fitz_liveviews` library API — this is examples,
+docs, and CI.
+
+CI note: the gallery's gate is the Pages build (`docs.yml` runs
+`fitz build --bin gallery --target wasm-client` on every push touching it).
+`fitz check --target wasm-client` doesn't exist in the current core, and plain
+`fitz check` lexes a `.fitzv` as classic Fitz, so `ci.yml` is left unchanged.
 
 ### Added — client-WASM live gallery (CW.1)
 

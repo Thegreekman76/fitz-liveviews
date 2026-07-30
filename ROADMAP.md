@@ -846,10 +846,13 @@ rationale + capability envelope in [`docs/client-wasm-plan.md`](docs/client-wasm
       cross-link from `live-gallery.md`. (A manual client-side theme toggle stays
       deferred — the page is theme-aware via `prefers-color-scheme`, and a toggle
       inside the embedded iframe would clash with Material's own.)
-- [ ] **CW.5 — CI + release** — bump + CHANGELOG + `.vsix` (if grammar/snippets
-      changed). Note: `fitz check --target wasm-client` is aspirational — the
-      current fitz (0.29.1) has no such flag and plain `fitz check` lexes a
-      `.fitzv` as classic Fitz, so `fitz build --target wasm-client` is the gate.
+- [x] **CW.5 — CI + release** (2026-07-30) — bump `0.24.0 → 0.25.0` (fitz.toml +
+      extension package.json), CHANGELOG `[Unreleased]` → `[v0.25.0]`; the `.vsix`
+      is built in CI by `release.yml` on the tag (grammar/snippets unchanged — the
+      client `.fitzv` use the same view syntax). CI gate for the gallery is the
+      Pages build in `docs.yml`; `fitz check --target wasm-client` is aspirational
+      (the current core has no such flag, and plain `fitz check` lexes a `.fitzv`
+      as classic Fitz), so `ci.yml` is left unchanged.
 - [ ] **CW.6 — (optional, CORE) dual-target research** — assess whether a subset
       could share one source across SSR + wasm-client. Needs core work
       (`dep_registry` in the wasm loader, an `flv` passthrough, a `data-flv-click`
