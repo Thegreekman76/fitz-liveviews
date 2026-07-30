@@ -5,6 +5,56 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.16.0] — 2026-07-29 — Keyed diffing (list insert/move/remove)
+
+**Minor bump** — teaches the server-side diff engine to match list children by
+`data-flv-key` instead of by position, so inserting / removing / reordering a
+list item produces a tiny, robust patch set (Phoenix LiveView's keyed
+comprehensions) instead of a large positional cascade. Motivated by dogfooding
+the Admin ABM: expanding a grid row (inserting a `<tr class="detail-row">`
+mid-`<tbody>`) went from **72 patches that intermittently misapplied in the
+browser to 3 that apply deterministically**. Fully backward-compatible — a level
+without keys keeps the exact positional diff, so every existing view is
+unchanged.
+
+### Added — keyed reconciliation (`src/lib.fitz`)
+
+- `type Patch` gains `key` and `before` fields, and three structural ops:
+  - `insert_keyed` — insert `content` into the parent at `path` before the
+    element whose key == `before` (`""` → append at end).
+  - `move_keyed` — move the existing element with key == `key` before `before`.
+  - `remove_keyed` — remove the element with key == `key`.
+- A level uses keyed reconciliation only when **every** element child (old and
+  new) carries `data-flv-key` and every other child is whitespace-only text;
+  otherwise it falls back to the positional diff. Whitespace text nodes are
+  ignored **only** at a keyed level (positional paths still count them so index
+  paths keep matching the browser's `childNodes`).
+- Matched elements are placed right-to-left anchored against already-placed
+  siblings; elements stable under an LCS of the key order are never moved, so a
+  pure insert/remove costs exactly one structural patch (zero moves).
+- Content changes to a matched element (e.g. a class/text change) are addressed
+  **by key** (a document-wide `data-flv-key` lookup) plus an index subpath, so
+  they are immune to index drift and whitespace between siblings.
+- Client `applyPatches` grows `findByKey` (uses `CSS.escape`) + `resolveTarget`
+  and the three keyed ops; it keeps the `try/catch` → full-`html` fallback.
+- Keys must be unique within the LiveView root. Keyed reconciliation applies at
+  one list level (nested keyed lists inside a keyed element are diffed
+  positionally relative to the outer key) — enough for the common table/list
+  case and always backed by the full-`html` fallback.
+
+### Added — tests + Admin ABM opt-in
+
+- 8 new `@test`s in `src/lib.fitz` (insert-in-middle, append, remove, reverse
+  reorder, content-by-key, whitespace-ignored, unkeyed-stays-positional, the
+  expand-row pattern) — 100 pass.
+- `examples/admin` opts in: `EmpleadoRow.fitzv` rows carry `data-flv-key="emp-{id}"`
+  and the expand-row detail carries `data-flv-key="detail-{e.id}"` (no
+  workarounds; grouped mode, whose group headers are unkeyed, cleanly falls back
+  to positional). Toggle-row 72 → 3 patches. Validated end-to-end: the real
+  client `applyPatches` (jsdom) reproduces the server `tbody` across an
+  accumulating expand/collapse/sort/filter sequence, and `fitz run` ↔ native
+  binary stay byte-identical on the grid WS smoke.
+
 ## [v0.15.0] — 2026-07-29 — Button gains icon + click payload + tooltip
 
 **Minor bump** — extends the **Button** primitive so it can stand in for the raw

@@ -141,11 +141,15 @@ Compact patches over the wire, DOM state preserved on the client.
       `{#if cond}...{/if}` — needs a mini template engine
 - [ ] `data-flv-input`, `data-flv-change`, `data-flv-keydown` handlers
 - [ ] Debouncing configuration on inputs (client-side)
-- [ ] **⭐ NEXT NORTE** — Loops with stable keys (`{#for x in xs key=x.id}`)
-      for efficient, robust diff. Currently keyless/positional: reordering and
-      **mid-list insert/remove** (e.g. the Admin ABM's expandable row detail)
-      produce large, fragile patch sets that intermittently misapply on the
-      client. See "Next norte (technical debt) — keyed diffing" under Phase 8.9.
+- [x] **Keyed diffing** (v0.16.0) — `diff_html` matches list children by
+      `data-flv-key` (LCS reconciliation) instead of by position, emitting
+      `insert_keyed`/`move_keyed`/`remove_keyed` + by-key content patches. A
+      mid-list insert/remove is now one structural patch, robust on the client.
+      Backward-compatible (unkeyed levels stay positional). The Admin ABM's
+      expand-row went 72 → 3 patches. Opt-in today via an explicit
+      `data-flv-key` attribute on list items.
+- [ ] **Sugar**: `{#for x in xs key=x.id}` in the SSR template DSL to emit
+      `data-flv-key` automatically (the engine above already consumes it).
 - [ ] Auth integration (`@authenticated @live(...)`, user injected)
 - [ ] `@on_mount` and `@on_disconnect` lifecycle hooks
 - [ ] `@every(N secs)` for server-pushed periodic updates
@@ -439,24 +443,30 @@ Full detail in [`docs/showcase-admin-abm-plan.md`](docs/showcase-admin-abm-plan.
 > row-action buttons it grew `icon` / `value` / `tooltip` / `aria_label` props
 > (v0.15.0 — still shipped for once-per-frame use).
 
-## Next norte (technical debt) — keyed diffing ⭐
+## Keyed diffing ⭐ — LANDED v0.16.0
 
 Dogfooding the Admin ABM (2026-07-29) surfaced the **single highest-leverage
 quality gap** for the live-grid UX. Expanding a grid row (inserting a
-`<tr class="detail-row">` mid-tbody) **intermittently fails to apply in the
-browser**. Root cause: `diff_html` (Phase 3b) is **positional / keyless**, so a
-mid-list insertion shifts every following sibling and the diff emits a large,
-fragile patch set — measured **72 patches for one row toggle** (18 `remove` + 2
-`append` + `set_attr`/`text` patches over index paths, including whitespace text
-nodes) instead of "insert one row". The **server is provably correct and
-deterministic** (verified: the emitted HTML alternates cleanly on every toggle);
-the fragility is entirely in applying shifted positional patches on the client.
+`<tr class="detail-row">` mid-tbody) **intermittently failed to apply in the
+browser**. Root cause: `diff_html` (Phase 3b) was **positional / keyless**, so a
+mid-list insertion shifted every following sibling and the diff emitted a large,
+fragile patch set — measured **72 patches for one row toggle** — instead of
+"insert one row". The server was always correct and deterministic; the fragility
+was entirely in applying shifted positional patches on the client.
 
-This is the difference between "impressive" and "production-grade" — Phoenix
-LiveView solves it with **keyed comprehensions**. The fix lives in Phase 3c's
-`{#for x in xs key=x.id}` item (line below), now promoted to the priority next
-norte. Secondary reliability debts to schedule alongside: reconnect with state
-replay, backpressure on the outbox, and multi-instance coordination.
+**Fixed in v0.16.0** with keyed reconciliation (Phoenix LiveView's keyed
+comprehensions): when a list's children all carry `data-flv-key`, `diff_html`
+matches them by key (LCS), emits `insert_keyed`/`move_keyed`/`remove_keyed` +
+by-key content patches, and ignores inter-item whitespace. The Admin ABM's
+expand-row toggle went **72 → 3 patches**, applying deterministically (verified
+by replaying the real client `applyPatches` in jsdom across an accumulating
+expand/collapse/sort/filter sequence, and by `fitz run` ↔ binary byte parity on
+the WS smoke). Backward-compatible: unkeyed levels keep the positional diff.
+
+**Still open** — the ergonomic sugar `{#for x in xs key=x.id}` in the SSR
+template DSL (emit `data-flv-key` automatically; the engine already consumes it).
+**Secondary reliability debts still to schedule**: reconnect with state replay,
+backpressure on the outbox, and multi-instance coordination.
 
 ## Phase 9 — Companion UI library 🧩
 
