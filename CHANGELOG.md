@@ -5,6 +5,53 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.24.0] — 2026-07-30 — `Chip` + `CountBadge` + `Tooltip` + `Divider` + `ExpansionPanel` (Feedback family)
+
+**Minor bump** — ships the **Feedback family**, extracted from the Admin ABM into
+the package: the small presentational primitives. **This closes the companion UI
+library's component extraction** — every reusable piece of the Admin ABM is now
+packaged. Built against Fitz core **v0.29.1**.
+
+### Added — the 5 primitives
+
+- **`fitz_liveviews.ui.Chip`** — `chip { label, variant }`. A soft-tinted tag pill
+  (a permission, a skill, a category). Variants: primary / success / danger /
+  warning / info / muted. (Badge is the solid status pill; Chip is the soft tint.)
+- **`fitz_liveviews.ui.CountBadge`** — `count_badge { count, max, variant }`. A
+  small solid count pill (a group tally, an unread counter). With `max` set, counts
+  over it render as "max+" (e.g. 99+).
+- **`fitz_liveviews.ui.Tooltip`** — `tooltip { content, tip }`. A CSS-only hover
+  bubble (zero JS) wrapping raw `content`; an empty `tip` renders nothing. The
+  standalone, scoped version of the global `[data-tooltip]` the AppShell chrome
+  provides.
+- **`fitz_liveviews.ui.Divider`** — `divider { label }`. An `<hr>`, or (with a
+  `label`) a centered caption between two lines.
+- **`fitz_liveviews.ui.ExpansionPanel`** — `expansion_panel { summary, body, open }`.
+  A collapsible section on the native `<details>`/`<summary>` — zero JS, great on
+  static SSR pages that don't re-render live.
+- All are `.fitzv` SFCs with `<style scoped>` over `--flv-*` tokens, presentational
+  (no state, no events), and render identically under `fitz run` and the
+  `fitz build` binary.
+
+### Changed — Admin ABM adoption
+
+- The expand-row detail chips + the departamentos código use the packaged **Chip**;
+  the grouped-grid member tally uses **CountBadge**; the dashboard's separator +
+  collapsible chart section use **Divider** + **ExpansionPanel**. The local `chip`
+  helper is gone (renamed `chip_tag` → the Chip component). The `.chip` /
+  `.grp-count` / `.divider` / `.exp-panel` styles moved out of `admin_css()` (the
+  `.detail-v.chips` flex container stays). The Admin ABM's icon-button tooltips keep
+  using AppShell's global `[data-tooltip]`.
+
+### Verified
+
+- `fitz test` (ui-gallery) — **227 unit tests pass** (9 new for the Feedback
+  family). `fitz check` + `fitz build` on the Admin ABM (native binary). Rendered
+  against a local PostgreSQL (dashboard Divider/ExpansionPanel, departamentos Chip,
+  grouped-grid CountBadge); the WS smoke passes and `fitz run` ↔ native binary are
+  **bit-a-bit identical** (modulo per-connection uuids + multi-line-literal
+  whitespace).
+
 ## [v0.23.0] — 2026-07-30 — `FormLayout` + `FormRow` + `GroupSelect` + `MultiSelect` + `Tabs` + `Stepper` + `TreeView` (Forms family — composite)
 
 **Minor bump** — ships the **Forms family (composite)**, extracted from the Admin

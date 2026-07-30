@@ -1,0 +1,50 @@
+// Chip.fitzv — packaged companion UI primitive (Phase 9, Feedback family).
+//
+// Presentational / SSR: `chip_render(chip { ... }).raw`. A soft-tinted tag pill —
+// a permission, a skill, a category label. Unlike Badge (a solid status pill) the
+// Chip is a low-contrast tint of its `variant` color. No state, no events. Set
+// `variant` to color it: "primary" (default) / "success" / "danger" / "warning" /
+// "info" / "muted". Style it by aliasing the --flv-* tokens.
+
+from fitz_liveviews import flv
+
+component chip {
+  state {
+    label: Str = ""
+    variant: Str = "primary"
+  }
+
+  <template>
+    <span class="flv-chip" data-variant="{variant}">{flv(label)}</span>
+  </template>
+
+  <style scoped>
+    .flv-chip {
+      display: inline-flex; align-items: center;
+      border-radius: 999px; padding: .1rem .6rem;
+      font-size: .76rem; font-weight: 600;
+      background: color-mix(in srgb, var(--flv-color-primary, #ce412b) 14%, transparent);
+      color: var(--flv-color-primary, #ce412b);
+    }
+    .flv-chip[data-variant="success"] {
+      background: color-mix(in srgb, var(--flv-color-success, #2e7d32) 14%, transparent);
+      color: var(--flv-color-success, #2e7d32);
+    }
+    .flv-chip[data-variant="danger"] {
+      background: color-mix(in srgb, var(--flv-color-danger, #c62828) 14%, transparent);
+      color: var(--flv-color-danger, #c62828);
+    }
+    .flv-chip[data-variant="warning"] {
+      background: color-mix(in srgb, var(--flv-color-warning, #ed6c02) 16%, transparent);
+      color: var(--flv-color-warning, #ed6c02);
+    }
+    .flv-chip[data-variant="info"] {
+      background: color-mix(in srgb, var(--flv-color-info, #1565c0) 14%, transparent);
+      color: var(--flv-color-info, #1565c0);
+    }
+    .flv-chip[data-variant="muted"] {
+      background: var(--flv-surface-2, #f5f5f7);
+      color: var(--flv-text-muted, #55555c);
+    }
+  </style>
+}

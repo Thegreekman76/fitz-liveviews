@@ -50,6 +50,11 @@ from fitz_liveviews.ui.Tabs import tabs, tabs_render
 from fitz_liveviews.ui.Stepper import stepper, stepper_render
 from fitz_liveviews.ui.TreeView import tree_view, tree_view_render
 from fitz_liveviews.ui.form_layout_helpers import OptionGroup, Tab, Step, TreeNode, tree_arrow
+from fitz_liveviews.ui.Chip import chip, chip_render
+from fitz_liveviews.ui.CountBadge import count_badge, count_badge_render
+from fitz_liveviews.ui.Tooltip import tooltip, tooltip_render
+from fitz_liveviews.ui.Divider import divider, divider_render
+from fitz_liveviews.ui.ExpansionPanel import expansion_panel, expansion_panel_render
 from fitz_liveviews import html
 
 // --- Pager (presentational / controlled) ---
@@ -1118,4 +1123,69 @@ fn sample_nav() -> List<NavGroup> {
     assert(h.contains("flv-tree-leaf"))
     assert(h.contains("style=\"padding-left: 2rem\""))
     assert(h.contains("El Chaltén"))
+}
+
+// === Feedback family (Session H) — Chip / CountBadge / Tooltip / Divider /
+// ExpansionPanel (presentational, SSR).
+
+@test fn chip_renders_label_and_variant() {
+    let h = chip_render(chip { label: "Rust", variant: "success" }).raw
+    assert(h.contains("flv-chip"))
+    assert(h.contains("data-variant=\"success\""))
+    assert(h.contains(">Rust</span>"))
+}
+
+@test fn chip_escapes_label_and_defaults_to_primary() {
+    let h = chip_render(chip { label: "<b>x</b>" }).raw
+    assert(h.contains("data-variant=\"primary\""))
+    assert(h.contains("&lt;b&gt;"))
+}
+
+@test fn count_badge_shows_count() {
+    let h = count_badge_render(count_badge { count: 7, variant: "danger" }).raw
+    assert(h.contains("flv-count-badge"))
+    assert(h.contains("data-variant=\"danger\""))
+    assert(h.contains(">7</span>"))
+}
+
+@test fn count_badge_caps_at_max() {
+    let over = count_badge_render(count_badge { count: 128, max: 99 }).raw
+    assert(over.contains(">99+</span>"))
+    let under = count_badge_render(count_badge { count: 42, max: 99 }).raw
+    assert(under.contains(">42</span>"))
+    assert(not under.contains("+"))
+}
+
+@test fn tooltip_wraps_content_and_carries_escaped_tip() {
+    let h = tooltip_render(tooltip { content: "<span>?</span>", tip: "Ayuda \"x\"" }).raw
+    assert(h.contains("flv-tooltip"))
+    assert(h.contains("<span>?</span>"))              // content is RAW
+    assert(h.contains("data-tip=\"Ayuda &quot;x&quot;\""))  // tip escaped
+}
+
+@test fn divider_plain_is_an_hr() {
+    let h = divider_render(divider { }).raw
+    assert(h.contains("<hr class=\"flv-divider"))
+    assert(not h.contains("flv-divider-labeled flv-divider-labeled-"))
+}
+
+@test fn divider_labeled_renders_caption() {
+    let h = divider_render(divider { label: "o" }).raw
+    assert(h.contains("flv-divider-labeled"))
+    assert(h.contains(">o</span>"))
+}
+
+@test fn expansion_panel_open_renders_details_with_body() {
+    let h = expansion_panel_render(expansion_panel { summary: "Detalles", body: "<p>rico</p>", open: true }).raw
+    assert(h.contains("<details class=\"flv-exp"))
+    assert(h.contains("open"))
+    assert(h.contains(">Detalles</summary>"))
+    assert(h.contains("<p>rico</p>"))                 // body is RAW
+}
+
+@test fn expansion_panel_closed_omits_open_attr() {
+    let h = expansion_panel_render(expansion_panel { summary: "x", body: "y" }).raw
+    assert(h.contains("<details class=\"flv-exp"))
+    assert(not h.contains("open>"))
+    assert(not h.contains("open=\"\""))
 }

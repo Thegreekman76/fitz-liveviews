@@ -1,0 +1,46 @@
+// ExpansionPanel.fitzv — packaged companion UI primitive (Phase 9, Feedback).
+//
+// Presentational / SSR: `expansion_panel_render(expansion_panel { ... }).raw`. A
+// collapsible section built on the native `<details>`/`<summary>` — zero JS, the
+// browser handles the toggle (great on static SSR pages that don't re-render
+// live). `summary` is the clickable header (escaped), `body` is RAW markup you
+// build. `open: true` renders it expanded. A rotating ▸ chevron replaces the
+// default disclosure triangle. Style it by aliasing the --flv-* tokens.
+
+from fitz_liveviews import flv
+
+component expansion_panel {
+  state {
+    summary: Str = ""
+    body: Str = ""
+    open: Bool = false
+  }
+
+  <template>
+    {#if open}
+      <details class="flv-exp" open>
+        <summary class="flv-exp-summary">{flv(summary)}</summary>
+        <div class="flv-exp-body">{body}</div>
+      </details>
+    {#else}
+      <details class="flv-exp">
+        <summary class="flv-exp-summary">{flv(summary)}</summary>
+        <div class="flv-exp-body">{body}</div>
+      </details>
+    {/if}
+  </template>
+
+  <style scoped>
+    .flv-exp-summary {
+      cursor: pointer; font-weight: 700; font-size: .92rem; padding: .3rem 0;
+      list-style: none; display: flex; align-items: center; gap: .5rem;
+      color: var(--flv-text, #1a1a1a);
+    }
+    .flv-exp-summary::before {
+      content: "▸"; color: var(--flv-text-muted, #55555c); transition: transform .15s;
+    }
+    .flv-exp[open] > .flv-exp-summary::before { transform: rotate(90deg); }
+    .flv-exp-summary::-webkit-details-marker { display: none; }
+    .flv-exp-body { padding: .3rem 0 .5rem; }
+  </style>
+}

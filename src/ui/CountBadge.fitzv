@@ -1,0 +1,43 @@
+// CountBadge.fitzv — packaged companion UI primitive (Phase 9, Feedback family).
+//
+// Presentational / SSR: `count_badge_render(count_badge { ... }).raw`. A small
+// solid pill showing a `count` — a group tally, an unread counter, a cart total.
+// No state, no events. `variant` colors it: "primary" (default) / "success" /
+// "danger" / "muted". With `max` set, counts over it render as "max+" (e.g. 99+).
+// Style it by aliasing the --flv-* tokens.
+
+from fitz_liveviews import flv
+
+component count_badge {
+  state {
+    count: Int = 0
+    max: Int = 0
+    variant: Str = "primary"
+  }
+
+  <template>
+    {#if max > 0}
+      {#if count > max}
+        <span class="flv-count-badge" data-variant="{variant}">{max}+</span>
+      {#else}
+        <span class="flv-count-badge" data-variant="{variant}">{count}</span>
+      {/if}
+    {#else}
+      <span class="flv-count-badge" data-variant="{variant}">{count}</span>
+    {/if}
+  </template>
+
+  <style scoped>
+    .flv-count-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 1.1rem; border-radius: 999px; padding: .05rem .45rem;
+      font-size: .72rem; font-weight: 700; line-height: 1.4;
+      background: var(--flv-color-primary, #ce412b); color: #fff;
+    }
+    .flv-count-badge[data-variant="success"] { background: var(--flv-color-success, #2e7d32); }
+    .flv-count-badge[data-variant="danger"] { background: var(--flv-color-danger, #c62828); }
+    .flv-count-badge[data-variant="muted"] {
+      background: var(--flv-surface-2, #f5f5f7); color: var(--flv-text-muted, #55555c);
+    }
+  </style>
+}

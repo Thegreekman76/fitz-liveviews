@@ -1,0 +1,37 @@
+// Divider.fitzv — packaged companion UI primitive (Phase 9, Feedback family).
+//
+// Presentational / SSR: `divider_render(divider { ... }).raw`. A horizontal rule
+// separating sections. With a `label` it becomes a centered caption between two
+// lines ("— O —" style). No state, no events. Style it by aliasing --flv-* tokens.
+
+from fitz_liveviews import flv
+
+component divider {
+  state {
+    label: Str = ""
+  }
+
+  <template>
+    {#if label != ""}
+      <div class="flv-divider-labeled"><span class="flv-divider-label">{flv(label)}</span></div>
+    {#else}
+      <hr class="flv-divider" />
+    {/if}
+  </template>
+
+  <style scoped>
+    .flv-divider {
+      border: none; border-top: 1px solid var(--flv-border, #d9d9e0); margin: 1rem 0;
+    }
+    .flv-divider-labeled {
+      display: flex; align-items: center; gap: .75rem; margin: 1rem 0;
+      color: var(--flv-text-muted, #55555c);
+    }
+    .flv-divider-labeled::before, .flv-divider-labeled::after {
+      content: ""; flex: 1; height: 1px; background: var(--flv-border, #d9d9e0);
+    }
+    .flv-divider-label {
+      font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    }
+  </style>
+}

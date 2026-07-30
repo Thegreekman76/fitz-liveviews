@@ -47,6 +47,11 @@ from fitz_liveviews.ui.Tabs import tabs, tabs_render
 from fitz_liveviews.ui.Stepper import stepper, stepper_render
 from fitz_liveviews.ui.TreeView import tree_view, tree_view_render
 from fitz_liveviews.ui.form_layout_helpers import OptionGroup, Tab, Step, TreeNode, tree_arrow
+from fitz_liveviews.ui.Chip import chip, chip_render
+from fitz_liveviews.ui.CountBadge import count_badge, count_badge_render
+from fitz_liveviews.ui.Tooltip import tooltip, tooltip_render
+from fitz_liveviews.ui.Divider import divider, divider_render
+from fitz_liveviews.ui.ExpansionPanel import expansion_panel, expansion_panel_render
 
 print("=== Theme tokens ===")
 print(ui_theme().raw)
@@ -306,3 +311,24 @@ let tree_nodes: List<TreeNode> = [
   TreeNode { label: "Chile", depth: 0, expanded: false, event: "toggle_pais", value: "2", icon: "🌎" },
 ]
 print(tree_view_render(tree_view { nodes: tree_nodes }).raw)
+
+// === Feedback family (Session H) ===
+
+print("=== Chip (variants) ===")
+print(chip_render(chip { label: "Rust", variant: "primary" }).raw)
+print(chip_render(chip { label: "activo", variant: "success" }).raw)
+print(chip_render(chip { label: "legacy", variant: "muted" }).raw)
+
+print("=== CountBadge (plain + capped) ===")
+print(count_badge_render(count_badge { count: 7 }).raw)
+print(count_badge_render(count_badge { count: 128, max: 99, variant: "danger" }).raw)
+
+print("=== Tooltip (wraps content) ===")
+print(tooltip_render(tooltip { content: "<span>❓</span>", tip: "Ayuda contextual" }).raw)
+
+print("=== Divider (plain + labeled) ===")
+print(divider_render(divider { }).raw)
+print(divider_render(divider { label: "o" }).raw)
+
+print("=== ExpansionPanel (open) ===")
+print(expansion_panel_render(expansion_panel { summary: "Detalles", body: "<p>Contenido <strong>rico</strong></p>", open: true }).raw)

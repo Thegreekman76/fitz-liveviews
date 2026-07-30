@@ -84,6 +84,11 @@ from fitz_liveviews.ui.Tabs import tabs, tabs_render
 from fitz_liveviews.ui.Stepper import stepper, stepper_render
 from fitz_liveviews.ui.TreeView import tree_view, tree_view_render
 from fitz_liveviews.ui.form_layout_helpers import OptionGroup, Tab, Step, TreeNode, tree_arrow
+from fitz_liveviews.ui.Chip import chip, chip_render
+from fitz_liveviews.ui.CountBadge import count_badge, count_badge_render
+from fitz_liveviews.ui.Tooltip import tooltip, tooltip_render
+from fitz_liveviews.ui.Divider import divider, divider_render
+from fitz_liveviews.ui.ExpansionPanel import expansion_panel, expansion_panel_render
 ```
 
 They're **i18n-agnostic** (the host passes already-localized text), styled with
@@ -971,26 +976,6 @@ stepper_render(stepper { steps: step_list }).raw     // + your own nav buttons
 tree_view_render(tree_view { nodes: flat_node_list }).raw
 ```
 
-### Tabs · Stepper
-
-Both organize a long form and both need **server-tracked active state** (a
-LiveView re-render resets any CSS-only selection). The nav buttons opt into
-`data-flv-form` (lib v0.9.0) so switching a tab / step carries the typed values.
-
-- **Tabs** (edit) — free navigation between sections.
-- **Stepper** (create) — a guided onboarding wizard with a numbered indicator +
-  Back / Next / Finish.
-
-```
-<button type="button" class="tab-btn{on}" data-flv-form
-        data-flv-click="form_tab" data-flv-value-tab="{val}">{flv(label)}</button>
-```
-
-### TreeView
-
-A país → provincia → ciudad tree; expand/collapse of each node is a server
-event (`toggle_pais` / `toggle_prov`), expanded ids tracked as comma-joined sets.
-
 ---
 
 ## Feedback
@@ -1030,22 +1015,38 @@ let toast = match flash == "" { true => "", false => """<div class="toast toast-
 ### Badge · CountBadge · Chip
 
 !!! tip "Packaged"
-    Badge ships as [`fitz_liveviews.ui.Badge`](#badge-count-status-pill) with color
-    variants + sizes — import it instead of hand-rolling the pill below, which is the
-    underlying pattern.
+    Three little pills, all packaged: **Badge** (a solid status pill, with color
+    variants + sizes), **CountBadge** (a small solid count — a group tally, an
+    unread counter — with `max` capping to "99+"), and **Chip** (a soft-tinted tag
+    — a permission, a skill, a category). Import them instead of hand-rolling.
 
 ```
-<span class="badge badge-ok">{t(locale, "badge.active")}</span>   <!-- status -->
-<span class="grp-count">{n}</span>                                <!-- count -->
-<span class="chip">{flv(label)}</span>                            <!-- tag -->
+badge_render(badge { label: "activo", variant: "success" }).raw     // status
+count_badge_render(count_badge { count: 128, max: 99 }).raw         // → 99+
+chip_render(chip { label: "Rust", variant: "primary" }).raw          // tag
 ```
 
 ### Tooltip · Divider · ExpansionPanel
 
-- **Tooltip** — CSS-only, driven by `data-tooltip` (`[data-tooltip]::after`).
-- **Divider** — `<hr class="divider">`.
-- **ExpansionPanel** — native `<details>`/`<summary>`, zero JS (great on SSR
-  pages that don't re-render live).
+!!! tip "Packaged"
+    All three ship packaged (all zero-JS): **Tooltip** (a CSS-only hover bubble
+    wrapping any `content`, shown from `tip`), **Divider** (an `<hr>`, or a centered
+    caption between lines with `label`), and **ExpansionPanel** (a collapsible
+    section on the native `<details>`/`<summary>` — great on static SSR pages that
+    don't re-render live).
+
+```
+tooltip_render(tooltip { content: icon_html, tip: "Delete" }).raw
+divider_render(divider { }).raw                         // or { label: "or" }
+expansion_panel_render(expansion_panel { summary: "Details", body: body_html, open: true }).raw
+```
+
+!!! note "AppShell has a global tooltip too"
+    The [AppShell](#packaged-components) chrome CSS styles a global
+    `[data-tooltip]`, so inside an AppShell app any element with a `data-tooltip`
+    attribute gets a tooltip for free (that's what the Admin ABM's icon buttons
+    use). The `Tooltip` component is the standalone, scoped version for apps that
+    don't use AppShell.
 
 ---
 

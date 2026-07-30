@@ -83,6 +83,14 @@ from fitz_liveviews.ui.Tabs import tabs, tabs_render
 from fitz_liveviews.ui.Stepper import stepper, stepper_render
 from fitz_liveviews.ui.TreeView import tree_view, tree_view_render
 from fitz_liveviews.ui.form_layout_helpers import OptionGroup, Tab, Step, TreeNode, tree_arrow
+// Feedback family (Session H) — Chip / CountBadge (grid + form), Divider +
+// ExpansionPanel (dashboard). Imported HERE so the compiler auto-registers them
+// and their cross-module render-fn signatures resolve to `-> Html`. (Tooltip is a
+// standalone primitive — the admin's icon buttons use AppShell's global tooltip.)
+from fitz_liveviews.ui.Chip import chip, chip_render
+from fitz_liveviews.ui.CountBadge import count_badge, count_badge_render
+from fitz_liveviews.ui.Divider import divider, divider_render
+from fitz_liveviews.ui.ExpansionPanel import expansion_panel, expansion_panel_render
 
 @server(3000, "0.0.0.0")
 fn main() => 0

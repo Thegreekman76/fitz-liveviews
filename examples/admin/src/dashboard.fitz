@@ -18,6 +18,8 @@ from fitz_liveviews.ui.StatCard import stat_card, stat_card_render
 from fitz_liveviews.ui.BarChart import bar_chart, bar_chart_render
 from fitz_liveviews.ui.ProgressBar import progress_bar, progress_bar_render
 from fitz_liveviews.ui.chart_helpers import Bar, bar_scale, pct_of
+from fitz_liveviews.ui.Divider import divider, divider_render
+from fitz_liveviews.ui.ExpansionPanel import expansion_panel, expansion_panel_render
 
 // --- Dashboard body (real DB counts) -------------------------------------
 
@@ -53,6 +55,11 @@ async fn render_dashboard(locale: Str) -> Result<Html> {
     let d_live = t(locale, "dash.live")
     let d_occ = t(locale, "dash.occupancy")
     let d_bydep = t(locale, "dash.by_depto")
+    // Separator + collapsible chart section — the packaged Divider + ExpansionPanel
+    // (native <details>, zero JS). Precomputed here so the struct-literal braces
+    // stay out of the html("""...""") interpolation.
+    let divider_html = divider_render(divider { }).raw
+    let exp_html = expansion_panel_render(expansion_panel { summary: d_bydep, body: chart, open: true }).raw
     return Ok(html("""<div class="page-head">
       <h2>{flv(d_title)} <span class="live-dot"><span class="spinner"></span> {flv(d_live)}</span></h2>
       <p>{flv(d_sub)}</p>
@@ -63,11 +70,8 @@ async fn render_dashboard(locale: Str) -> Result<Html> {
     <div class="panel">
       <h3>{flv(d_occ)}</h3>
       <div class="pbars">{pb_act}{pb_ina}</div>
-      <hr class="divider" />
-      <details class="exp-panel" open>
-        <summary>{flv(d_bydep)}</summary>
-        {chart}
-      </details>
+      {divider_html}
+      {exp_html}
     </div>"""))
 }
 

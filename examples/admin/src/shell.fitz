@@ -288,10 +288,7 @@ fn admin_css() -> Str {
     padding: .6rem .85rem; font-size: .9rem;
   \}
   .grp-toggle:hover \{ background: color-mix(in srgb, var(--primary) 6%, transparent); \}
-  .grp-count \{
-    background: var(--primary); color: #fff; border-radius: 999px;
-    padding: .05rem .55rem; font-size: .72rem; font-weight: 700;
-  \}
+  /* The member tally is the packaged fitz_liveviews.ui.CountBadge (scoped). */
   /* Expandable rows (Slice 7) */
   .col-exp \{ width: 2.2rem; text-align: center; \}
   .btn-exp \{ font-size: .8rem; color: var(--muted); \}
@@ -304,29 +301,17 @@ fn admin_css() -> Str {
   .detail-item \{ display: flex; flex-direction: column; gap: .25rem; min-width: 0; \}
   .detail-k \{ font-size: .72rem; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); font-weight: 700; \}
   .detail-v \{ font-size: .88rem; \}
+  /* `.detail-v.chips` is the flex container; each pill is the packaged
+     fitz_liveviews.ui.Chip (scoped). */
   .detail-v.chips \{ display: flex; flex-wrap: wrap; gap: .35rem; \}
-  .chip \{
-    display: inline-flex; align-items: center;
-    background: color-mix(in srgb, var(--primary) 14%, transparent);
-    color: var(--primary); border-radius: 999px; padding: .1rem .6rem;
-    font-size: .76rem; font-weight: 600;
-  \}
   @media (max-width: 560px) \{ .detail-panel \{ grid-template-columns: 1fr; \} \}
   /* The bar chart (.chart-*) travels with the packaged
      fitz_liveviews.ui.BarChart component (scoped styles). */
   /* ProgressBar: .pbar-* travels with the packaged fitz_liveviews.ui.ProgressBar
      component (scoped styles). `.pbars` (the layout wrapper) stays here. */
   .pbars \{ display: flex; flex-direction: column; gap: .8rem; \}
-  /* Divider (Slice 8b) */
-  .divider \{ border: none; border-top: 1px solid var(--border); margin: 1rem 0; \}
-  /* ExpansionPanel (Slice 8b) — native <details>, zero JS */
-  .exp-panel > summary \{
-    cursor: pointer; font-weight: 700; font-size: .92rem; padding: .3rem 0;
-    list-style: none; display: flex; align-items: center; gap: .5rem;
-  \}
-  .exp-panel > summary::before \{ content: "▸"; color: var(--muted); transition: transform .15s; \}
-  .exp-panel[open] > summary::before \{ transform: rotate(90deg); \}
-  .exp-panel > summary::-webkit-details-marker \{ display: none; \}
+  /* The Divider + ExpansionPanel (native <details>, zero JS) are packaged
+     fitz_liveviews.ui.Divider / .ExpansionPanel now; their styles travel scoped. */
   /* Spinner (Slice 8b) */
   .spinner \{
     display: inline-block; width: .8rem; height: .8rem; border-radius: 50%;

@@ -782,9 +782,20 @@ Card · Badge · Alert · Input · Spinner · Icon · **Breadcrumbs** ✅ ·
   GroupSelect / MultiSelect must import `FieldOption` so the nested
   `OptionGroup.options` resolves cross-module in `fitz build`.) **Closes the Forms
   extraction** (inputs in v0.22.0 + composite here).
-- [ ] **Session H — Feedback & misc**: `Chip` · `CountBadge` (or a `Badge`
-  `count` variant) · `Tooltip` (the CSS-only `data-tooltip`) · `Divider` ·
-  `ExpansionPanel` (native `<details>`).
+- [x] **Session H — Feedback & misc** (v0.24.0): `Chip` (soft-tinted tag pill,
+  variants) · `CountBadge` (small solid count pill, `max` caps to "N+") · `Tooltip`
+  (standalone CSS-only hover bubble; AppShell also provides a global
+  `[data-tooltip]`) · `Divider` (an `<hr>`, or a labeled caption between lines) ·
+  `ExpansionPanel` (collapsible native `<details>`, zero JS). Adopted in the admin:
+  the detail-panel chips + departamentos código (Chip), the grouped-grid member
+  tally (CountBadge), the dashboard separator + collapsible chart (Divider +
+  ExpansionPanel); the local `chip` helper renamed to the Chip component; the
+  `.chip` / `.grp-count` / `.divider` / `.exp-panel` CSS moved out of `admin_css()`.
+  9 gallery tests (227 total), docs, `ui-chip` / `ui-countbadge` / `ui-tooltip` /
+  `ui-divider` / `ui-expansionpanel` snippets. `fitz check` + `fitz test` + `fitz
+  build` verified; live Postgres render + WS smoke + `fitz run` ↔ binary parity
+  confirmed. **Closes the companion UI library's component extraction** — every
+  reusable piece of the Admin ABM is now packaged.
 
 > **Ordering rationale**: Breadcrumbs first (cleanest, self-contained, proves the
 > Shell-family recipe). ThemeToggle next (scripts + one button, low risk).

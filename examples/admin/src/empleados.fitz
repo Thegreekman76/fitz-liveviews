@@ -36,6 +36,8 @@ from fitz_liveviews.ui.GridFilters import grid_filters, grid_filters_render
 from fitz_liveviews.ui.grid_helpers import Pill
 from fitz_liveviews.ui.TreeView import tree_view, tree_view_render
 from fitz_liveviews.ui.form_layout_helpers import TreeNode
+from fitz_liveviews.ui.Chip import chip, chip_render
+from fitz_liveviews.ui.CountBadge import count_badge, count_badge_render
 from EmpleadoRow import empleado_row, empleado_row_render
 from EmpleadoForm import empleado_form, empleado_form_render
 
@@ -290,7 +292,10 @@ fn group_section(key: Str, label: Str, members: List<Empleado>, collapsed: Str, 
     // The header carries a data-flv-key so the grouped tbody is a fully keyed
     // level (headers + member rows), matching the flat grid. Without it the
     // unkeyed header would force the whole tbody back to a positional diff.
-    let head = """<tr class="grp-row" data-flv-key="grp-{key}"><td colspan="9" class="grp-cell"><button class="grp-toggle" data-flv-click="toggle_group" data-flv-value-key="{key}"><span class="tree-arrow">{arrow}</span> <strong>{flv(label)}</strong> <span class="grp-count">{n}</span></button></td></tr>"""
+    // The member tally is the packaged CountBadge (precomputed so its struct
+    // literal stays out of the interpolation).
+    let n_badge = count_badge_render(count_badge { count: n }).raw
+    let head = """<tr class="grp-row" data-flv-key="grp-{key}"><td colspan="9" class="grp-cell"><button class="grp-toggle" data-flv-click="toggle_group" data-flv-value-key="{key}"><span class="tree-arrow">{arrow}</span> <strong>{flv(label)}</strong> {n_badge}</button></td></tr>"""
     let rows = match open {
         true => h_join(members.map(fn(e) => empleado_row_render(empleado_row { id: e.id, nombre: e.nombre, email: e.email, cargo: e.cargo, depto: depto_name(deptos, e.departamento_id), activo: e.activo, checked: id_checked(sel, e.id), expanded: id_checked(expanded, e.id), locale: locale }))),
         false => "",
@@ -475,10 +480,9 @@ fn render_grid(rows: List<Empleado>, deptos: List<Departamento>, page: Int, tota
 }
 
 // A small pill/chip label (Slice 7 — used in the expand-row detail panel to
-// show an employee's permisos and skills).
-fn chip(label: Str) -> Str {
-    return """<span class="chip">{flv(label)}</span>"""
-}
+// show an employee's permisos and skills) — the packaged Chip. Named `chip_tag`
+// so it doesn't shadow the imported `chip` component.
+fn chip_tag(label: Str) -> Str => chip_render(chip { label: label }).raw
 
 // Human ubicación label ("Ciudad, Provincia, País") from a ciudad_id.
 async fn ubi_label(ciudad_id: Int) -> Str {
@@ -525,7 +529,7 @@ async fn permisos_labels(emp_id: Int) -> Str {
     for ep in eps {
         for p in all_perms {
             if (p.id == ep.permiso_id) {
-                out = out + chip(p.nombre)
+                out = out + chip_tag(p.nombre)
             }
         }
     }
@@ -556,7 +560,7 @@ async fn skills_labels(emp_id: Int) -> Str {
     for e in es {
         for s in all_skills {
             if (s.id == e.skill_id) {
-                out = out + chip(s.nombre)
+                out = out + chip_tag(s.nombre)
             }
         }
     }

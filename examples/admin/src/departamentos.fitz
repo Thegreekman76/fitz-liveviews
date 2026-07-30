@@ -30,6 +30,7 @@ from fitz_liveviews.ui.Toast import toast, toast_render, toast_show, toast_dismi
 from fitz_liveviews.ui.DataGrid import data_grid, data_grid_render
 from fitz_liveviews.ui.SortableHeader import sortable_header, sortable_header_render
 from fitz_liveviews.ui.GridToolbar import grid_toolbar, grid_toolbar_render
+from fitz_liveviews.ui.Chip import chip, chip_render
 
 // --- payload helpers (Map<Str, Str>) --------------------------------------
 
@@ -70,10 +71,13 @@ fn dep_matches(d: Departamento, q: Str) -> Bool {
 
 // One grid row.
 fn dep_row(d: Departamento, n_emp: Int, locale: Str) -> Str {
+    // The código is the packaged Chip (precomputed so its struct literal stays
+    // out of the interpolation).
+    let codigo_chip = chip_render(chip { label: d.codigo }).raw
     return """<tr>
       <td data-label="ID" class="col-id">{d.id}</td>
       <td data-label="Nombre"><strong>{flv(d.nombre)}</strong></td>
-      <td data-label="Código"><span class="chip">{flv(d.codigo)}</span></td>
+      <td data-label="Código">{codigo_chip}</td>
       <td data-label="Empleados" class="col-num" data-tooltip="{n_emp} {t(locale, "dep.tip.empleados")}">{n_emp}</td>
       <td data-label="Acciones" class="col-actions">
         <button class="btn-icon" data-tooltip="{t(locale, "grid.tip.edit")}" data-flv-click="edit_departamento" data-flv-value-id="{d.id}">✎</button>

@@ -672,5 +672,45 @@
       "let ${8:tree} = tree_view_render(tree_view { nodes: $1 }).raw"
     ],
     "description": "Render the packaged TreeView (host flattens its hierarchy into a depth-based List<TreeNode>). Import: from fitz_liveviews.ui.TreeView import tree_view, tree_view_render + from fitz_liveviews.ui.form_layout_helpers import TreeNode"
+  },
+
+  "Chip — packaged soft tag pill (Feedback family)": {
+    "prefix": "ui-chip",
+    "body": [
+      "let ${1:tag} = chip_render(chip { label: ${2:label}, variant: \"${3|primary,success,danger,warning,info,muted|}\" }).raw"
+    ],
+    "description": "Render the packaged Chip (soft-tinted tag). Import: from fitz_liveviews.ui.Chip import chip, chip_render"
+  },
+
+  "CountBadge — packaged count pill (Feedback family)": {
+    "prefix": "ui-countbadge",
+    "body": [
+      "let ${1:badge} = count_badge_render(count_badge { count: ${2:count}, max: ${3:0}, variant: \"${4|primary,success,danger,muted|}\" }).raw"
+    ],
+    "description": "Render the packaged CountBadge (small count pill; max>0 caps to 'max+'). Import: from fitz_liveviews.ui.CountBadge import count_badge, count_badge_render"
+  },
+
+  "Tooltip — packaged CSS hover bubble (Feedback family)": {
+    "prefix": "ui-tooltip",
+    "body": [
+      "let ${1:wrapped} = tooltip_render(tooltip { content: ${2:content_html}, tip: ${3:tip} }).raw"
+    ],
+    "description": "Render the packaged Tooltip (CSS-only hover bubble wrapping raw content). Import: from fitz_liveviews.ui.Tooltip import tooltip, tooltip_render"
+  },
+
+  "Divider — packaged separator (Feedback family)": {
+    "prefix": "ui-divider",
+    "body": [
+      "let ${1:hr} = divider_render(divider { label: ${2:\"\"} }).raw"
+    ],
+    "description": "Render the packaged Divider (an <hr>, or a centered caption between lines with label). Import: from fitz_liveviews.ui.Divider import divider, divider_render"
+  },
+
+  "ExpansionPanel — packaged collapsible <details> (Feedback family)": {
+    "prefix": "ui-expansionpanel",
+    "body": [
+      "let ${1:panel} = expansion_panel_render(expansion_panel { summary: ${2:summary}, body: ${3:body_html}, open: ${4|false,true|} }).raw"
+    ],
+    "description": "Render the packaged ExpansionPanel (collapsible native <details>, zero JS; body is raw). Import: from fitz_liveviews.ui.ExpansionPanel import expansion_panel, expansion_panel_render"
   }
 }
