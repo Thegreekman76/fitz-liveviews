@@ -839,8 +839,13 @@ rationale + capability envelope in [`docs/client-wasm-plan.md`](docs/client-wasm
       eight via cross-file `<Child/>` into one bundle (~34 KB gzipped), mounted at
       `/live/` and embedded in `/live-gallery/`. Client-side theme toggle still TODO
       (the page is theme-aware via `prefers-color-scheme`).
-- [ ] **CW.4 — Docs + SSR-vs-client decision matrix** — `docs/client-wasm.md`,
-      "▶ see it live" links from `docs/ui-components.md`.
+- [x] **CW.4 — Docs + SSR-vs-client decision matrix** (2026-07-30) —
+      `docs/client-wasm.md` (the third rendering mode: decision matrix, the
+      "parallel set" rationale, the capability envelope + gotchas, build/deploy),
+      in the Guide nav; "▶ see it live" pointers from `docs/ui-components.md` and a
+      cross-link from `live-gallery.md`. (A manual client-side theme toggle stays
+      deferred — the page is theme-aware via `prefers-color-scheme`, and a toggle
+      inside the embedded iframe would clash with Material's own.)
 - [ ] **CW.5 — CI + release** — bump + CHANGELOG + `.vsix` (if grammar/snippets
       changed). Note: `fitz check --target wasm-client` is aspirational — the
       current fitz (0.29.1) has no such flag and plain `fitz check` lexes a

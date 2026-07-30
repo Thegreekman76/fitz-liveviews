@@ -28,6 +28,12 @@ right below. This page is the reference. Two runnable companions:
       / re-renders and diff-patches the DOM. State lives per-connection in the
       handler loop.
 
+!!! info "▶ There's a third mode: Client-WASM"
+    For purely-local widgets (no server, no DB, works offline), a `.fitzv` can
+    compile straight to WebAssembly. See the **[Client-WASM guide](client-wasm.md)**
+    and the **[live gallery](live-gallery.md)** — eight components running in your
+    browser, right now.
+
 ---
 
 ## Packaged components

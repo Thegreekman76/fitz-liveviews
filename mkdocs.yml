@@ -49,6 +49,7 @@ nav:
       - LiveComponents: components.md
       - UI components (catalog): ui-components.md
       - Companion UI — benefits: companion-ui-benefits.md
+      - Client-WASM (offline widgets): client-wasm.md
       - Deploy: deploy.md
   - Course:
       - Overview: course/index.md

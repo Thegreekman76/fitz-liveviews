@@ -42,9 +42,9 @@ the server-rendered companion UI, so client and SSR components look identical.
 
 > **Client-WASM vs SSR.** The companion UI (`src/ui/`) is server-rendered
 > and diffed over a WebSocket — best for shared/DB-driven state. Client-WASM
-> is best for local, zero-round-trip, offline-capable interactivity. The
-> full decision matrix and authoring guide land alongside the growing
-> gallery (see the roadmap's Phase 10 — client-WASM live gallery).
+> is best for local, zero-round-trip, offline-capable interactivity. The full
+> decision matrix, the capability envelope, and a step-by-step authoring guide
+> live in **[Client-WASM — offline widgets](client-wasm.md)**.
 
 The source lives in
 [`examples/wasm-gallery/`](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/wasm-gallery).

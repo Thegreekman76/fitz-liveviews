@@ -66,6 +66,17 @@ page lands in CW.3.
   the whole set. `docs.yml`, `index.html`, and `build.sh` build/mount the `gallery`
   bin; the iframe height grew to fit the grid.
 
+### Added — docs (CW.4)
+
+- **`docs/client-wasm.md`** — the client-WASM guide: the SSR-vs-client decision
+  matrix, why client components are a parallel set (not a recompile of the SSR kit),
+  the capability envelope with the real view-lexer/emitter gotchas (`!` → `== false`,
+  inline `==`/`!=` → sibling helper, `-1` → sentinel, state-variant classes), and
+  how to build/deploy. Added to the Guide nav.
+- **"▶ see it live" pointers** — `docs/ui-components.md` now flags client-WASM as a
+  third rendering mode and links the guide + live gallery; `live-gallery.md`
+  cross-links the guide.
+
 ### Fixed
 
 - **Toggle switch was visually stuck** — only the label flipped (Apagado/Encendido);
