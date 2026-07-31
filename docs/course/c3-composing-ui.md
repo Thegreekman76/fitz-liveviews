@@ -195,7 +195,21 @@ you can lift into your screen. The [component gallery](../examples/gallery.md)
 runs them all in one page. When you need one, copy the pattern; it's the same
 `fn ... -> Html` you've been writing.
 
-### Importing a component instead of copying it
+### Creating, composing, and importing components
+
+There are three moves, and you've now seen the first:
+
+1. **Create your own** — a single-file component (`.fitzv`) with
+   `state` / `event` / `<template>` / `<style scoped>`. You built one in
+   [C1 → "the clean way: a single-file component"](c1-first-live-component.md#5-the-same-counter-the-clean-way-a-single-file-component);
+   the full walkthrough for a stateful LiveComponent is in
+   [LiveComponents → "A minimal component from scratch"](../components.md#a-minimal-component-from-scratch),
+   and the client-WASM shape is in
+   [Client-WASM → "Authoring a client component"](../client-wasm.md#authoring-a-client-component).
+2. **Compose it** — drop `<Card />` into another component's template and pass
+   props by attribute (this chapter).
+3. **Import it** — reuse a component you (or a library) already created, instead
+   of copying it:
 
 Copying the pattern is fine for a helper. For a whole SFC component you'd rather
 **import** it — and you can, across files and even across packages:
