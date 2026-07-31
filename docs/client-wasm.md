@@ -33,25 +33,33 @@ local and you want zero server round-trips.
 it's SSR. If it's a self-contained widget that could run on a static page with no
 backend at all, client-WASM gives you native-speed reactivity with no round-trip.
 
-## Why client components are a *parallel* set
+## Sharing source with the SSR kit
 
-The companion UI components (`src/ui/`) **cannot** be recompiled to WASM as-is —
-they're a genuinely separate set. Two reasons:
+A client component used to be a genuinely *separate* file from its SSR twin.
+Two core changes closed that gap:
 
-1. **The framework import doesn't resolve.** The core's wasm loader is
-   sibling-file-only and has no dependency registry, so
-   `from fitz_liveviews import flv` resolves to nothing on the WASM target.
-2. **Different render model.** SSR builds an `Html` string with `flv(...)` to
-   escape user data. Client-WASM compiles the template to real DOM operations
-   (`create_element` / `create_text_node`), where a text node escapes
-   intrinsically — `flv` isn't needed and doesn't exist.
+1. **`flv` is an identity passthrough on WASM** (CW.6, core v0.29.2). SSR builds
+   an `Html` string with `flv(...)` to escape user data; client-WASM compiles
+   the template to real DOM operations (`create_element` / `create_text_node`),
+   where a text node escapes **intrinsically**. So `flv(x)` on the WASM target
+   lowers to plain `x` — an SSR component authored with `{flv(label)}` +
+   `from fitz_liveviews import flv` compiles to `--target wasm-client`
+   **unchanged**. (The raw-HTML helpers — `html` / `raw_html` / `h_join` /
+   `h_when` / `h_either` — stay SSR-only and hard-error, since a DOM text node
+   can't inject unescaped markup.)
+2. **The framework import resolves** (CW.8, core v0.29.6). The wasm loader now
+   consults the `fitz.toml` dependency registry, so
+   `from fitz_liveviews.ui.Badge import badge as Badge` resolves the component
+   under the dependency's root and inlines it into your standalone crate — you
+   can consume the companion UI as a **library** from an external WASM app.
 
-So a client component is **standalone**: it imports nothing from
-`fitz_liveviews`, uses plain `{value}` interpolation (not `{flv(value)}`), and
-wires **local** `@click` handlers. To keep it looking identical to the SSR kit,
-it reuses the same **`--flv-*` design tokens** — you define them once in the host
-page's `<head>` (the same values as `src/ui/theme.fitz`), and every component
-reads them via `var(--flv-*)`.
+So a presentational component can now be **one source, two targets**. What still
+gates a given SSR component from dual-targeting is the client-side capability
+**envelope** below (`{#if}`/`{#for}` shape, event/helper body constructs), not
+the import or the escaping. A client component reuses the same **`--flv-*`
+design tokens** as the SSR kit — define them once in the host page's `<head>`
+(the same values as `src/ui/theme.fitz`), and every component reads them via
+`var(--flv-*)`, so client and server widgets look identical.
 
 ## Authoring a client component
 
@@ -101,13 +109,22 @@ component Counter {
 - **Control flow**: `{#if cond}` / `{#else}` / `{/if}` and `{#for x in items}` /
   `{/for}`. Conditions can compare (`{#if active == 0}`, `{#if stars >= 3}`); the
   loop iterable can be a bare state field or a call (`{#for c in cards_in(cards, "todo")}`).
-- **Event bodies**: assignments to state, `if`-as-value on the RHS
-  (`qty = if (qty < 10) { qty + 1 } else { qty }`), `let` bindings, string
-  interpolation (`let id = "{next_id}"`), and list ops
-  (`items.push(...)`, `items = items.filter(fn(x) => ...)`, `.map`, `.len()`).
+- **Event bodies**: assignments to state, comparisons (`x == y`, `n >= 3` —
+  since v0.28.2), `if`-as-value on the RHS
+  (`qty = if (qty < 10) { qty + 1 } else { qty }`), `let` bindings + local
+  reassignment, `match` as a value, range `for` loops (`for n in 1..(max+1)`),
+  string interpolation + concatenation (`let id = "{next_id}"`, `a + b`), and
+  list ops (`items.push(...)`, `items = items.filter(fn(x) => ...)`, `.map`,
+  `.len()`). The last three (match / for / concat) landed in v0.29.5.
 - **Form submit**: `<form data-flv-submit="add">` + `<input name="text" data-flv-clear />`;
   the handler reads `payload["text"]` (guard with `payload.has("text")`), and
   `data-flv-clear` resets the input after submit.
+- **Form value events** (`@input` / `@change`, v0.29.7): `<input @input="on_type">`,
+  `<select @change="on_pick">`, `<textarea @input="on_edit">` — the handler
+  reads the control's live value from `payload["value"]` and writes it to state.
+  `@input` fires per keystroke, `@change` on selection/blur. (A live text
+  `<input>` re-mounts each keystroke under naive re-render — see the reactivity
+  note below.)
 - **Click payload**: `<button data-flv-click="pick" data-flv-value-key="{x}">` →
   the handler reads `payload["key"]`.
 - **File input** (v0.29.3): `<input type="file" data-flv-file="on_file" accept="image/*">`
@@ -115,8 +132,16 @@ component Counter {
   `<img src="{img}">` for an instant preview), plus `payload["name"]` and
   `payload["type"]`. Read entirely client-side via the browser's `FileReader`;
   no server, no upload.
+- **Attribute interpolation**: full-value (`style="{bar}"`) and **mixed**
+  (`style="width: {pct}%"`, `class="toast toast-{kind}"`, v0.29.4) — the literal
+  segments interleave with each `{expr}` in a `set_attribute`.
 - **Cross-file composition**: `from Card import Card` then `<Card />` — each child
   keeps its own state (that's how the gallery composes twelve widgets into one bundle).
+- **Dependency imports** (CW.8, v0.29.6): `from fitz_liveviews.ui.Badge import badge as Badge`
+  then `<Badge label="live" />` — pull a companion UI component from a `fitz.toml`
+  dependency instead of copying it into your app. (The companion component is
+  named `badge` lowercase; alias it to a Capitalized `Badge` so the template
+  treats `<Badge />` as a component, not an HTML tag.)
 
 ### Gotchas (the view-lexer / wasm-emitter envelope)
 
@@ -125,10 +150,14 @@ workaround:
 
 | Won't compile | Use instead |
 |---|---|
-| `!` in an event body (only `!=` is lexed) | flip a Bool with `on = on == false` |
-| inline `==` / `!=` in an event body / closure | put the predicate in a sibling `.fitz` (`fn keep(t: Str, x: Str) -> Bool { return x != t }`) and call it |
+| logical-not `!x` in an event body (only `!=` is lexed) | flip a Bool with `on = on == false` |
 | unary negation `-1` in an event body | a non-negative sentinel (e.g. `9` for "none") |
+| a helper that returns HTML as a string (`fn stars(...) -> Str` building `<input …>`) | renders as escaped text on WASM — keep that component SSR-only, or build the DOM in the template |
 | a state change with no visual variant | render both states with modifier classes via `{#if}{#else}` (e.g. a toggle's `switch-on` / `knob-on`) |
+
+> Two earlier gotchas are now closed: inline `==` / `!=` in an event body or
+> closure works since v0.28.2, and `match` / range `for` / local reassignment in
+> event & helper bodies work since v0.29.5.
 
 !!! note "Reactivity model"
     Each state mutation re-renders the whole component subtree (naive re-render).

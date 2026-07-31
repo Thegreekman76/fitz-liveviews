@@ -195,6 +195,26 @@ you can lift into your screen. The [component gallery](../examples/gallery.md)
 runs them all in one page. When you need one, copy the pattern; it's the same
 `fn ... -> Html` you've been writing.
 
+### Importing a component instead of copying it
+
+Copying the pattern is fine for a helper. For a whole SFC component you'd rather
+**import** it — and you can, across files and even across packages:
+
+- **Cross-file**: `from Card import Card` then `<Card />` composes a component
+  declared in a sibling `Card.fitzv`. Each child keeps its own state.
+- **From a dependency** (client-WASM target, core v0.29.6): declare
+  `fitz_liveviews` as a dependency in your app's `fitz.toml`, then
+
+  ```fitz
+  from fitz_liveviews.ui.Badge import badge as Badge
+  ```
+
+  pulls the companion `Badge` straight out of the library and inlines it into
+  your standalone WASM crate — no copy. (The companion component is `badge`
+  lowercase; alias it to a Capitalized `Badge` so `<Badge />` reads as a
+  component.) This is how an external WASM app consumes the companion UI as a
+  library. See [Client-WASM → Sharing source with the SSR kit](../client-wasm.md#sharing-source-with-the-ssr-kit).
+
 ---
 
 ## Checkpoint

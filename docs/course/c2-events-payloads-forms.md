@@ -84,6 +84,16 @@ Typing sends `{"event": "filter", "payload": {"value": "<current text>"}}` on
 each change. The handler updates its filter and re-renders — instant, no submit
 button, no `fetch`.
 
+!!! tip "Same thing on the client-WASM target: `@input` / `@change`"
+    The SFC form below uses the same `data-flv-change`, and it also works
+    verbatim if you compile the component to WebAssembly. On the WASM target you
+    can *also* write the decorator form — `<input @input="filter">` (per
+    keystroke) or `<select @change="pick">` (on selection) — which the emitter
+    wires to a real DOM listener that reads the control's value into
+    `payload["value"]`. Same `payload["value"]`, same handler; one is the SSR
+    attribute, the other the client-side decorator. See
+    [Client-WASM → What works](../client-wasm.md#what-works) (v0.29.7).
+
 ---
 
 ## The whole program — string-helper form
