@@ -874,12 +874,14 @@ rationale + capability envelope in [`docs/client-wasm-plan.md`](docs/client-wasm
       [`docs/client-wasm-plan.md`](docs/client-wasm-plan.md). **Ships when fitz core
       cuts a release with the passthrough** (implemented + validated locally in
       `d:\fitz`, pending its release ceremony).
-- [x] **CW.7 — Companion UI dual-target showcase** (2026-07-31) — **thirteen**
+- [x] **CW.7 — Companion UI dual-target showcase** (2026-07-31) — **fifteen**
       SSR companion UI components (`Badge`, `Chip`, `CountBadge`, `StatCard`,
       `Tooltip`, `Checkbox`, `ExpansionPanel`, `Divider`, `Alert`, `Card`,
-      `Input`, `Textarea`, `DatePicker`) now run in the live gallery, compiled
-      to WASM from their *exact* server-side source via the CW.6 `flv`
-      passthrough. Mechanism: a `src/ui/_wasm_showcase.fitzv` wrapper composes
+      `Input`, `Textarea`, `DatePicker`, `ProgressBar`, `Spinner`) now run in
+      the live gallery, compiled to WASM from their *exact* server-side source
+      via the CW.6 `flv` passthrough. (`ProgressBar` + `Spinner` joined once
+      fitz core v0.29.4 added mixed attribute interpolation + negative numeric
+      defaults — CW.9 #1.) Mechanism: a `src/ui/_wasm_showcase.fitzv` wrapper composes
       the real components **as siblings** (the wasm cross-file loader is
       sibling-only, so the wrapper must live next to the components) with
       static props, and the gallery bin `showcase` points `main` at it
@@ -898,13 +900,14 @@ rationale + capability envelope in [`docs/client-wasm-plan.md`](docs/client-wasm
       lowers both sides via `lower_expr`, so `String == String` is valid Rust).
       That unblocked `Alert`, `Card`, `Divider`, `Input`, `Textarea`,
       `DatePicker` straight from their SSR source, growing the showcase from 7
-      to 13. All verified rendering in headless Chrome (no page errors).
-      Embedded at `/live/embed/?c=showcase`; CI cache `-v3` (needs `fitz` >=
-      v0.29.2 for the passthrough). Still SSR-only: `ProgressBar` + `Spinner`
-      (mixed attribute interpolation, CW.9 #1), helper-dep components
-      (`Select`, `RadioGroup`, `GridToolbar` → sibling `.fitz` helpers that
-      don't transpile, CW.9 #2), `Html`-typed props (`DataGrid`, `FormRow`),
-      and `ThemeToggle` (SSR-injected `flvCycleTheme()`).
+      to 13; then `ProgressBar` + `Spinner` joined at 15 once fitz core v0.29.4
+      added mixed attribute interpolation + negative numeric defaults (CW.9
+      #1). All verified rendering in headless Chrome (no page errors). Embedded
+      at `/live/embed/?c=showcase`; CI cache `-v3`. Still SSR-only: helper-dep
+      components (`Select`, `RadioGroup`, `GridToolbar` → sibling `.fitz`
+      helpers that don't transpile, CW.9 #1 below), `Html`-typed props
+      (`DataGrid`, `FormRow`), and `ThemeToggle` (SSR-injected
+      `flvCycleTheme()`).
 - [ ] **CW.8 (deferred, CORE) — cross-dir / dependency imports in the wasm
       loader** — let *any* `.fitzv` compile to wasm importing components from
       another directory or a `fitz.toml` dependency (`from fitz_liveviews
@@ -926,21 +929,18 @@ rationale + capability envelope in [`docs/client-wasm-plan.md`](docs/client-wasm
       - ~~File input~~ — **done in v0.29.3** (`data-flv-file` reads a picked
         file via `FileReader` into state; drop `payload["data"]` into
         `<img src="{img}">`).
+      - ~~Mixed attribute interpolation~~ — **done in v0.29.4**
+        (`style="width: {pct}%"` lowers to a `format!`-based `set_attribute`).
+        Plus negative numeric state defaults (`Int = -1`). Unblocked
+        `ProgressBar` + `Spinner`.
 
       The real remaining gaps in `d:\fitz`:
-      1. **Mixed attribute interpolation** — `style="width: {pct}%"` /
-         `style="--flv-p: {progress}"`. Full-value interp (`attr="{x}"`) works;
-         embedded interp does not on the wasm target (SSR has it since
-         v0.28.7). Gates ProgressBar, Spinner, and any inline-style component.
-         *(Workaround today: compute the whole style string in state and
-         interpolate the full attribute — that's how `Loader.fitzv` does its
-         three-format progress bar.)*
-      2. **Richer helper-fn transpilation** — `match` / loops / `?` in the
+      1. **Richer helper-fn transpilation** — `match` / loops / `?` in the
          sibling `.fitz` helpers (`chart_helpers`, `icon`, `grid_helpers`,
          `pager_helpers`, form helpers). The imports resolve as siblings; the
          helper *bodies* don't transpile. Gates Select, RadioGroup,
          GridToolbar, Button, BarChart, …
-      3. **`@input` live binding + `<select>` change** — the rest of the form
+      2. **`@input` live binding + `<select>` change** — the rest of the form
          family beyond file input. A `<select>` / live-as-you-type input needs
          a `change`/`input` listener that writes back to state.
       Independent of CW.8. Some components (DataGrid over server data, forms
