@@ -1,13 +1,6 @@
 // _wasm_showcase.fitzv — live client-WASM showcase of the presentational
-// companion UI. Lives in src/ui/ so the wasm cross-file loader resolves each
-// component as a sibling; imports use a Capitalized alias because the SFC
-// composition heuristic treats only Capitalized tags as child components
-// (the library components are declared lowercase). Composes the REAL SSR
-// sources with static props via the CW.6 flv passthrough. Bin: `showcase`.
-//
-// Omitted (client-WASM envelope gaps, still SSR-only): ProgressBar + Spinner
-// (mixed attribute interpolation, style="...{x}..."), ThemeToggle (relies on
-// an SSR-injected `flvCycleTheme()` global).
+// companion UI (siblings in src/ui/, Capitalized aliases, static props,
+// CW.6 flv passthrough). Bin: `showcase`.
 
 from Badge import badge as Badge
 from Chip import chip as Chip
@@ -16,6 +9,12 @@ from StatCard import stat_card as StatCard
 from Tooltip import tooltip as Tooltip
 from Checkbox import checkbox as Checkbox
 from ExpansionPanel import expansion_panel as ExpansionPanel
+from Divider import divider as Divider
+from Alert import alert as Alert
+from Card import card as Card
+from Input import input as Input
+from Textarea import textarea as Textarea
+from DatePicker import date_picker as DatePicker
 
 component WasmShowcase {
   state { heading: Str = "Companion UI - live" }
@@ -25,7 +24,6 @@ component WasmShowcase {
       <div class="row">
         <Badge label="New" variant="primary" size="md" />
         <Badge label="Live" variant="success" size="md" />
-        <Badge label="Beta" variant="warning" size="md" />
         <Chip label="Draft" variant="primary" />
         <CountBadge count="5" max="99" variant="primary" />
       </div>
@@ -36,9 +34,17 @@ component WasmShowcase {
       <div class="row">
         <Tooltip content="Hover me" tip="A client-WASM tooltip" />
         <Checkbox name="opt" label="Enabled" value="on" />
-      </div>
-      <div class="row">
         <ExpansionPanel summary="What is this?" body="A presentational SSR component running as WASM." />
+      </div>
+      <div class="row col">
+        <Alert variant="info" title="Heads up" body="This alert is the SSR component, compiled to WebAssembly." />
+        <Card title="Card title" body="Cards, alerts and dividers compile from their server-side source." footer="footer" />
+        <Divider label="section" />
+      </div>
+      <div class="row col">
+        <Input name="email" label="Email" input_type="email" placeholder="you@example.com" hint="We never share it." />
+        <Textarea name="bio" label="Bio" placeholder="Tell us about yourself" rows="3" />
+        <DatePicker name="dob" label="Date of birth" />
       </div>
     </div>
   </template>
@@ -46,5 +52,6 @@ component WasmShowcase {
   <style scoped>
     .sc { display: flex; flex-direction: column; gap: 16px; padding: 16px; font-family: system-ui, sans-serif; }
     .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .col { flex-direction: column; align-items: stretch; }
   </style>
 }

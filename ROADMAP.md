@@ -874,13 +874,14 @@ rationale + capability envelope in [`docs/client-wasm-plan.md`](docs/client-wasm
       [`docs/client-wasm-plan.md`](docs/client-wasm-plan.md). **Ships when fitz core
       cuts a release with the passthrough** (implemented + validated locally in
       `d:\fitz`, pending its release ceremony).
-- [x] **CW.7 — Companion UI dual-target showcase** (2026-07-31) — seven SSR
-      companion UI components (`Badge`, `Chip`, `CountBadge`, `StatCard`,
-      `Tooltip`, `Checkbox`, `ExpansionPanel`) now run in the live gallery,
-      compiled to WASM from their *exact* server-side source via the CW.6
-      `flv` passthrough. Mechanism: a `src/ui/_wasm_showcase.fitzv` wrapper
-      composes the real components **as siblings** (the wasm cross-file loader
-      is sibling-only, so the wrapper must live next to the components) with
+- [x] **CW.7 — Companion UI dual-target showcase** (2026-07-31) — **thirteen**
+      SSR companion UI components (`Badge`, `Chip`, `CountBadge`, `StatCard`,
+      `Tooltip`, `Checkbox`, `ExpansionPanel`, `Divider`, `Alert`, `Card`,
+      `Input`, `Textarea`, `DatePicker`) now run in the live gallery, compiled
+      to WASM from their *exact* server-side source via the CW.6 `flv`
+      passthrough. Mechanism: a `src/ui/_wasm_showcase.fitzv` wrapper composes
+      the real components **as siblings** (the wasm cross-file loader is
+      sibling-only, so the wrapper must live next to the components) with
       static props, and the gallery bin `showcase` points `main` at it
       cross-dir. No core change — the sibling trick sidesteps the loader
       limitation. **Gotcha (cost one broken deploy):** the wasm SFC
@@ -889,14 +890,21 @@ rationale + capability envelope in [`docs/client-wasm-plan.md`](docs/client-wasm
       lowercase (`component badge`), so `<badge>` silently emitted an empty
       `<badge>` HTML element instead of composing — the build "passed" but
       rendered nothing. Fix: import with a Capitalized alias
-      (`from Badge import badge as Badge`) and compose `<Badge />`. Verified in
-      a real headless Chrome (all seven render, no page errors). Embedded on
-      the gallery page at `/live/embed/?c=showcase`; CI cache bumped to `-v2`
-      so the runner installs a `fitz` >= v0.29.2 (the passthrough). Omitted as
-      **envelope**-blocked (see CW.9): `ProgressBar` + `Spinner` (mixed
-      attribute interpolation `style="…{x}…"`), `ThemeToggle` (relies on an
-      SSR-injected `flvCycleTheme()` global). The other ~20 companion
-      components stay SSR-only for envelope reasons, not import reasons.
+      (`from Badge import badge as Badge`) and compose `<Badge />`. **Re-harvest
+      (2026-07-31)**: a debugging pass in real headless Chrome found that
+      Str-comparison `{#if}` (`{#if variant == "error"}`, `{#if x != ""}`)
+      **already compiles and runs** on the wasm target — it had been
+      mis-categorized as a gap (never actually tested; the emitter's `{#if}`
+      lowers both sides via `lower_expr`, so `String == String` is valid Rust).
+      That unblocked `Alert`, `Card`, `Divider`, `Input`, `Textarea`,
+      `DatePicker` straight from their SSR source, growing the showcase from 7
+      to 13. All verified rendering in headless Chrome (no page errors).
+      Embedded at `/live/embed/?c=showcase`; CI cache `-v3` (needs `fitz` >=
+      v0.29.2 for the passthrough). Still SSR-only: `ProgressBar` + `Spinner`
+      (mixed attribute interpolation, CW.9 #1), helper-dep components
+      (`Select`, `RadioGroup`, `GridToolbar` → sibling `.fitz` helpers that
+      don't transpile, CW.9 #2), `Html`-typed props (`DataGrid`, `FormRow`),
+      and `ThemeToggle` (SSR-injected `flvCycleTheme()`).
 - [ ] **CW.8 (deferred, CORE) — cross-dir / dependency imports in the wasm
       loader** — let *any* `.fitzv` compile to wasm importing components from
       another directory or a `fitz.toml` dependency (`from fitz_liveviews
@@ -907,26 +915,34 @@ rationale + capability envelope in [`docs/client-wasm-plan.md`](docs/client-wasm
       appears. **Does NOT unblock the SSR-only components** — those are
       blocked by the envelope (CW.9), not by import resolution. Not needed
       for the gallery (CW.7 covers it via the sibling wrapper).
-- [ ] **CW.9 (deferred, CORE) — wasm envelope expansion (the real SSR-only
-      unlock)** — the ~20 companion components that stay SSR-only are blocked
-      by the client-WASM **capability envelope**, four distinct core gaps in
-      `d:\fitz`:
-      1. **Str-comparison `{#if}`** — `{#if variant == "error"}` /
-         `{#if x != ""}`. The wasm `lower_cond_expr` only does bool/numeric.
-         The single biggest unlock: it gates Alert, Card, Button, DataGrid,
-         DatePicker, Divider, FormRow, Input, Select, Textarea, GridToolbar…
-      2. **Mixed attribute interpolation** — `style="width: {pct}%"` /
+- [ ] **CW.9 (deferred, CORE) — wasm envelope expansion (remaining SSR-only
+      unlocks)** — the companion components still SSR-only are blocked by the
+      client-WASM **capability envelope**. Two earlier "gaps" turned out to be
+      non-gaps or already closed:
+      - ~~Str-comparison `{#if}`~~ — **already works** (CW.7 re-harvest); it was
+        mis-categorized (never tested). `lower_cond_expr` lowers both sides via
+        `lower_expr`, so `{#if variant == "error"}` compiles as `String ==
+        String`. No work needed.
+      - ~~File input~~ — **done in v0.29.3** (`data-flv-file` reads a picked
+        file via `FileReader` into state; drop `payload["data"]` into
+        `<img src="{img}">`).
+
+      The real remaining gaps in `d:\fitz`:
+      1. **Mixed attribute interpolation** — `style="width: {pct}%"` /
          `style="--flv-p: {progress}"`. Full-value interp (`attr="{x}"`) works;
          embedded interp does not on the wasm target (SSR has it since
-         v0.28.7). Gates ProgressBar, Spinner, and any component that computes
-         an inline style.
-      3. **Richer helper-fn transpilation** — `match` / loops / `?` in the
+         v0.28.7). Gates ProgressBar, Spinner, and any inline-style component.
+         *(Workaround today: compute the whole style string in state and
+         interpolate the full attribute — that's how `Loader.fitzv` does its
+         three-format progress bar.)*
+      2. **Richer helper-fn transpilation** — `match` / loops / `?` in the
          sibling `.fitz` helpers (`chart_helpers`, `icon`, `grid_helpers`,
-         `pager_helpers`, form helpers). The imports already resolve as
-         siblings; the helper *bodies* don't transpile.
-      4. **Form / file inputs** — `@input` live binding, `<input type="file">`
-         + `FileReader`, `<select>` change events. Overlaps with the file
-         upload feature. Gates the whole form family.
+         `pager_helpers`, form helpers). The imports resolve as siblings; the
+         helper *bodies* don't transpile. Gates Select, RadioGroup,
+         GridToolbar, Button, BarChart, …
+      3. **`@input` live binding + `<select>` change** — the rest of the form
+         family beyond file input. A `<select>` / live-as-you-type input needs
+         a `change`/`input` listener that writes back to state.
       Independent of CW.8. Some components (DataGrid over server data, forms
       that submit server-side) will only ever render their *shell* client-side
       — their behavior is intrinsically server-driven.
