@@ -68,7 +68,7 @@ jobs:
             ~/.cargo/bin/fitz
             ~/.cargo/bin/wasm-pack
             examples/wasm-gallery/target
-          key: pages-wasm-${{ runner.os }}-v1
+          key: pages-wasm-${{ runner.os }}-v2
 
       - name: Install Fitz (the `fitz` CLI)
         run: |
@@ -90,12 +90,14 @@ jobs:
         # `gallery` root (`Gallery.fitzv`) that mounts all of them. The live
         # `/live/` page runs the composed gallery; the course chapters and
         # the Client-WASM guide embed single-component bins via
-        # `/live/embed/?c=<name>`. All eight are built so any doc can embed
-        # any widget (matches the `KNOWN` whitelist in embed.html). These
-        # bins use no `flv`, so the cached `fitz` builds them fine.
+        # `/live/embed/?c=<name>` (matches the `KNOWN` whitelist in
+        # embed.html). `showcase` composes the SSR companion UI from
+        # `src/ui/` into wasm via the CW.6 `flv` passthrough, so it needs a
+        # `fitz` >= v0.29.2 — the cache key (bumped to -v2) forces a fresh
+        # `cargo install` of the current `main` binary.
         run: |
           fitz build --bin gallery --target wasm-client
-          for c in counter toggle tabs stepper rating accordion modal todolist carousel photo; do
+          for c in counter toggle tabs stepper rating accordion modal todolist carousel photo showcase; do
             fitz build --bin "$c" --target wasm-client
           done
 
@@ -106,7 +108,7 @@ jobs:
           cp examples/wasm-gallery/target/wasm/gallery/gallery.js site/live/pkg/
           cp examples/wasm-gallery/target/wasm/gallery/gallery_bg.wasm site/live/pkg/
           cp examples/wasm-gallery/embed.html site/live/embed/index.html
-          for c in counter toggle tabs stepper rating accordion modal todolist carousel photo; do
+          for c in counter toggle tabs stepper rating accordion modal todolist carousel photo showcase; do
             cp "examples/wasm-gallery/target/wasm/$c/$c.js" site/live/embed/pkg/
             cp "examples/wasm-gallery/target/wasm/$c/${c}_bg.wasm" site/live/embed/pkg/
           done

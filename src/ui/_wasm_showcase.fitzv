@@ -1,0 +1,42 @@
+// _wasm_showcase.fitzv — a live client-WASM showcase of the presentational
+// companion UI components. Lives in src/ui/ so the wasm cross-file loader
+// resolves each `<component />` as a sibling (sibling-only today); composes
+// the REAL SSR sources (single-source dual-target via the CW.6 flv
+// passthrough) with representative static props. Built by the wasm gallery
+// bin `showcase` and embedded at /live/embed/?c=showcase.
+
+from Badge import badge
+from Chip import chip
+from ProgressBar import progress_bar
+from StatCard import stat_card
+from Tooltip import tooltip
+from Spinner import spinner
+
+component WasmShowcase {
+  state { heading: Str = "Companion UI — live" }
+
+  <template>
+    <div class="sc">
+      <div class="row">
+        <badge label="New" variant="primary" size="md" />
+        <badge label="Live" variant="success" size="md" />
+        <badge label="Beta" variant="warning" size="md" />
+        <chip label="Draft" variant="primary" />
+      </div>
+      <div class="row">
+        <stat_card label="Revenue" value="1280" hint="+12% MoM" accent="primary" />
+        <div class="pbwrap"><progress_bar label="Upload" value="72" max="100" pct="72" accent="blue" /></div>
+      </div>
+      <div class="row">
+        <tooltip content="Hover me" tip="A client-WASM tooltip" />
+        <spinner size="md" label="Loading" />
+      </div>
+    </div>
+  </template>
+
+  <style scoped>
+    .sc { display: flex; flex-direction: column; gap: 16px; padding: 16px; font-family: system-ui, sans-serif; }
+    .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .pbwrap { flex: 1; min-width: 160px; }
+  </style>
+}

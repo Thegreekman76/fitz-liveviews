@@ -874,6 +874,29 @@ rationale + capability envelope in [`docs/client-wasm-plan.md`](docs/client-wasm
       [`docs/client-wasm-plan.md`](docs/client-wasm-plan.md). **Ships when fitz core
       cuts a release with the passthrough** (implemented + validated locally in
       `d:\fitz`, pending its release ceremony).
+- [x] **CW.7 — Companion UI dual-target showcase** (2026-07-31) — the SSR
+      companion UI (`Badge`, `Chip`, `ProgressBar`, `StatCard`, `Tooltip`,
+      `Spinner`) now runs in the live gallery, compiled to WASM from its
+      *exact* server-side source via the CW.6 `flv` passthrough. Mechanism:
+      a `src/ui/_wasm_showcase.fitzv` wrapper composes the real components
+      **as siblings** (the wasm cross-file loader is sibling-only, so the
+      wrapper must live next to the components) with static props, and the
+      gallery bin `showcase` points `main` at it cross-dir. No core change —
+      the sibling trick sidesteps the loader limitation. Embedded on the
+      gallery page at `/live/embed/?c=showcase`; CI cache bumped to `-v2` so
+      the runner installs a `fitz` >= v0.29.2 (the passthrough). Components
+      with Str-comparison `{#if}` (Divider, Alert, …) or helper deps
+      (SortableHeader → `grid_helpers`) stay SSR-only until the envelope
+      grows.
+- [ ] **CW.8 (deferred, CORE) — cross-dir / dependency imports in the wasm
+      loader** — the general version of CW.7: let *any* `.fitzv` compile to
+      wasm importing components from another directory or a `fitz.toml`
+      dependency (`from fitz_liveviews import Badge`), instead of the
+      sibling-only resolution. Unblocks external wasm apps consuming the
+      companion UI as a library. `d:\fitz` Phase 11 territory (view import
+      resolution + dep_registry in the wasm loaders); scheduled for when
+      real demand for external wasm consumers appears. Not needed for the
+      gallery (CW.7 covers it via the sibling wrapper).
 
 ## Phase 7 — Beyond MVP (deferred, opportunistic) 🔮
 

@@ -24,6 +24,25 @@ one bundle (~40 KB gzipped), composed from ten standalone `.fitzv`.
 Prefer it full-screen? Open the standalone page directly:
 [**thegreekman76.github.io/fitz-liveviews/live/** ↗](https://thegreekman76.github.io/fitz-liveviews/live/){target=_blank}
 
+## Companion UI, dual-targeted (SSR → WASM)
+
+These are the **SSR [companion UI](ui-components.md) components** — `Badge`,
+`Chip`, `ProgressBar`, `StatCard`, `Tooltip`, `Spinner` — compiled to
+WebAssembly from their *exact* server-side source, unchanged. One `.fitzv`
+targets both SSR (rendered over a WebSocket) and client-WASM: the
+[`flv` passthrough](client-wasm.md) makes the HTML-escaping helper a no-op on
+the client (a DOM text node escapes intrinsically), so the presentational
+components run offline in the browser too — single source, two targets.
+
+<div class="live-embed">
+  <iframe
+    src="https://thegreekman76.github.io/fitz-liveviews/live/embed/?c=showcase"
+    title="Companion UI components compiled to WebAssembly"
+    loading="lazy"
+    style="width:100%; height:420px; border:1px solid var(--md-default-fg-color--lightest); border-radius:8px;">
+  </iframe>
+</div>
+
 ## How it's built
 
 Each widget is a **standalone client component** — a `.fitzv` that imports

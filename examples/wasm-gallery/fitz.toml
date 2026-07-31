@@ -86,3 +86,9 @@ name = "gallery"
 main = "Gallery.fitzv"
 target = "wasm-client"
 mount = "#app"
+
+[[bin]]
+name = "showcase"
+main = "../../src/ui/_wasm_showcase.fitzv"
+target = "wasm-client"
+mount = "#app"
