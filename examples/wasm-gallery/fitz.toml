@@ -82,6 +82,18 @@ target = "wasm-client"
 mount = "#app"
 
 [[bin]]
+name = "fileupload"
+main = "FileUpload.fitzv"
+target = "wasm-client"
+mount = "#app"
+
+[[bin]]
+name = "loader"
+main = "Loader.fitzv"
+target = "wasm-client"
+mount = "#app"
+
+[[bin]]
 name = "gallery"
 main = "Gallery.fitzv"
 target = "wasm-client"

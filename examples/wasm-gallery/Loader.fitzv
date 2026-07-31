@@ -1,0 +1,61 @@
+// Loader.fitzv — client-WASM progress loader in three formats at once:
+// horizontal bar, vertical bar, and a circular ring. All driven by ONE
+// percentage. Client-side only, no timer: the +/- buttons move the value.
+//
+// Trick to avoid `{#if format == "..."}` (Str-comparison {#if}, not yet on
+// the wasm target): a single CSS custom property `--p` set on the container
+// via a full-value style interpolation (`style="{pstyle}"`, pstyle = "--p:
+// {pct}"). Each format's CSS reads it — `calc(var(--p) * 1%)` for the bars,
+// `calc(var(--p) * 3.6deg)` for the conic-gradient ring.
+
+component Loader {
+  state {
+    pct: Int = 40
+    pstyle: Str = "--p: 40"
+  }
+
+  event more() {
+    pct = if (pct >= 100) { 100 } else { pct + 10 }
+    pstyle = "--p: {pct}"
+  }
+
+  event less() {
+    pct = if (pct <= 0) { 0 } else { pct - 10 }
+    pstyle = "--p: {pct}"
+  }
+
+  <template>
+    <div class="ld" style="{pstyle}">
+      <div class="row">
+        <div class="fmt"><div class="h"><div class="hfill"></div></div><span class="cap">bar</span></div>
+        <div class="fmt"><div class="v"><div class="vfill"></div></div><span class="cap">vertical</span></div>
+        <div class="fmt"><div class="c"><span class="clabel">{pct}%</span></div><span class="cap">circular</span></div>
+      </div>
+      <div class="ctl">
+        <button class="btn" @click="less" aria-label="Less">−</button>
+        <span class="pct">{pct}%</span>
+        <button class="btn" @click="more" aria-label="More">+</button>
+      </div>
+    </div>
+  </template>
+
+  <style scoped>
+    .ld { width: 280px; max-width: 100%; font-family: system-ui, sans-serif; }
+    .row { display: flex; gap: 18px; align-items: flex-end; justify-content: center; }
+    .fmt { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .cap { font-size: .68rem; color: var(--flv-text-muted, #55555c); }
+
+    .h { width: 96px; height: 12px; border-radius: 999px; background: var(--flv-surface-2, #f5f5f7); overflow: hidden; border: 1px solid var(--flv-border, #d9d9e0); }
+    .hfill { height: 100%; width: calc(var(--p) * 1%); background: var(--flv-color-primary, #ce412b); transition: width .2s ease; }
+
+    .v { width: 12px; height: 72px; border-radius: 999px; background: var(--flv-surface-2, #f5f5f7); overflow: hidden; border: 1px solid var(--flv-border, #d9d9e0); display: flex; align-items: flex-end; }
+    .vfill { width: 100%; height: calc(var(--p) * 1%); background: var(--flv-color-primary, #ce412b); transition: height .2s ease; }
+
+    .c { width: 72px; height: 72px; border-radius: 50%; background: conic-gradient(var(--flv-color-primary, #ce412b) calc(var(--p) * 3.6deg), var(--flv-surface-2, #f5f5f7) 0); display: flex; align-items: center; justify-content: center; transition: background .2s ease; }
+    .clabel { width: 52px; height: 52px; border-radius: 50%; background: var(--flv-surface, #fff); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .78rem; color: var(--flv-text, #1a1a1a); }
+
+    .ctl { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 14px; }
+    .btn { width: 32px; height: 32px; border: none; border-radius: 8px; cursor: pointer; font-size: 1.1rem; background: var(--flv-color-primary, #ce412b); color: #fff; }
+    .pct { font-weight: 700; min-width: 48px; text-align: center; color: var(--flv-text, #1a1a1a); }
+  </style>
+}
