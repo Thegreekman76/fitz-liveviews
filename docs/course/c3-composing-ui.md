@@ -14,6 +14,20 @@ badge dozens of times. In Fitz, a "component" is just **a function that returns
 and tested on its own. This is the same idea the [component
 catalog](../ui-components.md) is built on.
 
+> **▶ Live preview.** A **client-WASM build** of a small composed UI (tabbed
+> panels) — the same "compose small pieces into a screen" idea, running in the
+> page. The course builds the **server-driven** version; the behavior is the
+> same.
+
+<div class="live-embed">
+  <iframe
+    src="https://thegreekman76.github.io/fitz-liveviews/live/embed/?c=tabs"
+    title="Live preview — composed tabs (client-WASM build)"
+    loading="lazy"
+    style="width:100%; height:260px; border:1px solid var(--md-default-fg-color--lightest); border-radius:8px;">
+  </iframe>
+</div>
+
 ---
 
 ## An `Html` fragment is just a function

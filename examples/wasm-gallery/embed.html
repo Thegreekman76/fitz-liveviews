@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fitz LiveViews — live component preview</title>
+
+    <!--
+      One host page for every gallery component. The `?c=<name>` query
+      selects which single-component bin to mount, so the course pages can
+      iframe `/live/embed/?c=counter` (etc.) instead of shipping a separate
+      host per widget. CI copies each bin's `<name>.js` + `<name>_bg.wasm`
+      into ./pkg/ next to this file. The `--flv-*` tokens (same values as
+      the gallery + `src/ui/theme.fitz`) keep the widget themed and
+      light/dark aware, so it blends into the docs page it is embedded in.
+    -->
+    <style>
+      :root {
+        color-scheme: light dark;
+        --flv-color-primary: #ce412b;
+        --flv-color-success: #2e7d32;
+        --flv-color-danger:  #c62828;
+        --flv-color-warning: #ed6c02;
+        --flv-color-info:    #1565c0;
+        --flv-color-muted:   #8b8b93;
+        --flv-surface:   #ffffff;
+        --flv-surface-2: #f5f5f7;
+        --flv-border:    #d9d9e0;
+        --flv-text:       #1a1a1a;
+        --flv-text-muted: #55555c;
+        --flv-radius-md:   8px;
+        --flv-shadow-card: 0 6px 20px rgba(0, 0, 0, .12);
+        --page-bg: #fafafa;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --flv-color-muted: #7a7a82;
+          --flv-surface:   #1e1e22;
+          --flv-surface-2: #2a2a30;
+          --flv-border:    #3a3a42;
+          --flv-text:       #e8e8ea;
+          --flv-text-muted: #a0a0a8;
+          --flv-shadow-card: 0 6px 20px rgba(0, 0, 0, .5);
+          --page-bg: #131316;
+        }
+      }
+      html, body { background: var(--page-bg); }
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        margin: 0;
+        padding: 20px 16px;
+        color: var(--flv-text);
+        line-height: 1.6;
+        box-sizing: border-box;
+      }
+      #app { display: flex; justify-content: center; }
+      .err { color: var(--flv-text-muted); font-size: 0.9rem; text-align: center; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <script type="module">
+      // Whitelisted to the known single-component bins (the `[[bin]]`
+      // entries in fitz.toml). The `?c=<name>` query picks one; the bin's
+      // `#[wasm_bindgen(start)]` mounts it into `#app` automatically.
+      const KNOWN = [
+        'counter', 'toggle', 'tabs', 'stepper',
+        'rating', 'accordion', 'modal', 'todolist',
+      ];
+      const name = new URLSearchParams(location.search).get('c');
+      const target = document.getElementById('app');
+      if (!KNOWN.includes(name)) {
+        target.innerHTML =
+          '<p class="err">Unknown component: ' + (name || '(none)') + '</p>';
+      } else {
+        import('./pkg/' + name + '.js')
+          .then((m) => m.default())
+          .catch((err) => {
+            console.error('Failed to load component WASM:', err);
+            target.innerHTML =
+              '<p class="err">Component failed to load. Check the console.</p>';
+          });
+      }
+    </script>
+  </body>
+</html>

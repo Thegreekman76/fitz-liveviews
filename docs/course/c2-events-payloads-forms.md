@@ -13,6 +13,20 @@ for a **specific element** to say "this event is about *me*", and **live input**
 that reacts as you type. Those are three `data-flv-*` attributes, and they're
 all you need for the vast majority of interactions.
 
+> **▶ Live preview.** A **client-WASM build** of a live add/remove list —
+> the same form + payload + per-row mechanics you wire in this chapter,
+> running in the page. The course builds the **server-driven** version;
+> the behavior is identical.
+
+<div class="live-embed">
+  <iframe
+    src="https://thegreekman76.github.io/fitz-liveviews/live/embed/?c=todolist"
+    title="Live preview — add/remove list (client-WASM build)"
+    loading="lazy"
+    style="width:100%; height:340px; border:1px solid var(--md-default-fg-color--lightest); border-radius:8px;">
+  </iframe>
+</div>
+
 ---
 
 ## The three mechanisms

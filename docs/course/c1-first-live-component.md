@@ -13,6 +13,20 @@ applies events and ships diffs. Every screen you build later, up to the full
 [Admin ABM](../examples/admin.md), is this same shape scaled up. Learn it once
 here and the rest is composition.
 
+> **▶ Live preview.** The widget below is the **client-WASM build** of the
+> counter you're about to make — it runs right here in the page, no server.
+> The course builds the **server-driven** LiveView version (state on the
+> server, updates over a WebSocket); they look and behave identically.
+
+<div class="live-embed">
+  <iframe
+    src="https://thegreekman76.github.io/fitz-liveviews/live/embed/?c=counter"
+    title="Live preview — Counter (client-WASM build)"
+    loading="lazy"
+    style="width:100%; height:220px; border:1px solid var(--md-default-fg-color--lightest); border-radius:8px;">
+  </iframe>
+</div>
+
 ---
 
 ## 1. Create the project

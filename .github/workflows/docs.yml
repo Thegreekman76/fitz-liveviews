@@ -84,19 +84,32 @@ jobs:
           fi
           wasm-pack --version
 
-      - name: Build the wasm gallery
+      - name: Build the wasm gallery + course preview bins
         working-directory: examples/wasm-gallery
         # The manifest declares one bin per component plus a composed
         # `gallery` root (`Gallery.fitzv`) that mounts all of them. The live
-        # `/live/` page runs the composed gallery.
-        run: fitz build --bin gallery --target wasm-client
+        # `/live/` page runs the composed gallery; the course chapters and
+        # the Client-WASM guide embed single-component bins via
+        # `/live/embed/?c=<name>`. All eight are built so any doc can embed
+        # any widget (matches the `KNOWN` whitelist in embed.html). These
+        # bins use no `flv`, so the cached `fitz` builds them fine.
+        run: |
+          fitz build --bin gallery --target wasm-client
+          for c in counter toggle tabs stepper rating accordion modal todolist; do
+            fitz build --bin "$c" --target wasm-client
+          done
 
       - name: Assemble site/live
         run: |
-          mkdir -p site/live/pkg
+          mkdir -p site/live/pkg site/live/embed/pkg
           cp examples/wasm-gallery/index.html site/live/
           cp examples/wasm-gallery/target/wasm/gallery/gallery.js site/live/pkg/
           cp examples/wasm-gallery/target/wasm/gallery/gallery_bg.wasm site/live/pkg/
+          cp examples/wasm-gallery/embed.html site/live/embed/index.html
+          for c in counter toggle tabs stepper rating accordion modal todolist; do
+            cp "examples/wasm-gallery/target/wasm/$c/$c.js" site/live/embed/pkg/
+            cp "examples/wasm-gallery/target/wasm/$c/${c}_bg.wasm" site/live/embed/pkg/
+          done
           echo "== site/live ==" && ls -R site/live
 
       - name: Upload artifact

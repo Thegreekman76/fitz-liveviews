@@ -80,6 +80,19 @@ component Counter {
 }
 ```
 
+> **▶ Here it is, running.** The exact `Counter` above, compiled to WebAssembly
+> and mounted right here — click it. Every widget in the
+> [live gallery](live-gallery.md) is this same shape.
+
+<div class="live-embed">
+  <iframe
+    src="https://thegreekman76.github.io/fitz-liveviews/live/embed/?c=counter"
+    title="Live — Counter (client-WASM)"
+    loading="lazy"
+    style="width:100%; height:220px; border:1px solid var(--md-default-fg-color--lightest); border-radius:8px;">
+  </iframe>
+</div>
+
 ### What works
 
 - **State**: `Int` / `Float` / `Bool` / `Str`, plus `List<T>` / `Map` and
