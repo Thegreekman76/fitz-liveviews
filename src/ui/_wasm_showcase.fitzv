@@ -1,47 +1,44 @@
-// _wasm_showcase.fitzv — a live client-WASM showcase of the presentational
-// companion UI components. Lives in src/ui/ so the wasm cross-file loader
-// resolves each `<component />` as a sibling (sibling-only today); composes
-// the REAL SSR sources (single-source dual-target via the CW.6 flv
-// passthrough) with representative static props. Built by the wasm gallery
-// bin `showcase` and embedded at /live/embed/?c=showcase.
+// _wasm_showcase.fitzv — live client-WASM showcase of the presentational
+// companion UI. Lives in src/ui/ so the wasm cross-file loader resolves each
+// component as a sibling; imports use a Capitalized alias because the SFC
+// composition heuristic treats only Capitalized tags as child components
+// (the library components are declared lowercase). Composes the REAL SSR
+// sources with static props via the CW.6 flv passthrough. Bin: `showcase`.
+//
+// Omitted (client-WASM envelope gaps, still SSR-only): ProgressBar + Spinner
+// (mixed attribute interpolation, style="...{x}..."), ThemeToggle (relies on
+// an SSR-injected `flvCycleTheme()` global).
 
-from Badge import badge
-from Chip import chip
-from ProgressBar import progress_bar
-from StatCard import stat_card
-from Tooltip import tooltip
-from Spinner import spinner
-from ExpansionPanel import expansion_panel
-from CountBadge import count_badge
-from ThemeToggle import theme_toggle
-from Checkbox import checkbox
+from Badge import badge as Badge
+from Chip import chip as Chip
+from CountBadge import count_badge as CountBadge
+from StatCard import stat_card as StatCard
+from Tooltip import tooltip as Tooltip
+from Checkbox import checkbox as Checkbox
+from ExpansionPanel import expansion_panel as ExpansionPanel
 
 component WasmShowcase {
-  state { heading: Str = "Companion UI — live" }
+  state { heading: Str = "Companion UI - live" }
 
   <template>
     <div class="sc">
       <div class="row">
-        <badge label="New" variant="primary" size="md" />
-        <badge label="Live" variant="success" size="md" />
-        <badge label="Beta" variant="warning" size="md" />
-        <chip label="Draft" variant="primary" />
+        <Badge label="New" variant="primary" size="md" />
+        <Badge label="Live" variant="success" size="md" />
+        <Badge label="Beta" variant="warning" size="md" />
+        <Chip label="Draft" variant="primary" />
+        <CountBadge count="5" max="99" variant="primary" />
       </div>
       <div class="row">
-        <stat_card label="Revenue" value="1280" hint="+12% MoM" accent="primary" />
-        <div class="pbwrap"><progress_bar label="Upload" value="72" max="100" pct="72" accent="blue" /></div>
+        <StatCard label="Revenue" value="1280" hint="+12% MoM" accent="primary" />
+        <StatCard label="Users" value="342" hint="+5% WoW" accent="success" />
       </div>
       <div class="row">
-        <tooltip content="Hover me" tip="A client-WASM tooltip" />
-        <spinner size="md" label="Loading" />
+        <Tooltip content="Hover me" tip="A client-WASM tooltip" />
+        <Checkbox name="opt" label="Enabled" value="on" />
       </div>
       <div class="row">
-        <count_badge count="5" max="99" variant="primary" />
-        <theme_toggle />
-        <checkbox name="opt" label="Enabled" value="on" />
-      </div>
-      <div class="row">
-        <expansion_panel summary="What is this?" body="A presentational SSR component running as WASM." />
+        <ExpansionPanel summary="What is this?" body="A presentational SSR component running as WASM." />
       </div>
     </div>
   </template>
@@ -49,6 +46,5 @@ component WasmShowcase {
   <style scoped>
     .sc { display: flex; flex-direction: column; gap: 16px; padding: 16px; font-family: system-ui, sans-serif; }
     .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-    .pbwrap { flex: 1; min-width: 160px; }
   </style>
 }
