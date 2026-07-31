@@ -26,9 +26,10 @@ Prefer it full-screen? Open the standalone page directly:
 
 ## Companion UI, dual-targeted (SSR → WASM)
 
-These are the **SSR [companion UI](ui-components.md) components** — `Badge`,
-`Chip`, `ProgressBar`, `StatCard`, `Tooltip`, `Spinner` — compiled to
-WebAssembly from their *exact* server-side source, unchanged. One `.fitzv`
+These are **SSR [companion UI](ui-components.md) components** — `Badge`, `Chip`,
+`ProgressBar`, `StatCard`, `Tooltip`, `Spinner`, `CountBadge`, `ThemeToggle`,
+`Checkbox`, `ExpansionPanel` — compiled to WebAssembly from their *exact*
+server-side source, unchanged. One `.fitzv`
 targets both SSR (rendered over a WebSocket) and client-WASM: the
 [`flv` passthrough](client-wasm.md) makes the HTML-escaping helper a no-op on
 the client (a DOM text node escapes intrinsically), so the presentational

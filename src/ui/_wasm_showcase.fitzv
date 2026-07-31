@@ -11,6 +11,10 @@ from ProgressBar import progress_bar
 from StatCard import stat_card
 from Tooltip import tooltip
 from Spinner import spinner
+from ExpansionPanel import expansion_panel
+from CountBadge import count_badge
+from ThemeToggle import theme_toggle
+from Checkbox import checkbox
 
 component WasmShowcase {
   state { heading: Str = "Companion UI — live" }
@@ -30,6 +34,14 @@ component WasmShowcase {
       <div class="row">
         <tooltip content="Hover me" tip="A client-WASM tooltip" />
         <spinner size="md" label="Loading" />
+      </div>
+      <div class="row">
+        <count_badge count="5" max="99" variant="primary" />
+        <theme_toggle />
+        <checkbox name="opt" label="Enabled" value="on" />
+      </div>
+      <div class="row">
+        <expansion_panel summary="What is this?" body="A presentational SSR component running as WASM." />
       </div>
     </div>
   </template>
