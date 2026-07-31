@@ -942,16 +942,31 @@ rationale + capability envelope in [`docs/client-wasm-plan.md`](docs/client-wasm
         (`style="width: {pct}%"` lowers to a `format!`-based `set_attribute`).
         Plus negative numeric state defaults (`Int = -1`). Unblocked
         `ProgressBar` + `Spinner`.
+      - ~~`@input` live binding + `<select>` change~~ — **done in v0.29.7**
+        (fitz core CW.9). `@input` / `@change` read the target's live value
+        into `payload["value"]` (covering `<input>`/`<select>`/`<textarea>`);
+        the handler writes it to state. Matches the SSR `data-flv-<event>`
+        lowering, so one `.fitzv` targets both. Example
+        `examples/view/live-input/` in `d:\fitz`. Caveat: naive re-render
+        makes a live text input lose its caret (fine-grained reactivity is a
+        later iteration).
+      - ~~Helper-fn `for` / `match` / local-reassign / string-concat~~ —
+        **partly done in v0.29.5**: those constructs now lower in imported
+        helper `fn` bodies + event bodies. `?`/Result in helpers is still open,
+        and a helper that returns **HTML as a string** doesn't render on wasm
+        (interpolating it produces an escaping text node — same intrinsic limit
+        as the CW.6 raw-HTML helpers).
 
       The real remaining gaps in `d:\fitz`:
-      1. **Richer helper-fn transpilation** — `match` / loops / `?` in the
-         sibling `.fitz` helpers (`chart_helpers`, `icon`, `grid_helpers`,
-         `pager_helpers`, form helpers). The imports resolve as siblings; the
-         helper *bodies* don't transpile. Gates Select, RadioGroup,
-         GridToolbar, Button, BarChart, …
-      2. **`@input` live binding + `<select>` change** — the rest of the form
-         family beyond file input. A `<select>` / live-as-you-type input needs
-         a `change`/`input` listener that writes back to state.
+      1. **`?` / `Result` in helper-fn bodies + HTML-string helpers** — the
+         `match`/loops/reassign/concat constructs landed (v0.29.5), but a
+         helper using `?`/`Result` still rejects, and a helper that builds an
+         HTML string (`chart_helpers`, `icon`, `grid_helpers`, form helpers
+         that emit markup) can't render its output on wasm — the string
+         escapes. Still gates Select, RadioGroup, GridToolbar, Button, BarChart.
+      2. **Fine-grained reactivity** — patch-in-place instead of naive
+         re-render, so a live text `@input` keeps its caret. Orthogonal to the
+         constructs above; it's a rendering-model upgrade.
       Independent of CW.8. Some components (DataGrid over server data, forms
       that submit server-side) will only ever render their *shell* client-side
       — their behavior is intrinsically server-driven.
