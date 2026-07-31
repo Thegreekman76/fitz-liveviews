@@ -21,7 +21,7 @@ component Photo {
       {#if zoomed}
         <div class="overlay">
           <img class="full" src="{img}" alt="Peaks at midday" />
-          <button class="x" @click="close" aria-label="Close">&times;</button>
+          <button class="x" @click="close" aria-label="Close">×</button>
         </div>
       {/if}
     </div>

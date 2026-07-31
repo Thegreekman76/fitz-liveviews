@@ -24,8 +24,8 @@ component Carousel {
         {#if index == 0}<img class="slide" src="{img0}" alt="Sunrise over the range" />{/if}
         {#if index == 1}<img class="slide" src="{img1}" alt="Midday peaks" />{/if}
         {#if index == 2}<img class="slide" src="{img2}" alt="Dusk on the summit" />{/if}
-        <button class="nav prev" @click="prev" aria-label="Previous slide">&lsaquo;</button>
-        <button class="nav next" @click="next" aria-label="Next slide">&rsaquo;</button>
+        <button class="nav prev" @click="prev" aria-label="Previous slide">‹</button>
+        <button class="nav next" @click="next" aria-label="Next slide">›</button>
       </div>
       <div class="dots">
         {#if index == 0}<button class="dot on" @click="go0" aria-label="Slide 1"></button>{#else}<button class="dot" @click="go0" aria-label="Slide 1"></button>{/if}
