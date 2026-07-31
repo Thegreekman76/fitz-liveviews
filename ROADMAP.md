@@ -853,10 +853,27 @@ rationale + capability envelope in [`docs/client-wasm-plan.md`](docs/client-wasm
       Pages build in `docs.yml`; `fitz check --target wasm-client` is aspirational
       (the current core has no such flag, and plain `fitz check` lexes a `.fitzv`
       as classic Fitz), so `ci.yml` is left unchanged.
-- [ ] **CW.6 — (optional, CORE) dual-target research** — assess whether a subset
-      could share one source across SSR + wasm-client. Needs core work
-      (`dep_registry` in the wasm loader, an `flv` passthrough, a `data-flv-click`
-      → local dispatch bridge). `d:\fitz` Phase 11 territory.
+- [x] **CW.6 — dual-target research + core `flv` passthrough** (2026-07-30) —
+      assessed whether a subset could share ONE source across SSR + wasm-client.
+      **Finding: feasible, and cheaper than the plan assumed.** The `.fitzv` model
+      already shares template/state/events across `codegen_ssr` + `codegen_wasm`;
+      `@click` is already a unified convention (SSR → `data-flv-click`, wasm wires
+      it locally, R3.5b). The one real blocker was `{flv(x)}`: `flv` HTML-escapes,
+      redundant on a DOM text node (which escapes intrinsically), so it is the
+      IDENTITY on wasm. A `flv` passthrough (+ hard-error on the raw-HTML helpers
+      `html`/`raw_html`/`h_join`/`h_when`/`h_either`, which have no wasm equivalent)
+      landed in **fitz core** (`src/view/codegen_wasm.rs`, `lower_call`, 2 unit
+      tests) and was validated end-to-end: the UNCHANGED SSR `Badge.fitzv` +
+      `Chip.fitzv` (both `from fitz_liveviews import flv` + `{flv(label)}`) compile
+      `--target wasm-client` to a real `.wasm` bundle, with `{flv(label)}` lowering
+      byte-identically to `{label}`. **The `dep_registry` in the wasm loader —
+      framed as the big blocker — is NOT needed** for this subset: the only
+      framework import is `flv`, now special-cased, and the import line is already
+      skipped by the sibling-only loader. Deferred until a shared component
+      genuinely needs a non-framework dep import. Full findings in
+      [`docs/client-wasm-plan.md`](docs/client-wasm-plan.md). **Ships when fitz core
+      cuts a release with the passthrough** (implemented + validated locally in
+      `d:\fitz`, pending its release ceremony).
 
 ## Phase 7 — Beyond MVP (deferred, opportunistic) 🔮
 

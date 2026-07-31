@@ -99,6 +99,50 @@ the core's `examples/view/*` already use.
   dispatch bridge. That's `d:\fitz` Phase 11 territory — document findings, open
   core issues if warranted. Not required for the live gallery.
 
+## CW.6 findings (2026-07-30) — dual-target IS feasible for a subset
+
+Research done against the real core code (`d:\fitz/src/view/`). The three
+"blockers" from the top of this doc, re-assessed:
+
+1. **Events (`data-flv-click` → local dispatch): already solved.** SSR emits
+   `@click="x"` → `data-flv-click="x"` (socket dispatch); the wasm emitter
+   already wires BOTH `@click` (local closure) and `data-flv-click` (local
+   dispatch, R3.5b). All 38 SSR companion components author events as `@click`
+   (none use the raw fall-through), so the convention is already unified — no
+   bridge needed.
+2. **`flv` passthrough: the one real change, and it is small.** `flv(s: Str) ->
+   Str` HTML-escapes for the SSR string-builder. On wasm a `create_text_node` /
+   `set_attribute` escapes intrinsically, so `flv` is the IDENTITY. A ~15-LoC
+   special-case in `lower_call` (`flv(x)` → `x`) lets an SSR component compile
+   to wasm UNCHANGED. The raw-HTML helpers (`html`/`raw_html`/`h_join`/
+   `h_when`/`h_either`) inject deliberately-unescaped markup / fold `List<Html>`
+   — identity would silently render markup as escaped text, so they HARD-ERROR
+   as SSR-only. **Landed in fitz core + validated** (see CW.6 in the ROADMAP).
+3. **`dep_registry` in the wasm loader: NOT needed for this subset.** The only
+   framework import the companion set brings is `flv` (now special-cased); the
+   `from fitz_liveviews import flv` line is already silently skipped by the
+   sibling-only loader. `dep_registry` only matters if a shared component
+   imports a NON-framework dep helper/nominal (not a sibling) — not the case
+   for the companion UI. Deferred.
+
+**Envelope landscape (the subset boundary).** Of the 38 SSR components: NONE
+use raw-HTML helpers, and NONE use `@click`/`@submit` (they are presentational
+— the parent wires interactivity). So the `flv` passthrough unblocks escaping
+for ALL of them; the remaining gate is the existing wasm envelope: `{#if}` /
+`{#for}` conditions limited to bool/numeric (no Str comparison / method-call
+conditions), iterables must be bare state-field idents, state limited to
+primitives / List / Map / sibling nominals, helpers without `match` / loops /
+`?`. Pure-presentational primitives (Badge, Chip, ProgressBar, StatCard,
+Rating, Tooltip, Divider, Spinner, CountBadge, SortableHeader, ThemeToggle)
+dual-target trivially today; components whose `{#if}` uses a Str comparison
+(Alert-style `variant == "error"`) or richer helpers stay SSR-only until the
+wasm envelope grows.
+
+**Bottom line:** dual-target for the presentational subset is live with a
+single small core change. The heaviest-sounding blocker (`dep_registry`) was
+unnecessary. The gallery can now grow "for free" from SSR sources that fit the
+envelope, instead of hand-authoring parallel client versions.
+
 ## Gotchas (carry forward)
 - wasm entry mounts the **first-declared** component; `[[bin]] mount="#app"` is
   **required** in `fitz.toml`.
