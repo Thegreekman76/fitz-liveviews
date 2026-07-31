@@ -70,6 +70,18 @@ target = "wasm-client"
 mount = "#app"
 
 [[bin]]
+name = "carousel"
+main = "Carousel.fitzv"
+target = "wasm-client"
+mount = "#app"
+
+[[bin]]
+name = "photo"
+main = "Photo.fitzv"
+target = "wasm-client"
+mount = "#app"
+
+[[bin]]
 name = "gallery"
 main = "Gallery.fitzv"
 target = "wasm-client"

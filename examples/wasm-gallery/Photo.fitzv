@@ -1,0 +1,59 @@
+// Photo.fitzv — a single client-WASM image with click-to-zoom. The
+// thumbnail toggles a full-size overlay through a Bool state field and an
+// {#if} block — no server, no navigation. Exercises Bool state, {#if},
+// @click, and <img src> attribute interpolation.
+
+component Photo {
+  state {
+    zoomed: Bool = false
+    img: Str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgMjYwIiBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJ4TWlkWU1pZCBzbGljZSI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJzIiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjNWFhOGUwIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjY2ZlYWZmIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyNjAiIGZpbGw9InVybCgjcykiLz48Y2lyY2xlIGN4PSIzMDAiIGN5PSI1NSIgcj0iMjYiIGZpbGw9IiNmZmY2Y2YiIG9wYWNpdHk9IjAuOSIvPjxwYXRoIGQ9Ik0wIDIwMCBMNzAgMTUwIEwxMjAgMTg1IEwxOTAgMTIwIEwyNTAgMTc1IEwzMjAgMTQwIEw0MDAgMTkwIEw0MDAgMjYwIEwwIDI2MCBaIiBmaWxsPSIjOGZiOGQ4Ii8+PHBhdGggZD0iTTAgMjMwIEw5MCAxNzUgTDE1MCAyMTAgTDIxMCAxNTAgTDI4MCAyMDUgTDM0MCAxNzUgTDQwMCAyMTUgTDQwMCAyNjAgTDAgMjYwIFoiIGZpbGw9IiNhOWNiZTAiLz48cGF0aCBkPSJNMCAyNjAgTDYwIDIxNSBMMTEwIDI0NSBMMTcwIDIwMCBMMjMwIDI0MCBMMzAwIDIxMCBMMzYwIDI0NSBMNDAwIDIyNSBMNDAwIDI2MCBaIiBmaWxsPSIjNGE2YTgwIi8+PHBhdGggZD0iTTE3NSAxMjAgTDE5MCAxMjAgTDIwNSAxNTAgTDE5NiAxNDggTDE5MCAxNjAgTDE4NCAxNDYgTDE3OCAxNTAgWiIgZmlsbD0iI2ZmZiIgb3BhY2l0eT0iMC44NSIvPjwvc3ZnPg=="
+  }
+
+  event zoom() { zoomed = true }
+  event close() { zoomed = false }
+
+  <template>
+    <div class="photo">
+      <button class="card" @click="zoom" aria-label="Zoom image">
+        <img class="thumb" src="{img}" alt="Peaks at midday" />
+        <span class="cap">Click to zoom</span>
+      </button>
+      {#if zoomed}
+        <div class="overlay">
+          <img class="full" src="{img}" alt="Peaks at midday" />
+          <button class="x" @click="close" aria-label="Close">&times;</button>
+        </div>
+      {/if}
+    </div>
+  </template>
+
+  <style scoped>
+    .photo { width: 260px; max-width: 100%; font-family: system-ui, sans-serif; }
+    .card {
+      display: block; width: 100%; padding: 0; cursor: pointer;
+      border: 1px solid var(--flv-border, #d9d9e0);
+      border-radius: var(--flv-radius-md, 8px); overflow: hidden;
+      background: var(--flv-surface, #fff);
+      box-shadow: var(--flv-shadow-card, 0 6px 20px rgba(0,0,0,.12));
+    }
+    .thumb { width: 100%; height: 170px; object-fit: cover; display: block; }
+    .cap {
+      display: block; padding: 8px 10px; font-size: .82rem;
+      color: var(--flv-text-muted, #55555c); text-align: left;
+    }
+    .overlay {
+      position: fixed; inset: 0; z-index: 50; display: flex;
+      align-items: center; justify-content: center; padding: 24px;
+      background: rgba(0,0,0,.72);
+    }
+    .full {
+      max-width: 90%; max-height: 90%; border-radius: var(--flv-radius-md, 8px);
+      box-shadow: 0 10px 40px rgba(0,0,0,.5);
+    }
+    .x {
+      position: absolute; top: 16px; right: 20px; width: 40px; height: 40px;
+      border-radius: 50%; border: none; cursor: pointer;
+      background: rgba(255,255,255,.9); color: #111; font-size: 1.5rem;
+    }
+  </style>
+}

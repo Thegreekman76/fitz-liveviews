@@ -95,7 +95,7 @@ jobs:
         # bins use no `flv`, so the cached `fitz` builds them fine.
         run: |
           fitz build --bin gallery --target wasm-client
-          for c in counter toggle tabs stepper rating accordion modal todolist; do
+          for c in counter toggle tabs stepper rating accordion modal todolist carousel photo; do
             fitz build --bin "$c" --target wasm-client
           done
 
@@ -106,7 +106,7 @@ jobs:
           cp examples/wasm-gallery/target/wasm/gallery/gallery.js site/live/pkg/
           cp examples/wasm-gallery/target/wasm/gallery/gallery_bg.wasm site/live/pkg/
           cp examples/wasm-gallery/embed.html site/live/embed/index.html
-          for c in counter toggle tabs stepper rating accordion modal todolist; do
+          for c in counter toggle tabs stepper rating accordion modal todolist carousel photo; do
             cp "examples/wasm-gallery/target/wasm/$c/$c.js" site/live/embed/pkg/
             cp "examples/wasm-gallery/target/wasm/$c/${c}_bg.wasm" site/live/embed/pkg/
           done

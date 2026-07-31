@@ -7,10 +7,10 @@ WebSocket. That's what this page is about: the **client-WASM** mode, and when to
 reach for it instead of SSR.
 
 !!! tip "▶ See it live"
-    The **[live gallery](live-gallery.md)** runs eight client-WASM components in
+    The **[live gallery](live-gallery.md)** runs ten client-WASM components in
     your browser right now — Counter, Toggle, Tabs, Stepper, Rating, Accordion,
-    Modal, TodoList. All of it is one ~34 KB (gzipped) bundle, hosted as static
-    files on GitHub Pages. Source: [`examples/wasm-gallery/`](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/wasm-gallery).
+    Modal, TodoList, Carousel, Photo. All of it is one ~40 KB (gzipped) bundle,
+    hosted as static files on GitHub Pages. Source: [`examples/wasm-gallery/`](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/wasm-gallery).
 
 ## SSR vs client-WASM — which one?
 
@@ -110,7 +110,7 @@ component Counter {
 - **Click payload**: `<button data-flv-click="pick" data-flv-value-key="{x}">` →
   the handler reads `payload["key"]`.
 - **Cross-file composition**: `from Card import Card` then `<Card />` — each child
-  keeps its own state (that's how the gallery composes eight widgets into one bundle).
+  keeps its own state (that's how the gallery composes ten widgets into one bundle).
 
 ### Gotchas (the view-lexer / wasm-emitter envelope)
 

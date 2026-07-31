@@ -15,6 +15,8 @@ from Rating import Rating
 from Accordion import Accordion
 from Modal import Modal
 from TodoList import TodoList
+from Carousel import Carousel
+from Photo import Photo
 
 component Gallery {
   state { heading: Str = "Live components" }
@@ -31,6 +33,8 @@ component Gallery {
         <section class="cell"><span class="name">Accordion</span><div class="demo"><Accordion /></div></section>
         <section class="cell"><span class="name">Modal</span><div class="demo"><Modal /></div></section>
         <section class="cell"><span class="name">TodoList</span><div class="demo"><TodoList /></div></section>
+        <section class="cell"><span class="name">Carousel</span><div class="demo"><Carousel /></div></section>
+        <section class="cell"><span class="name">Photo</span><div class="demo"><Photo /></div></section>
       </div>
     </div>
   </template>

@@ -1,0 +1,63 @@
+// Carousel.fitzv — client-WASM image carousel. Three SVG slides (base64
+// data URIs — self-contained, offline, no external files) shown one at a
+// time; prev/next wrap around and the dots jump. Exercises Int state,
+// {#if index == N}, if-as-value in event bodies, and <img src>
+// attribute interpolation. All client-side, no server.
+
+component Carousel {
+  state {
+    index: Int = 0
+    img0: Str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgMjYwIiBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJ4TWlkWU1pZCBzbGljZSI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJzIiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMmExYTRhIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjZTA4YTVhIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyNjAiIGZpbGw9InVybCgjcykiLz48Y2lyY2xlIGN4PSIzMDAiIGN5PSI3MCIgcj0iMjYiIGZpbGw9IiNmZmQyN2YiIG9wYWNpdHk9IjAuOSIvPjxwYXRoIGQ9Ik0wIDIwMCBMNzAgMTUwIEwxMjAgMTg1IEwxOTAgMTIwIEwyNTAgMTc1IEwzMjAgMTQwIEw0MDAgMTkwIEw0MDAgMjYwIEwwIDI2MCBaIiBmaWxsPSIjNGEzYTZhIi8+PHBhdGggZD0iTTAgMjMwIEw5MCAxNzUgTDE1MCAyMTAgTDIxMCAxNTAgTDI4MCAyMDUgTDM0MCAxNzUgTDQwMCAyMTUgTDQwMCAyNjAgTDAgMjYwIFoiIGZpbGw9IiM2YTRhN2EiLz48cGF0aCBkPSJNMCAyNjAgTDYwIDIxNSBMMTEwIDI0NSBMMTcwIDIwMCBMMjMwIDI0MCBMMzAwIDIxMCBMMzYwIDI0NSBMNDAwIDIyNSBMNDAwIDI2MCBaIiBmaWxsPSIjMmExZjNmIi8+PHBhdGggZD0iTTE3NSAxMjAgTDE5MCAxMjAgTDIwNSAxNTAgTDE5NiAxNDggTDE5MCAxNjAgTDE4NCAxNDYgTDE3OCAxNTAgWiIgZmlsbD0iI2ZmZiIgb3BhY2l0eT0iMC44NSIvPjwvc3ZnPg=="
+    img1: Str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgMjYwIiBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJ4TWlkWU1pZCBzbGljZSI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJzIiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjNWFhOGUwIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjY2ZlYWZmIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyNjAiIGZpbGw9InVybCgjcykiLz48Y2lyY2xlIGN4PSIzMDAiIGN5PSI1NSIgcj0iMjYiIGZpbGw9IiNmZmY2Y2YiIG9wYWNpdHk9IjAuOSIvPjxwYXRoIGQ9Ik0wIDIwMCBMNzAgMTUwIEwxMjAgMTg1IEwxOTAgMTIwIEwyNTAgMTc1IEwzMjAgMTQwIEw0MDAgMTkwIEw0MDAgMjYwIEwwIDI2MCBaIiBmaWxsPSIjOGZiOGQ4Ii8+PHBhdGggZD0iTTAgMjMwIEw5MCAxNzUgTDE1MCAyMTAgTDIxMCAxNTAgTDI4MCAyMDUgTDM0MCAxNzUgTDQwMCAyMTUgTDQwMCAyNjAgTDAgMjYwIFoiIGZpbGw9IiNhOWNiZTAiLz48cGF0aCBkPSJNMCAyNjAgTDYwIDIxNSBMMTEwIDI0NSBMMTcwIDIwMCBMMjMwIDI0MCBMMzAwIDIxMCBMMzYwIDI0NSBMNDAwIDIyNSBMNDAwIDI2MCBaIiBmaWxsPSIjNGE2YTgwIi8+PHBhdGggZD0iTTE3NSAxMjAgTDE5MCAxMjAgTDIwNSAxNTAgTDE5NiAxNDggTDE5MCAxNjAgTDE4NCAxNDYgTDE3OCAxNTAgWiIgZmlsbD0iI2ZmZiIgb3BhY2l0eT0iMC44NSIvPjwvc3ZnPg=="
+    img2: Str = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0MDAgMjYwIiBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJ4TWlkWU1pZCBzbGljZSI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJzIiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjM2EyYTVhIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjZDA2MDdhIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyNjAiIGZpbGw9InVybCgjcykiLz48Y2lyY2xlIGN4PSIzMDAiIGN5PSI4MCIgcj0iMjYiIGZpbGw9IiNmZmNmOWYiIG9wYWNpdHk9IjAuOSIvPjxwYXRoIGQ9Ik0wIDIwMCBMNzAgMTUwIEwxMjAgMTg1IEwxOTAgMTIwIEwyNTAgMTc1IEwzMjAgMTQwIEw0MDAgMTkwIEw0MDAgMjYwIEwwIDI2MCBaIiBmaWxsPSIjNWE0YTZhIi8+PHBhdGggZD0iTTAgMjMwIEw5MCAxNzUgTDE1MCAyMTAgTDIxMCAxNTAgTDI4MCAyMDUgTDM0MCAxNzUgTDQwMCAyMTUgTDQwMCAyNjAgTDAgMjYwIFoiIGZpbGw9IiM3YTVhNmEiLz48cGF0aCBkPSJNMCAyNjAgTDYwIDIxNSBMMTEwIDI0NSBMMTcwIDIwMCBMMjMwIDI0MCBMMzAwIDIxMCBMMzYwIDI0NSBMNDAwIDIyNSBMNDAwIDI2MCBaIiBmaWxsPSIjMmExZjJmIi8+PHBhdGggZD0iTTE3NSAxMjAgTDE5MCAxMjAgTDIwNSAxNTAgTDE5NiAxNDggTDE5MCAxNjAgTDE4NCAxNDYgTDE3OCAxNTAgWiIgZmlsbD0iI2ZmZiIgb3BhY2l0eT0iMC44NSIvPjwvc3ZnPg=="
+  }
+
+  event next() { index = if (index >= 2) { 0 } else { index + 1 } }
+  event prev() { index = if (index <= 0) { 2 } else { index - 1 } }
+  event go0() { index = 0 }
+  event go1() { index = 1 }
+  event go2() { index = 2 }
+
+  <template>
+    <div class="carousel">
+      <div class="frame">
+        {#if index == 0}<img class="slide" src="{img0}" alt="Sunrise over the range" />{/if}
+        {#if index == 1}<img class="slide" src="{img1}" alt="Midday peaks" />{/if}
+        {#if index == 2}<img class="slide" src="{img2}" alt="Dusk on the summit" />{/if}
+        <button class="nav prev" @click="prev" aria-label="Previous slide">&lsaquo;</button>
+        <button class="nav next" @click="next" aria-label="Next slide">&rsaquo;</button>
+      </div>
+      <div class="dots">
+        {#if index == 0}<button class="dot on" @click="go0" aria-label="Slide 1"></button>{#else}<button class="dot" @click="go0" aria-label="Slide 1"></button>{/if}
+        {#if index == 1}<button class="dot on" @click="go1" aria-label="Slide 2"></button>{#else}<button class="dot" @click="go1" aria-label="Slide 2"></button>{/if}
+        {#if index == 2}<button class="dot on" @click="go2" aria-label="Slide 3"></button>{#else}<button class="dot" @click="go2" aria-label="Slide 3"></button>{/if}
+      </div>
+    </div>
+  </template>
+
+  <style scoped>
+    .carousel { width: 320px; max-width: 100%; font-family: system-ui, sans-serif; }
+    .frame {
+      position: relative; border-radius: var(--flv-radius-md, 8px);
+      overflow: hidden; border: 1px solid var(--flv-border, #d9d9e0);
+      box-shadow: var(--flv-shadow-card, 0 6px 20px rgba(0,0,0,.12));
+      line-height: 0;
+    }
+    .slide { width: 100%; height: 200px; object-fit: cover; display: block; }
+    .nav {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      width: 34px; height: 34px; border-radius: 50%; border: none;
+      background: rgba(0,0,0,.45); color: #fff; font-size: 1.4rem;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    .nav:hover { background: rgba(0,0,0,.65); }
+    .prev { left: 8px; }
+    .next { right: 8px; }
+    .dots { display: flex; gap: 8px; justify-content: center; padding: 12px 0 2px; }
+    .dot {
+      width: 10px; height: 10px; border-radius: 50%; border: none; cursor: pointer;
+      background: var(--flv-border, #d9d9e0); padding: 0;
+    }
+    .dot.on { background: var(--flv-color-primary, #ce412b); }
+  </style>
+}
