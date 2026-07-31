@@ -908,16 +908,25 @@ rationale + capability envelope in [`docs/client-wasm-plan.md`](docs/client-wasm
       helpers that don't transpile, CW.9 #1 below), `Html`-typed props
       (`DataGrid`, `FormRow`), and `ThemeToggle` (SSR-injected
       `flvCycleTheme()`).
-- [ ] **CW.8 (deferred, CORE) — cross-dir / dependency imports in the wasm
-      loader** — let *any* `.fitzv` compile to wasm importing components from
-      another directory or a `fitz.toml` dependency (`from fitz_liveviews
-      import Badge`), instead of the sibling-only resolution. Unblocks
-      external wasm apps consuming the companion UI as a library. `d:\fitz`
-      Phase 11 territory (view import resolution + dep_registry in the wasm
-      loaders); scheduled for when real demand for external wasm consumers
-      appears. **Does NOT unblock the SSR-only components** — those are
-      blocked by the envelope (CW.9), not by import resolution. Not needed
-      for the gallery (CW.7 covers it via the sibling wrapper).
+- [x] **CW.8 (CORE) — cross-dir / dependency imports in the wasm loader**
+      (fitz core **v0.29.6**) — a `.fitzv` compiled with `fitz build --target
+      wasm-client` can now import a component from a `fitz.toml` **dependency**
+      by dotted sub-path (`from fitz_liveviews.ui.Badge import badge as
+      Badge`), resolving it under the dep's root and inlining it into the
+      standalone wasm crate, instead of the sibling-only resolution. Unblocks
+      external wasm apps consuming the companion UI as a library. Implemented
+      in `d:\fitz` (`src/view/wasm_build.rs`): the four view loaders gained
+      `*_with_deps` variants resolving each import through a dep-aware
+      `resolve_view_import` (mirroring the classic `codegen.rs`/`evaluator.rs`
+      dep resolution bit-for-bit); framework builtins (`flv`, `html`, …) never
+      trigger a dep load. Validated end-to-end: an external consumer importing
+      `Badge` from a `fitz_liveviews` path dep compiled to a real `.wasm`
+      (`wasm-pack` → `:-) Done`) with the dep component's struct + scoped
+      styles inlined. **Does NOT unblock the SSR-only components** — those are
+      blocked by the envelope (CW.9), not by import resolution. **MVP limit**:
+      a dep component that composes a *bare-name* sibling (not a dotted
+      sub-path) isn't resolved against the dep's own dir — the dual-target
+      presentational primitives are leaves, so this doesn't block them.
 - [ ] **CW.9 (deferred, CORE) — wasm envelope expansion (remaining SSR-only
       unlocks)** — the companion components still SSR-only are blocked by the
       client-WASM **capability envelope**. Two earlier "gaps" turned out to be
