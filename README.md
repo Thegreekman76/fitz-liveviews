@@ -247,7 +247,7 @@ Full docs site: **[thegreekman76.github.io/fitz-liveviews](https://thegreekman76
 Or read the source:
 
 - [`docs/html.md`](docs/html.md) — HTML primitives (`Html`, `flv`, `h_join`, `h_when`, `h_either`)
-- [`docs/live.md`](docs/live.md) — LiveView core (`live_layout`, `LiveFrame`, diff engine, `data-flv-value-*`)
+- [`docs/liveviews.md`](docs/liveviews.md) — LiveView core (`live_layout`, `LiveFrame`, diff engine, `data-flv-value-*`)
 - [`docs/components.md`](docs/components.md) 🧩 — LiveComponents walkthrough (`@live_component`, `@render_for`, `@on`, `flv_register`, `component`, `dispatch_component_events`)
 - [`docs/ui-components.md`](docs/ui-components.md) 🧰 — Companion UI catalog: DataGrid, forms (tabs/stepper), modal, toasts, tree, cascade selects… with a snippet each (realizes the [`components-candidates`](docs/components-candidates.md) shortlist)
 - [`examples/counter/`](examples/counter/) — real-time counter (Phase 2)

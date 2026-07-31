@@ -231,7 +231,7 @@ URL in **two** browser windows to see broadcast in action.
 
 - **[Learn Fitz LiveViews (course)](course/index.md)** 🎓 — the guided path from zero to a deployable app, one live component at a time
 - **[HTML primitives](html.md)** — how `Html`, `flv()`, `h_join`, and friends work
-- **[LiveViews](live.md)** — the pattern, the client runtime, the diff engine, and known limits
+- **[LiveViews](liveviews.md)** — the pattern, the client runtime, the diff engine, and known limits
 - **[LiveComponents](components.md)** 🧩 — reusable server-rendered components with per-instance state
 - **[UI components catalog](ui-components.md)** 🧰 — DataGrid, forms (tabs/stepper), modal, toasts, tree, cascade selects… with a snippet each
 - **[Admin ABM example](examples/admin.md)** ⭐ — flagship back-office: the full runnable reference for every component

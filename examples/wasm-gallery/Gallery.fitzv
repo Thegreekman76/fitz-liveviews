@@ -17,11 +17,11 @@ from Modal import Modal
 from TodoList import TodoList
 
 component Gallery {
-  state { heading: Str = "Componentes en vivo" }
+  state { heading: Str = "Live components" }
 
   <template>
     <div class="gallery">
-      <p class="lead">{heading} — cada uno es un `.fitzv` compilado a WebAssembly, con su propio estado en Rust. Tocalos: reaccionan client-side, sin servidor.</p>
+      <p class="lead">{heading} — each one is a `.fitzv` compiled to WebAssembly, with its own state in Rust. Click them: they react client-side, no server.</p>
       <div class="grid">
         <section class="cell"><span class="name">Counter</span><div class="demo"><Counter /></div></section>
         <section class="cell"><span class="name">Toggle</span><div class="demo"><Toggle /></div></section>

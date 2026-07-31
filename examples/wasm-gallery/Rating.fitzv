@@ -25,7 +25,7 @@ component Rating {
       </div>
       <div class="foot">
         <span class="cap">{stars} / 5</span>
-        {#if stars >= 1}<button class="clear" @click="clear">limpiar</button>{/if}
+        {#if stars >= 1}<button class="clear" @click="clear">clear</button>{/if}
       </div>
     </div>
   </template>

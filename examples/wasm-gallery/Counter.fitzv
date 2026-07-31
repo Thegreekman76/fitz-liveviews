@@ -34,7 +34,7 @@ component Counter {
 
   <template>
     <div class="card">
-      <div class="title">Contador</div>
+      <div class="title">Counter</div>
       <div class="row">
         <button class="btn" @click="decrement">-</button>
         <span class="value">{count}</span>

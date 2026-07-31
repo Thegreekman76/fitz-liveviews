@@ -98,4 +98,4 @@ this is where to read the real code:
 
 - **[UI catalog](../ui-components.md)** — the pattern + snippet for every
   component above.
-- **[LiveViews](../live.md)** — how the diff-and-patch engine works.
+- **[LiveViews](../liveviews.md)** — how the diff-and-patch engine works.

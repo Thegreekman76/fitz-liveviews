@@ -12,20 +12,20 @@ component Modal {
 
   <template>
     <div class="modal">
-      <button class="trigger" @click="show">Abrir modal</button>
+      <button class="trigger" @click="show">Open modal</button>
       {#if open}
         <div class="overlay">
           <div class="dialog">
             <div class="dhead">
-              <strong>Hola desde WASM</strong>
+              <strong>Hello from WASM</strong>
               <button class="x" @click="hide">×</button>
             </div>
             <p class="dbody">
-              Este diálogo se montó y desmontó del DOM client-side con un
-              bloque condicional del template — sin servidor, sin round-trip.
+              This dialog was mounted and unmounted from the DOM client-side
+              with a conditional block of the template — no server, no round-trip.
             </p>
             <div class="dfoot">
-              <button class="ok" @click="hide">Entendido</button>
+              <button class="ok" @click="hide">Got it</button>
             </div>
           </div>
         </div>

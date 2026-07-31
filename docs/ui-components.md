@@ -6,7 +6,7 @@ needs **zero JS build**, and works identically under `fitz run` and the
 native binary from `fitz build`.
 
 Most of these are **patterns** built on the [HTML primitives](html.md) and the
-[LiveView core](live.md) — you build them in your app. But the three most
+[LiveView core](liveviews.md) — you build them in your app. But the three most
 reusable — **Pager**, **Toast** and **ConfirmDialog** — plus a **theme** ship as
 an importable sub-library (`fitz_liveviews.ui.*`) you can drop straight in
 without copying any `.fitzv`. See [Packaged components](#packaged-components)
@@ -1070,7 +1070,7 @@ translate ES/EN with no client-side handshake.
 
 - **[Admin ABM](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/admin)**
   — the complete, runnable reference for every component above.
-- **[HTML primitives](html.md)** · **[LiveViews](live.md)** — the foundations
+- **[HTML primitives](html.md)** · **[LiveViews](liveviews.md)** — the foundations
   these are built on.
 - Per-component standalone examples + an interactive playground are the next
   step of the adoption package.

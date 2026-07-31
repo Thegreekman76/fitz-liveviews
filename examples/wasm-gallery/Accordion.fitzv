@@ -17,24 +17,24 @@ component Accordion {
     <div class="acc">
       <div class="item">
         <button class="head" @click="toggle0">
-          <span>Qué es client-WASM</span>
+          <span>What is client-WASM</span>
           {#if open == 0}<span class="chev">−</span>{#else}<span class="chev">+</span>{/if}
         </button>
-        {#if open == 0}<div class="body">Componentes compilados a WebAssembly que corren en el browser, sin servidor.</div>{/if}
+        {#if open == 0}<div class="body">Components compiled to WebAssembly that run in the browser, no server.</div>{/if}
       </div>
       <div class="item">
         <button class="head" @click="toggle1">
-          <span>Dónde vive el estado</span>
+          <span>Where the state lives</span>
           {#if open == 1}<span class="chev">−</span>{#else}<span class="chev">+</span>{/if}
         </button>
-        {#if open == 1}<div class="body">En Rust, dentro de la instancia WASM. Cada cambio re-renderiza el subárbol.</div>{/if}
+        {#if open == 1}<div class="body">In Rust, inside the WASM instance. Every change re-renders the subtree.</div>{/if}
       </div>
       <div class="item">
         <button class="head" @click="toggle2">
-          <span>Cuándo usar SSR</span>
+          <span>When to use SSR</span>
           {#if open == 2}<span class="chev">−</span>{#else}<span class="chev">+</span>{/if}
         </button>
-        {#if open == 2}<div class="body">Cuando el estado es compartido o vive en la DB: ahí gana LiveView sobre WebSocket.</div>{/if}
+        {#if open == 2}<div class="body">When the state is shared or lives in the DB: that's where LiveView over WebSocket wins.</div>{/if}
       </div>
     </div>
   </template>

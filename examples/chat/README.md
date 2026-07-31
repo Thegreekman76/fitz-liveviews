@@ -154,4 +154,4 @@ The bare `required` attr (HTML5 spec) is accepted post §9.ee V-2.
   text; you will see the literal characters, no popup.
 
 See [`ROADMAP.md`](../../ROADMAP.md) for the roadmap and
-[`docs/live.md`](../../docs/live.md) for the LiveView API reference.
+[`docs/liveviews.md`](../../docs/liveviews.md) for the LiveView API reference.

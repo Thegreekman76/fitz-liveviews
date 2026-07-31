@@ -13,7 +13,7 @@ component Stepper {
 
   <template>
     <div class="stepper">
-      <span class="cap">Cantidad</span>
+      <span class="cap">Quantity</span>
       <div class="control">
         {#if qty > 0}
           <button class="step" @click="dec">-</button>

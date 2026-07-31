@@ -16,25 +16,25 @@ component Tabs {
     <div class="tabs">
       <div class="bar">
         {#if active == 0}
-          <button class="tab active" @click="show0">Resumen</button>
+          <button class="tab active" @click="show0">Overview</button>
         {#else}
-          <button class="tab" @click="show0">Resumen</button>
+          <button class="tab" @click="show0">Overview</button>
         {/if}
         {#if active == 1}
-          <button class="tab active" @click="show1">Detalles</button>
+          <button class="tab active" @click="show1">Details</button>
         {#else}
-          <button class="tab" @click="show1">Detalles</button>
+          <button class="tab" @click="show1">Details</button>
         {/if}
         {#if active == 2}
-          <button class="tab active" @click="show2">Ajustes</button>
+          <button class="tab active" @click="show2">Settings</button>
         {#else}
-          <button class="tab" @click="show2">Ajustes</button>
+          <button class="tab" @click="show2">Settings</button>
         {/if}
       </div>
       <div class="panel">
-        {#if active == 0}<p>Vista general del proyecto. Todo corre client-side.</p>{/if}
-        {#if active == 1}<p>Detalles finos: el estado vive en Rust dentro del WASM.</p>{/if}
-        {#if active == 2}<p>Ajustes: sin servidor, sin round-trip, sin recarga.</p>{/if}
+        {#if active == 0}<p>Project overview. Everything runs client-side.</p>{/if}
+        {#if active == 1}<p>Fine details: the state lives in Rust inside the WASM.</p>{/if}
+        {#if active == 2}<p>Settings: no server, no round-trip, no reload.</p>{/if}
       </div>
     </div>
   </template>

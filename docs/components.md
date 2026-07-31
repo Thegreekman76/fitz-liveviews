@@ -37,7 +37,7 @@ You do **not** need a component for:
 - A pure formatting helper — write a plain `fn(...) -> Html`
   (see [`docs/html.md`](html.md) for `flv` / `h_join` / `h_when`).
 - Shared state across ALL connections — use a top-level `let`
-  (see [Phase 3a additions in the LiveViews guide](live.md#phase-3a-additions-forms-broadcast-shared-state)).
+  (see [Phase 3a additions in the LiveViews guide](liveviews.md#phase-3a-additions-forms-broadcast-shared-state)).
 
 ## The three decorators
 
@@ -422,7 +422,7 @@ core grows `Map.remove`.
 
 ## See also
 
-- **[LiveViews guide (`docs/live.md`)](live.md)** — the framework
+- **[LiveViews guide (`docs/liveviews.md`)](liveviews.md)** — the framework
   from Phase 2 (initial render + WebSocket + patch cycle) that
   components sit on top of.
 - **[HTML primitives (`docs/html.md`)](html.md)** — `flv`,

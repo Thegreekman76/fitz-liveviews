@@ -1,7 +1,7 @@
 # Learn Fitz LiveViews
 
 A hands-on course that takes you from zero to a real, deployable app — one
-live component at a time. Where the [Guide](../live.md) is the reference and
+live component at a time. Where the [Guide](../liveviews.md) is the reference and
 the [examples](../examples/counter.md) are finished apps to read, the course is
 the **guided path**: each chapter builds on the last, every step runs, and you
 end with something you understand top to bottom.
@@ -35,7 +35,7 @@ now) and a **troubleshooting** box for the mistakes people actually hit.
 
 ## How the course relates to the rest of the docs
 
-- **Guide** ([HTML](../html.md), [LiveViews](../live.md),
+- **Guide** ([HTML](../html.md), [LiveViews](../liveviews.md),
   [LiveComponents](../components.md), [UI catalog](../ui-components.md)) — the
   reference. Look things up here.
 - **Course** (you are here) — the path. Read it in order.

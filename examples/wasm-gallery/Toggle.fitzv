@@ -16,12 +16,12 @@ component Toggle {
         <button class="switch switch-on" @click="flip">
           <span class="knob knob-on"></span>
         </button>
-        <span class="label">Encendido</span>
+        <span class="label">On</span>
       {#else}
         <button class="switch" @click="flip">
           <span class="knob"></span>
         </button>
-        <span class="label">Apagado</span>
+        <span class="label">Off</span>
       {/if}
     </div>
   </template>
