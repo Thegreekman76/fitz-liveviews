@@ -55,6 +55,31 @@ On the **client-WASM** target (`fitz build --target wasm-client`), the *same fil
 
 There's a **[live component gallery](https://thegreekman76.github.io/fitz-liveviews/live/)** — real components compiled to WebAssembly, running in your browser, no server. Click around.
 
+## By the numbers
+
+These are measured payload/build numbers from the flagship admin app and the gallery — not synthetic throughput claims:
+
+- **A full server-rendered dashboard page ships ~1.1 KB of JavaScript** (3 tiny inline `<script>` blocks: theme-before-paint + the WebSocket live client), **zero external `<script src>`, and zero build step.** The page HTML is ~38 KB and that's *the whole thing* — there's no framework runtime to download first. Compare that to an SPA, where the framework runtime alone is ~40 KB (Svelte-ish) to ~140 KB (React + ReactDOM) *before* your code and your hydration payload.
+- **A client-WASM component is ~12 KB gzipped** — the *entire* component, not "your code on top of a 100 KB runtime." The counter demo is 11.4 KB gzipped; the full 12-widget composed gallery is ~44 KB.
+- **Zero `node_modules`, zero bundler config.** The `fitz` binary is the whole toolchain. `git clone` → `fitz run`.
+- **Native binary ≈ 9× faster per interaction than the interpreter** (`fitz run` ↔ `fitz build` render bit-for-bit identical), so you develop on the interpreter and ship the binary.
+
+(Cross-framework request-throughput benchmarks are honest future work — I'd rather ship measured payload numbers than hand-wave a load test.)
+
+## How it compares
+
+| | **Fitz LiveViews** | Phoenix LiveView | Hotwire (Turbo) | React/Vue/Svelte (SPA) | HTMX |
+|---|---|---|---|---|---|
+| Real-time diff over WebSocket | ✅ built-in | ✅ built-in | ~ (Turbo Streams) | manual | ~ (extension) |
+| JavaScript build step | **none** | none | none | **required** | none |
+| Languages in the stack | **1** (Fitz) | 1 (Elixir) | 2 (Ruby + JS) | 2+ (backend + JS/TS) | 1 backend + HTML |
+| Offline / client-only target | ✅ **WASM, same source** | ❌ | ❌ | ✅ (JS) | ❌ |
+| Type-checked templates | ✅ compiler | ~ (HEEx) | ❌ | ~ (TS/JSX) | ❌ |
+| Compiles to a native binary | ✅ | ❌ (BEAM VM) | ❌ | ❌ | ❌ |
+| Packaged UI component library | ✅ `fitz_liveviews.ui.*` | community | community | **huge ecosystem** | community |
+
+Where Fitz LiveViews is genuinely different: **one language across the whole stack**, a **dual SSR/WASM target from a single source**, **compilation to a standalone native binary**, and **compiler-checked templates**. Where it's honestly behind: it's new, so the ecosystem is small — React/Vue/Svelte have a decade of libraries and hiring pools. If that trade — a smaller ecosystem for a radically simpler stack — sounds right for what you're building, read on.
+
 ## Getting started
 
 **1. Install Fitz.** Fitz LiveViews is a library for the Fitz language, so you install Fitz first:
