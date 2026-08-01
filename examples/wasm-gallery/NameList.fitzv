@@ -1,0 +1,114 @@
+// NameList.fitzv — the course C2 name list, compiled to client-WASM.
+//
+// A faithful build of `examples/course/c2-name-list-sfc/src/NoteList.fitzv`:
+// a `List<Str>` you add to (submit form) and remove from (per-item button),
+// with a live count. Seeded with the same names as the chapter.
+//
+// Difference from the SSR chapter component: the case-insensitive **filter**
+// (`x.lower().contains(filter.lower())`) is dropped here — string `.lower()`
+// / `.contains()` aren't in the client-WASM envelope yet, so the live filter
+// stays SSR-only. Add / remove / count run entirely client-side. Inline `!=`
+// in the event body works since core v0.28.2.
+
+component NameList {
+  state {
+    names: List<Str> = ["Ada", "Grace", "Margaret"]
+  }
+
+  event add() {
+    if (payload.has("item")) {
+      let n = payload["item"]
+      if (n != "") { names.push(n) }
+    }
+  }
+
+  event remove() {
+    if (payload.has("item")) {
+      let target = payload["item"]
+      names = names.filter(fn(it) => it != target)
+    }
+  }
+
+  <template>
+    <div class="names">
+      <form class="row" data-flv-submit="add">
+        <input class="inp" name="item" placeholder="Add a name" autocomplete="off" data-flv-clear />
+        <button class="add" type="submit">Add</button>
+      </form>
+      <ul class="list">
+        {#for it in names}
+          <li class="item">
+            <span class="txt">{it}</span>
+            <button class="del" data-flv-click="remove" data-flv-value-item="{it}" aria-label="Remove name">×</button>
+          </li>
+        {/for}
+      </ul>
+      <p class="count">{names.len()} total</p>
+    </div>
+  </template>
+
+  <style scoped>
+    .names {
+      font-family: system-ui, sans-serif;
+      color: var(--flv-text, #1a1a1a);
+      max-width: 380px;
+    }
+    .row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .inp {
+      flex: 1;
+      padding: 9px 11px;
+      border: 1px solid var(--flv-border, #d9d9e0);
+      border-radius: var(--flv-radius-md, 8px);
+      background: var(--flv-surface, #ffffff);
+      color: var(--flv-text, #1a1a1a);
+      font-size: 0.95rem;
+    }
+    .add {
+      border: none;
+      border-radius: var(--flv-radius-md, 8px);
+      background: var(--flv-color-primary, #ce412b);
+      color: #ffffff;
+      padding: 9px 16px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 9px 12px;
+      border: 1px solid var(--flv-border, #d9d9e0);
+      border-radius: var(--flv-radius-md, 8px);
+      background: var(--flv-surface-2, #f5f5f7);
+    }
+    .txt {
+      font-size: 0.95rem;
+    }
+    .del {
+      border: none;
+      background: transparent;
+      color: var(--flv-color-danger, #c62828);
+      font-size: 1.2rem;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+    .count {
+      margin-top: 12px;
+      font-size: 0.85rem;
+      color: var(--flv-text-muted, #55555c);
+    }
+  </style>
+}

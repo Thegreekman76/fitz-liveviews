@@ -13,15 +13,18 @@ for a **specific element** to say "this event is about *me*", and **live input**
 that reacts as you type. Those are three `data-flv-*` attributes, and they're
 all you need for the vast majority of interactions.
 
-> **▶ Live preview.** A **client-WASM build** of a live add/remove list —
-> the same form + payload + per-row mechanics you wire in this chapter,
-> running in the page. The course builds the **server-driven** version;
-> the behavior is identical.
+> **▶ Live preview.** A **client-WASM build** of *this chapter's* name list —
+> the same `NoteList` component (seeded with Ada / Grace / Margaret), running
+> in the page. Add a name, remove a row, watch the count. The course builds
+> the **server-driven** version; the add / remove / count behavior is
+> identical. (The live filter is dropped here — a case-insensitive
+> `.lower().contains(...)` filter isn't in the client-WASM envelope yet, so it
+> stays server-side. Everything else runs offline.)
 
 <div class="live-embed">
   <iframe
-    src="https://thegreekman76.github.io/fitz-liveviews/live/embed/?c=todolist"
-    title="Live preview — add/remove list (client-WASM build)"
+    src="https://thegreekman76.github.io/fitz-liveviews/live/embed/?c=namelist"
+    title="Live preview — the chapter's name list (client-WASM build)"
     loading="lazy"
     style="width:100%; height:340px; border:1px solid var(--md-default-fg-color--lightest); border-radius:8px;">
   </iframe>

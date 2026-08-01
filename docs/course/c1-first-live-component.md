@@ -266,6 +266,19 @@ component Counter {
 }
 ```
 
+> **▶ Here it is, running.** The exact `Counter` component above, compiled to
+> WebAssembly and mounted right here — click it. (Live, it's the client-WASM
+> build; the SSR wiring below renders the identical component over a WebSocket.)
+
+<div class="live-embed">
+  <iframe
+    src="https://thegreekman76.github.io/fitz-liveviews/live/embed/?c=counter"
+    title="Live — Counter (the component you just wrote)"
+    loading="lazy"
+    style="width:100%; height:220px; border:1px solid var(--md-default-fg-color--lightest); border-radius:8px;">
+  </iframe>
+</div>
+
 Compare it to the string version. Same behavior, but:
 
 - **`state { ... }`** replaces the `type AppState` — the state fields live in the

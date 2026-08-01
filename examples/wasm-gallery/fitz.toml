@@ -70,6 +70,12 @@ target = "wasm-client"
 mount = "#app"
 
 [[bin]]
+name = "namelist"
+main = "NameList.fitzv"
+target = "wasm-client"
+mount = "#app"
+
+[[bin]]
 name = "carousel"
 main = "Carousel.fitzv"
 target = "wasm-client"

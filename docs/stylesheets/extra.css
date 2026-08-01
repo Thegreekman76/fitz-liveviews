@@ -14,11 +14,14 @@
   --md-accent-fg-color: #E86A56;
 }
 
-/* Header logo — the 256x256 mark renders tiny at Material's default
-   1.2rem height. Bump it so the brand reads in the header (width auto
-   keeps the square aspect; 2rem fits the ~2.4rem header comfortably). */
+/* Header logo — doubled (was 2rem) so the brand mark reads large in the
+   header. The header row grows to fit the taller logo via the min-height
+   below; width auto keeps the square aspect. */
 .md-header__button.md-logo img,
 .md-header__button.md-logo svg {
-  height: 2rem;
+  height: 4rem;
   width: auto;
+}
+.md-header__inner {
+  min-height: 4.4rem;
 }
