@@ -3,7 +3,7 @@ title: "Presentando Fitz LiveViews: UI en tiempo real en un solo lenguaje, sin b
 published: false
 description: Un framework de UI en tiempo real, server-rendered, para el lenguaje Fitz — diffing por WebSocket, sin paso de build de JavaScript, inspirado en Phoenix LiveView, con un target opcional a client-WASM para que el mismo componente corra offline.
 tags: webdev, rust, opensource, frontend
-series: FitzLiveViews
+series: FitzLiveViews español
 cover_image:
 canonical_url:
 ---
