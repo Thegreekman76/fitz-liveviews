@@ -113,7 +113,35 @@ component NameList {
 
 `{#for it in names}` iterates; `{it}` interpolates each item; the remove button stamps its own value. Add a name, remove a row, watch the count — no client code, no API.
 
-**It's running** in the [live gallery](https://thegreekman76.github.io/fitz-liveviews/live/embed/?c=namelist) as a client-WASM build: the add/remove/count all run in your browser, offline.
+Wire it into a `main.fitz` (the same shape as the counter in [part 2](https://dev.to/)) and it runs:
+
+```
+from fitz_liveviews import Html, html, live_layout, html_response,
+  LiveFrame, diff_html, component, dispatch_component_events, flv_register
+from NameList import NameList, NameList_render, NameList_add, NameList_remove
+
+@get("/")
+fn page() -> Response {
+  return html_response(live_layout("/live/names", "names-app",
+    component("NameList", "root")))
+}
+
+@ws("/live/names")
+async fn socket(ws: WsConn<LiveFrame>) {
+  let last = component("NameList", "root").raw
+  loop {
+    let frame = ws.recv()?
+    let _ = dispatch_component_events(frame)
+    let new_html = component("NameList", "root").raw
+    ws.send(LiveFrame { html: new_html, patches: diff_html(last, new_html) })?
+    last = new_html
+  }
+}
+
+@server(3000) fn main() => 0
+```
+
+`fitz run`, open `http://localhost:3000`, add and remove names. (I ran exactly this — the page renders the seeded list, the count, and the wired form/buttons.) The **client-WASM build of the same list** is running in the [live gallery](https://thegreekman76.github.io/fitz-liveviews/live/embed/?c=namelist) — add/remove/count entirely in your browser, offline.
 
 ## Two honest caveats
 

@@ -75,7 +75,7 @@ async fn socket(ws: WsConn<LiveFrame>) {
 
 Qué pasa en un click: el browser manda el evento por el WebSocket → `dispatch_component_events` lo rutea al handler → el handler muta el estado → el servidor recomputa el HTML, **lo diffea contra el render anterior, y manda solo los parches**. El browser los aplica. Nunca escribiste JavaScript de cliente, nunca definiste una API, nunca serializaste un payload. El estado vive en el servidor, así que sobrevive reloads y puede ser compartido o respaldado por DB.
 
-`fitz run`, abrís `http://localhost:3000`, clickeás. Esa es toda la app.
+`fitz run`, abrís `http://localhost:3000`, clickeás. Esa es toda la app — tres archivos (`Counter.fitzv`, `main.fitz`, `fitz.toml`), y es exactamente lo que ves arriba. La versión completa y lista para correr está en el repo en [`examples/counter/`](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/counter) — `git clone`, `cd examples/counter`, `fitz run`.
 
 ## Target 2 — client-WASM (offline, sin servidor)
 
