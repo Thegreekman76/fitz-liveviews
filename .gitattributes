@@ -1,0 +1,16 @@
+# Line-ending normalization. The repo stores LF; this silences the
+# `core.autocrlf` "LF will be replaced by CRLF" warnings on Windows and
+# keeps diffs deterministic across platforms.
+* text=auto eol=lf
+
+# Binary assets — never run line-ending or diff conversion on their bytes.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg -text
+*.vsix binary
+*.wasm binary
+*.woff binary
+*.woff2 binary

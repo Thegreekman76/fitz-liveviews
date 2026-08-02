@@ -116,6 +116,12 @@ component Counter {
   string interpolation + concatenation (`let id = "{next_id}"`, `a + b`), and
   list ops (`items.push(...)`, `items = items.filter(fn(x) => ...)`, `.map`,
   `.len()`). The last three (match / for / concat) landed in v0.29.5.
+- **String methods + logical `and`/`or`** (Fitz core v0.29.8): `.upper()` /
+  `.lower()` / `.trim()` / `.contains(x)` / `.starts_with(x)` / `.ends_with(x)` /
+  `.replace(a, b)`, and `and` / `or` in expression position — so a
+  case-insensitive filter now compiles client-side:
+  `names.filter(fn(x) => q == "" or x.lower().contains(q.lower()))`.
+  (`.split` / `.to_int`, which return `List` / `Result`, still defer.)
 - **Form submit**: `<form data-flv-submit="add">` + `<input name="text" data-flv-clear />`;
   the handler reads `payload["text"]` (guard with `payload.has("text")`), and
   `data-flv-clear` resets the input after submit.

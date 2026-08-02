@@ -145,8 +145,8 @@ async fn socket(ws: WsConn<LiveFrame>) {
 
 ## Dos caveats honestos
 
-- **Métodos de string en WASM.** Un filtro case-insensitive (`names.filter(fn(x) => x.lower().contains(q))`) funciona en el target server-rendered pero (todavía) no en client-WASM — el envelope wasm no tiene `.lower()` / `.contains()` aún. Así que la lista de nombres WASM de arriba tiene agregar/quitar/contar; un *filtro* en vivo queda server-side por ahora. (El envelope crece release a release; esto está en la lista.)
-- **Los inputs de texto en vivo se re-montan.** El modelo de render actual es dirty-flag + naive re-render: un cambio de estado reconstruye el DOM del componente. Para un `<select> @change` es invisible; para un `<input> @input` en vivo, el campo se re-monta en cada tecla — el valor se re-bindea con `value="{name}"`, pero el caret salta al final. La reactividad fine-grained (patch in-place) es el próximo paso del modelo de render. El valor siempre llega al handler de forma confiable; eso es lo que `@input` garantiza hoy.
+- **Los inputs de texto en vivo se re-montan.** El modelo de render actual es dirty-flag + naive re-render: un cambio de estado reconstruye el DOM del componente. Para un `<select> @change` es invisible; para un `<input> @input` en vivo, el campo se re-monta en cada tecla — el valor se re-bindea con `value="{name}"`, pero el caret salta al final. La reactividad fine-grained (patch in-place) es el próximo paso del modelo de render, y es lo que arregla esto. El valor siempre llega al handler de forma confiable; eso es lo que `@input` garantiza hoy.
+- **Métodos de string en WASM — ahora sí.** Un filtro case-insensitive (`names.filter(fn(x) => q == "" or x.lower().contains(q.lower()))`) antes era solo server-rendered; desde Fitz core v0.29.8 los métodos de string (`.lower` / `.contains` / …) y el `and`/`or` lógico compilan también en el target client-WASM, así que el filtro corre offline. Lo único que queda es el caret caveat de arriba para *la caja del filtro* mientras tipeás.
 
 ## Qué viene en la serie
 

@@ -145,8 +145,8 @@ async fn socket(ws: WsConn<LiveFrame>) {
 
 ## Two honest caveats
 
-- **String methods on WASM.** A case-insensitive filter (`names.filter(fn(x) => x.lower().contains(q))`) works on the server-rendered target but not (yet) on client-WASM — the wasm envelope doesn't have `.lower()` / `.contains()` yet. So the WASM name list above has add/remove/count; a live *filter* stays server-side for now. (The envelope grows release by release; this is on the list.)
-- **Live text inputs re-mount.** The current rendering model is dirty-flag + naive re-render: a state change rebuilds the component's DOM. For a `<select> @change` that's invisible; for a live text `<input> @input`, the field re-mounts each keystroke — the value re-binds via `value="{name}"`, but the caret jumps to the end. Fine-grained reactivity (patch in place) is the next rendering-model step. The value always reaches the handler reliably; that's what `@input` guarantees today.
+- **Live text inputs re-mount.** The current rendering model is dirty-flag + naive re-render: a state change rebuilds the component's DOM. For a `<select> @change` that's invisible; for a live text `<input> @input`, the field re-mounts each keystroke — the value re-binds via `value="{name}"`, but the caret jumps to the end. Fine-grained reactivity (patch in place) is the next rendering-model step, and it's what fixes this. The value always reaches the handler reliably; that's what `@input` guarantees today.
+- **String methods on WASM — now supported.** A case-insensitive filter (`names.filter(fn(x) => q == "" or x.lower().contains(q.lower()))`) used to be server-rendered only; as of Fitz core v0.29.8 the string methods (`.lower` / `.contains` / …) and logical `and`/`or` compile on the client-WASM target too, so the filter runs offline. The only remaining wrinkle is the caret caveat above for the *filter box itself* while you type.
 
 ## What's next in this series
 
