@@ -43,6 +43,7 @@ extra_css:
 nav:
   - Home: index.md
   - Live gallery: live-gallery.md
+  - Architecture: architecture.md
   - Guide:
       - HTML primitives: html.md
       - LiveViews: liveviews.md
@@ -79,7 +80,11 @@ markdown_extensions:
       line_spans: __span
       pygments_lang_class: true
   - pymdownx.inlinehilite
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.snippets:
       base_path:
         - .

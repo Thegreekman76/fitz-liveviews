@@ -35,6 +35,9 @@ now) and a **troubleshooting** box for the mistakes people actually hit.
 
 ## How the course relates to the rest of the docs
 
+- **[Architecture](../architecture.md)** — the whole framework in one picture:
+  the runtime, the diff-over-the-wire protocol, the companion UI kit, and how a
+  `.fitzv` compiles. Read it when you want to know *how* the pieces fit.
 - **Guide** ([HTML](../html.md), [LiveViews](../liveviews.md),
   [LiveComponents](../components.md), [UI catalog](../ui-components.md)) — the
   reference. Look things up here.
