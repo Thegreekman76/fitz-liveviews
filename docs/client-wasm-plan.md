@@ -8,8 +8,8 @@
 ## Why this is a *parallel* component set (not a recompile of the SSR ones)
 
 The fitz core has a mature `.fitzv` → **client-WASM** target (`fitz build
---target wasm-client`, `d:\fitz` Phase 11: `src/view/codegen_wasm.rs` +
-`wasm_build.rs`; ~17 examples under `d:\fitz\examples\view\`). It emits a
+--target wasm-client`, `fitz` Phase 11: `src/view/codegen_wasm.rs` +
+`wasm_build.rs`; ~17 examples under `fitz/examples/view/`). It emits a
 self-contained `wasm-bindgen` + `web-sys` crate → `wasm-pack build --release
 --target web` → a `.wasm` + JS glue mounted into a `<div id="app">`.
 
@@ -96,12 +96,12 @@ the core's `examples/view/*` already use.
 - Assess with the core whether a *subset* of components could share one source
   across SSR + wasm-client. Would need core work: `dep_registry` in the wasm
   loader, an `flv` passthrough (identity) in wasm, and a `data-flv-click` → local
-  dispatch bridge. That's `d:\fitz` Phase 11 territory — document findings, open
+  dispatch bridge. That's `fitz` Phase 11 territory — document findings, open
   core issues if warranted. Not required for the live gallery.
 
 ## CW.6 findings (2026-07-30) — dual-target IS feasible for a subset
 
-Research done against the real core code (`d:\fitz/src/view/`). The three
+Research done against the real core code (`fitz/src/view/`). The three
 "blockers" from the top of this doc, re-assessed:
 
 1. **Events (`data-flv-click` → local dispatch): already solved.** SSR emits

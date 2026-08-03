@@ -3,7 +3,7 @@
 > Working design doc for the `.fitzv` **edit-and-preview playground** — the
 > feature the [component gallery](examples/gallery.md) is the "seed" for. This is
 > a plan, not a shipped feature. It spans two repos: the sandbox work lands in
-> **Fitz core** (`d:\fitz`), the playground app in **fitz-liveviews**.
+> **Fitz core** (`fitz`), the playground app in **fitz-liveviews**.
 >
 > Status: **spec only.** No implementation yet. Written after a feasibility pass
 > that changed the picture (see §2).
@@ -106,7 +106,7 @@ Layer 1 — language:  restricted evaluator (no db/http/smtp/env, no arbitrary i
 Layer 2 — host:      isolated container (no internal network, egress off, cgroup limits, hardened runtime)
 ```
 
-### 4.1 Restricted evaluator (Fitz core, `d:\fitz`)
+### 4.1 Restricted evaluator (Fitz core, `fitz`)
 
 Today `register_builtins(env)` is fixed and registers **everything**
 unconditionally; there is no eval-context struct, no capabilities, no `restricted`
@@ -237,7 +237,7 @@ Static, Pages-hostable:
 ## 7. MVP scope & phases
 
 - **Phase 0 — spec.** This document.
-- **Phase 1 — core sandbox (`d:\fitz`).** `register_builtins(env, restricted)` +
+- **Phase 1 — core sandbox (`fitz`).** `register_builtins(env, restricted)` +
   import allowlist + timeout + loop cap + recursion cap + input/output caps +
   a `render_component_from_string(source) -> Result<String>` convenience fn.
   Full unit tests, including *adversarial* ones (`from db import`, `loop {}`,

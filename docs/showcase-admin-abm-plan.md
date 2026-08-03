@@ -347,7 +347,7 @@ hard-coding a language.
   aria translate, cookie persists). **Dogfood → Fitz core finding**: a local
   `let t` in one function clobbered the module-imported `t` used by others
   (checker didn't catch it; runtime `t is not invokable`); worked around by
-  renaming the local, logged as a core scoping bug to fix in `d:\fitz`.
+  renaming the local, logged as a core scoping bug to fix in `fitz`.
 - **S9b — DONE** ✅ (2026-07-22, lib v0.10.0) All the screens. Dictionary grew
   to cover dashboard, grid, form, tree, confirm dialog, toasts, badges, tooltips,
   detail panel and login (~120 keys). `locale` threaded through the whole grid
@@ -370,7 +370,7 @@ hard-coding a language.
   `live_embed("/live/empleados?lang={loc}", …)`; the `@ws` handler reads it from
   that first event and re-renders its diff baseline. (Earlier finding: a local
   `let t` clobbering an imported `t` — both logged for a Fitz-core fix in
-  `d:\fitz`.)
+  `fitz`.)
 - **S9c — DONE** ✅ (2026-07-22) i18n residuals — the client-`<script>` strings.
   The theme-toggle labels (☀️ Claro/Light · 🌙 Oscuro/Dark · 🖥️ Auto) are now
   injected into `interactive_js(locale)`; the login-error strings ('Error al
@@ -388,7 +388,7 @@ ES/EN.
 
 - **Core fixes landed (Fitz v0.28.0)** ✅ (2026-07-22) The two scoping bugs
   (local `let` shadowing an import/param) and **`@header` on `@ws`** were fixed
-  in `d:\fitz`. **The ABM now reads the locale straight from the handshake
+  in `fitz`. **The ABM now reads the locale straight from the handshake
   cookie** — `@header(name="cookie") @ws("/live/empleados") … cookie: Str?` +
   `locale_from_cookie(cookie)`. The client-side `__flv_init` handshake and the
   `?lang=` query on `live_embed` are **removed** (the lib's `__flv_init` stays

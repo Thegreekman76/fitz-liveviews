@@ -26,7 +26,7 @@ Three layers stacked on the language, plus the tooling around them:
 
 ```mermaid
 flowchart TD
-    subgraph LANG["🅐 Language — repo d:\\fitz (separate)"]
+    subgraph LANG["🅐 Language — the Fitz language repo (separate)"]
         Fitzv[".fitzv single-file component<br/>&lt;template&gt; · state · event · &lt;style scoped&gt;"]
         Fitzv --> ViewC["view/ compiler<br/>lexer → parser → expand → check"]
         ViewC -->|SSR emitter| SsrOut["classic Fitz<br/>@live_component · @render_for · @on<br/>+ auto-injected flv_register"]
@@ -67,10 +67,10 @@ flowchart TD
     Docs["docs site (mkdocs Material → Pages)<br/>+ client-WASM live gallery"]
     Ext["VSCode extension<br/>injection grammar + 71 snippets"]
 
-    classDef lang fill:#e0e8ff,stroke:#446
-    classDef rt fill:#dff5dd,stroke:#3a8a3a
-    classDef ui fill:#fff5dd,stroke:#aa8
-    classDef tool fill:#f0e8ff,stroke:#849
+    classDef lang fill:#e0e8ff,stroke:#446,color:#1a2a4a
+    classDef rt fill:#dff5dd,stroke:#3a8a3a,color:#14401a
+    classDef ui fill:#fff5dd,stroke:#aa8,color:#4a3a10
+    classDef tool fill:#f0e8ff,stroke:#849,color:#2e1a44
     class Fitzv,ViewC,SsrOut,WasmOut lang
     class Prim,Layout,Client,LC,Stores,Parser,Diff rt
     class Kit,Theme,Helpers ui
@@ -80,47 +80,48 @@ flowchart TD
 ASCII fallback (same picture, no colors — for terminals and editors that do
 not render mermaid):
 
-```
-  🅐 LANGUAGE (repo d:\fitz, separate) — the .fitzv compiler
-  ┌──────────────────────────────────────────────────────────────┐
-  │  Foo.fitzv  ──►  view/ (lexer→parser→expand→check)            │
-  │                       │                                        │
-  │        ┌──────────────┴───────────────┐                        │
-  │        ▼ SSR emitter                   ▼ client-WASM emitter    │
-  │  classic Fitz:                    standalone Rust crate        │
-  │  @live_component / @render_for /  (wasm-bindgen + web-sys)     │
-  │  @on  + auto flv_register                                      │
-  └────────┬─────────────────────────────────┬───────────────────┘
-           │ registers into                   │ (offline widgets)
-           ▼                                   ▼
-  🅑 FRAMEWORK RUNTIME — src/lib.fitz (ONE file)
-  ┌──────────────────────────────────────────────────────────────┐
-  │  HTML primitives: Html · html · raw_html · flv · h_join/…     │
-  │        │                                                       │
-  │        ▼                                                       │
-  │  live_layout / live_embed / html_response ──► LIVE_CLIENT_JS  │
-  │        (full doc + embedded ~30 LoC browser runtime)          │
-  │                                                                │
-  │  LiveComponent runtime:                                        │
-  │   flv_register · component[_with] · dispatch_component_events  │
-  │   · dispatch_to     ── keyed by "name:instance_id" ──►         │
-  │   COMPONENT_REGISTRY + COMPONENT_STATE_STORE (per connection)  │
-  │                                                                │
-  │  parse_html ──► Node tree ──► diff_html ──► Patch[]           │
-  │                 (6 ops + 3 keyed, LCS matching)                │
-  └──────────────────────────────────────────────────────────────┘
-           ▲ imports                          ▲ dual-target source
-           │                                   │
-  🅒 COMPANION UI — src/ui/
-  ┌──────────────────────────────────────────────────────────────┐
-  │  38 .fitzv presentational components (6 families)             │
-  │  + _wasm_showcase.fitzv (dual-target proof)                   │
-  │  + --flv-* theme tokens (theme.fitz)                          │
-  │  + .fitz render helpers (AppShell/Sidebar/Topbar/*_helpers)   │
-  └──────────────────────────────────────────────────────────────┘
+```text
+[A] LANGUAGE (Fitz language repo, separate) -- the .fitzv compiler
++----------------------------------------------------------------+
+| Foo.fitzv  -->  view/ (lexer -> parser -> expand -> check)     |
+|      |                                                         |
+|      +--> SSR emitter -> classic Fitz:                         |
+|      |      @live_component / @render_for / @on                |
+|      |      + auto-injected flv_register                       |
+|      +--> client-WASM emitter -> standalone Rust crate         |
+|             (wasm-bindgen + web-sys)                           |
++----------------------------------------------------------------+
+         | registers into              | (offline widgets)
+         v                             v
+[B] FRAMEWORK RUNTIME -- src/lib.fitz (ONE file)
++----------------------------------------------------------------+
+| HTML primitives: Html . html . raw_html . flv . h_join/...     |
+|      |                                                         |
+|      v                                                         |
+| live_layout / live_embed / html_response --> LIVE_CLIENT_JS    |
+|      (full doc + embedded ~30 LoC browser runtime)             |
+|                                                                |
+| LiveComponent runtime:                                         |
+|   flv_register . component[_with]                              |
+|   . dispatch_component_events . dispatch_to                    |
+|   -- keyed by "name:instance_id" -->                           |
+|   COMPONENT_REGISTRY + COMPONENT_STATE_STORE (per conn)        |
+|                                                                |
+| parse_html --> Node tree --> diff_html --> Patch[]             |
+|      (6 ops + 3 keyed, LCS matching)                           |
++----------------------------------------------------------------+
+         ^ imports                     ^ dual-target source
+         |                             |
+[C] COMPANION UI -- src/ui/
++----------------------------------------------------------------+
+| 38 .fitzv presentational components (6 families)               |
+|   + _wasm_showcase.fitzv (dual-target proof)                   |
+|   + --flv-* theme tokens (theme.fitz)                          |
+|   + .fitz render helpers (AppShell/Sidebar/Topbar/*_helpers)   |
++----------------------------------------------------------------+
 
-  your app: @get + @ws loop + @server  ──► layout + LiveComponents ──► diff
-  around it: examples/ · docs site (mkdocs→Pages) · VSCode extension
+your app: @get + @ws loop + @server  -->  layout + LiveComponents
+around it: examples/ . docs site (mkdocs->Pages) . VSCode ext
 ```
 
 ---
@@ -160,28 +161,28 @@ sequenceDiagram
 
 ASCII fallback:
 
-```
+```text
 Browser                     Server (@get / @ws + lib.fitz)
-   │   GET /                    │
-   │──────────────────────────►│  component(...) → live_layout(...)
-   │◄──────────────────────────│  html_response: full HTML + LIVE_CLIENT_JS
-   │   (real first paint)       │
-   │                            │
-   │   WS connect               │
-   │──────────────────────────►│
-   │   onopen: __flv_init       │  (query params → payload: ?lang, ?uuid)
-   │──────────────────────────►│
-   │                            │
-   │   [data-flv-*] event       │
-   │   {event, payload}         │
-   │──────────────────────────►│  dispatch_component_events(frame)
-   │                            │    → mutate COMPONENT_STATE_STORE
-   │                            │  new_html = component(...).raw
-   │                            │  patches  = diff_html(last, new_html)
-   │◄──────────────────────────│  LiveFrame {html, patches}
-   │  applyPatches(root, …)     │
-   │  (index/key walk;          │
-   │   fallback outerHTML)      │
+  |  GET /                  |
+  |------------------------>| component(...) -> live_layout(...)
+  |<------------------------| html_response: full HTML + LIVE_CLIENT_JS
+  |  (real first paint)     |
+  |                         |
+  |  WS connect             |
+  |------------------------>|
+  |  onopen: __flv_init     | (query params -> payload: ?lang, ?uuid)
+  |------------------------>|
+  |                         |
+  |  [data-flv-*] event     |
+  |  {event, payload}       |
+  |------------------------>| dispatch_component_events(frame)
+  |                         |   -> mutate COMPONENT_STATE_STORE
+  |                         | new_html = component(...).raw
+  |                         | patches  = diff_html(last, new_html)
+  |<------------------------| LiveFrame {html, patches}
+  |  applyPatches(root, ...)|
+  |  (index/key walk;       |
+  |   fallback outerHTML)   |
 ```
 
 **Where the pieces live** (all in `src/lib.fitz`):
@@ -233,7 +234,7 @@ target**, not of fitz-liveviews. There, the compiler emits a server-painted
 HTML contract (with `<!--fr-->`/`<!--fi-->` comment markers + a
 `<script id="__flv_state_*">`) and the WASM crate *adopts* that DOM at boot
 instead of rebuilding it — preserving live inputs and killing the flash. That
-lives in `d:\fitz/src/view/codegen_wasm.rs`; this framework's runtime never
+lives in the language repo's `src/view/codegen_wasm.rs`; this framework's runtime never
 paints those markers (its own HTML parser doesn't even allow comments inside
 the LiveView root). If you compile a companion component with
 `fitz build --target wasm-client`, hydration is a language concern; if you use
@@ -385,7 +386,7 @@ for the `view/` compiler internals.
 | Example apps | `examples/` (counter, chat, kanban, dashboard, **admin** flagship, gallery, wasm-gallery, course) |
 | Docs site source | `docs/` (mkdocs Material → GitHub Pages, also builds the client-WASM live gallery under `/live/`) |
 | VSCode extension | `editors/vscode/` (injection grammar + 71 snippets, `.vsix` per release) |
-| The `.fitzv` compiler + HTTP/WS runtime | the **language** repo `d:\fitz` (`src/view/`, `src/http.rs`) |
+| The `.fitzv` compiler + HTTP/WS runtime | the **[language repo](https://github.com/Thegreekman76/fitz)** (`src/view/`, `src/http.rs`) |
 
 ---
 
