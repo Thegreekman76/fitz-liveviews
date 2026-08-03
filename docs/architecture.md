@@ -67,10 +67,12 @@ flowchart TD
     Docs["docs site (mkdocs Material → Pages)<br/>+ client-WASM live gallery"]
     Ext["VSCode extension<br/>injection grammar + 71 snippets"]
 
-    classDef lang fill:#e0e8ff,stroke:#446,color:#1a2a4a
-    classDef rt fill:#dff5dd,stroke:#3a8a3a,color:#14401a
-    classDef ui fill:#fff5dd,stroke:#aa8,color:#4a3a10
-    classDef tool fill:#f0e8ff,stroke:#849,color:#2e1a44
+    %% stroke-only: Material paints node fill + label with its own
+    %% light/dark contrast; each layer is distinguished by border color.
+    classDef lang stroke:#5b7fff,stroke-width:2px
+    classDef rt stroke:#3fb950,stroke-width:2px
+    classDef ui stroke:#d29922,stroke-width:2px
+    classDef tool stroke:#a371f7,stroke-width:2px
     class Fitzv,ViewC,SsrOut,WasmOut lang
     class Prim,Layout,Client,LC,Stores,Parser,Diff rt
     class Kit,Theme,Helpers ui
