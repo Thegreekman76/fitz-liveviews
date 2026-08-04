@@ -1,8 +1,8 @@
 {
   "name": "fitz-liveviews",
   "displayName": "Fitz LiveViews",
-  "description": "HTML highlighting and snippets for Fitz LiveViews templates (html(\"\"\"...\"\"\")).",
-  "version": "0.25.0",
+  "description": "Syntax highlighting for Fitz LiveViews: `.fitzv` single-file components (template/state/event/style, hydrate marker) and `html(\"\"\"...\"\"\")` templates in classic `.fitz`.",
+  "version": "0.31.0",
   "publisher": "thegreekman76",
   "license": "MIT",
   "icon": "icon.png",
@@ -34,6 +34,19 @@
     "thegreekman76.fitz-language"
   ],
   "contributes": {
+    "languages": [
+      {
+        "id": "fitzv",
+        "aliases": [
+          "Fitz View",
+          "fitzv"
+        ],
+        "extensions": [
+          ".fitzv"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
     "grammars": [
       {
         "scopeName": "fitz.liveviews.injection",
@@ -43,6 +56,15 @@
         ],
         "embeddedLanguages": {
           "meta.embedded.block.html.fitz": "html"
+        }
+      },
+      {
+        "language": "fitzv",
+        "scopeName": "source.fitzv",
+        "path": "./syntaxes/fitzv.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.block.html.fitzv": "html",
+          "source.css": "css"
         }
       }
     ],

@@ -1,0 +1,213 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Fitz View (.fitzv)",
+  "scopeName": "source.fitzv",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#component-decl" },
+    { "include": "#imports" },
+    { "include": "#block-keywords" },
+    { "include": "#event-decl" },
+    { "include": "#template" },
+    { "include": "#style" },
+    { "include": "#fitz-fallback" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.double-slash.fitzv",
+      "match": "//.*$"
+    },
+    "component-decl": {
+      "comment": "`component <Name> [hydrate] {` — the hydrate marker opts a tree into SSR->client hydration (language Phase 11.12).",
+      "match": "\\b(component)\\s+([A-Z][A-Za-z0-9_]*)(?:\\s+(hydrate))?\\b",
+      "captures": {
+        "1": { "name": "keyword.control.component.fitzv" },
+        "2": { "name": "entity.name.type.component.fitzv" },
+        "3": { "name": "storage.modifier.hydrate.fitzv" }
+      }
+    },
+    "imports": {
+      "comment": "`from <path> import <names> [as <alias>]`",
+      "match": "\\b(from)\\b|\\b(import)\\b|\\b(as)\\b",
+      "captures": {
+        "1": { "name": "keyword.control.import.fitzv" },
+        "2": { "name": "keyword.control.import.fitzv" },
+        "3": { "name": "keyword.control.import.fitzv" }
+      }
+    },
+    "block-keywords": {
+      "comment": "State/derived block introducers.",
+      "match": "\\b(state|derived)\\b",
+      "name": "keyword.control.block.fitzv"
+    },
+    "event-decl": {
+      "comment": "`event <name>(...)` handler declaration.",
+      "match": "\\b(event)\\s+([a-z_][A-Za-z0-9_]*)",
+      "captures": {
+        "1": { "name": "keyword.control.event.fitzv" },
+        "2": { "name": "entity.name.function.event.fitzv" }
+      }
+    },
+    "style": {
+      "comment": "`<style scoped>` / `<style global>` — CSS body embedded.",
+      "begin": "(<)(style)(?:\\s+(scoped|global))?\\s*(>)",
+      "end": "(</)(style)\\s*(>)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.fitzv" },
+        "2": { "name": "entity.name.tag.style.fitzv" },
+        "3": { "name": "storage.modifier.style-scope.fitzv" },
+        "4": { "name": "punctuation.definition.tag.end.fitzv" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.fitzv" },
+        "2": { "name": "entity.name.tag.style.fitzv" },
+        "3": { "name": "punctuation.definition.tag.end.fitzv" }
+      },
+      "contentName": "source.css",
+      "patterns": [{ "include": "source.css" }]
+    },
+    "template": {
+      "comment": "`<template>...</template>` — HTML with Fitz interpolation + control-flow directives + component/slot composition.",
+      "begin": "(<)(template)\\s*(>)",
+      "end": "(</)(template)\\s*(>)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.fitzv" },
+        "2": { "name": "entity.name.tag.template.fitzv" },
+        "3": { "name": "punctuation.definition.tag.end.fitzv" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.fitzv" },
+        "2": { "name": "entity.name.tag.template.fitzv" },
+        "3": { "name": "punctuation.definition.tag.end.fitzv" }
+      },
+      "name": "meta.embedded.block.html.fitzv",
+      "patterns": [
+        { "include": "#html-comment" },
+        { "include": "#template-directive" },
+        { "include": "#component-tag" },
+        { "include": "#slot-tag" },
+        { "include": "#html-tag" },
+        { "include": "#interpolation" },
+        { "include": "#html-entity" }
+      ]
+    },
+    "template-directive": {
+      "comment": "`{#if ...}` / `{#for x in xs}` / `{#else}` / `{/if}` / `{/for}` control-flow directives.",
+      "begin": "(\\{)(#if|#for|#else|/if|/for)",
+      "end": "(\\})",
+      "beginCaptures": {
+        "1": { "name": "punctuation.section.embedded.begin.fitzv" },
+        "2": { "name": "keyword.control.directive.fitzv" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.section.embedded.end.fitzv" }
+      },
+      "patterns": [
+        { "match": "\\b(in)\\b", "name": "keyword.control.directive.fitzv" },
+        { "include": "source.fitz" }
+      ]
+    },
+    "component-tag": {
+      "comment": "`<Child ... />` — a composed component (capitalised tag name).",
+      "begin": "(</?)([A-Z][A-Za-z0-9_]*)",
+      "end": "(/?>)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.fitzv" },
+        "2": { "name": "entity.name.type.component.fitzv" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.end.fitzv" }
+      },
+      "patterns": [{ "include": "#html-attribute" }]
+    },
+    "slot-tag": {
+      "comment": "`<slot />` / `<slot name=\"x\" />` composition holes.",
+      "begin": "(</?)(slot)\\b",
+      "end": "(/?>)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.fitzv" },
+        "2": { "name": "keyword.control.slot.fitzv" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.end.fitzv" }
+      },
+      "patterns": [{ "include": "#html-attribute" }]
+    },
+    "html-comment": {
+      "name": "comment.block.html.fitzv",
+      "begin": "<!--",
+      "end": "-->"
+    },
+    "html-tag": {
+      "name": "meta.tag.html.fitzv",
+      "begin": "(</?)([a-zA-Z][a-zA-Z0-9-]*)",
+      "end": "(/?>)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.html" },
+        "2": { "name": "entity.name.tag.html" }
+      },
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.end.html" }
+      },
+      "patterns": [{ "include": "#html-attribute" }]
+    },
+    "html-attribute": {
+      "patterns": [
+        {
+          "comment": "Fitz event decorators on elements/components (`@click`, `@input`, ...).",
+          "match": "(@)([a-zA-Z_][a-zA-Z0-9_]*)",
+          "name": "entity.other.attribute-name.event.fitzv"
+        },
+        {
+          "comment": "`data-flv-*` framework directives.",
+          "match": "\\b(data-flv-[a-zA-Z0-9_-]*)(=)?",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.liveviews.fitzv" },
+            "2": { "name": "punctuation.separator.key-value.html" }
+          }
+        },
+        {
+          "comment": "`key`/`slot` reserved composition attributes.",
+          "match": "\\b(key|slot)(=)",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.reserved.fitzv" },
+            "2": { "name": "punctuation.separator.key-value.html" }
+          }
+        },
+        {
+          "match": "\\b([a-zA-Z][a-zA-Z0-9-]*)(=)?",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.html" },
+            "2": { "name": "punctuation.separator.key-value.html" }
+          }
+        },
+        {
+          "name": "string.quoted.double.html.fitzv",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            { "include": "#interpolation" },
+            { "include": "#html-entity" }
+          ]
+        }
+      ]
+    },
+    "interpolation": {
+      "comment": "`{expr}` interpolation — expression highlighted with the classic Fitz grammar.",
+      "begin": "(?<!\\\\)\\{",
+      "end": "\\}",
+      "beginCaptures": { "0": { "name": "punctuation.section.embedded.begin.fitzv" } },
+      "endCaptures": { "0": { "name": "punctuation.section.embedded.end.fitzv" } },
+      "name": "meta.embedded.expression.fitzv",
+      "patterns": [{ "include": "source.fitz" }]
+    },
+    "html-entity": {
+      "name": "constant.character.entity.html",
+      "match": "&(#[0-9]+|#x[0-9a-fA-F]+|[a-zA-Z0-9]+);"
+    },
+    "fitz-fallback": {
+      "comment": "Everything else (state field types + defaults, event bodies, decorators, expressions) is classic Fitz — defer to its grammar.",
+      "patterns": [{ "include": "source.fitz" }]
+    }
+  }
+}
