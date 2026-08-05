@@ -402,7 +402,7 @@ bloqueantes):
 - Persistent child state (chat: `MessageInput` retains draft
   mientras se navega — hoy pierde en re-renders).
 
-## Phase 8.9 — Flagship showcase: Admin ABM ⭐ (planned, 2026-07-19)
+## Phase 8.9 — Flagship showcase: Admin ABM ⭐ (✅ BUILT — S1-S10)
 
 The flagship demo for the public launch (goal: visibility / GitHub
 stars). A complete backend **admin panel** — login, dashboard,
@@ -436,6 +436,19 @@ engine that lifts Phase 9's component shortlist from 8 basics to
   becomes a core fix or documented debt.
 
 Full detail in [`docs/showcase-admin-abm-plan.md`](docs/showcase-admin-abm-plan.md).
+
+> **✅ BUILT — slices S1-S10 (2026-07-22 →).** The full app lives in
+> `examples/admin/` (login with Argon2id + JWT cookie, dashboard with real
+> Postgres counts, responsive shell, i18n ES/EN, dockerized). Shipped slice
+> by slice: S1 login+shell+theme+dashboard · S2 live DataGrid (v0.6.0) · S3
+> filters/sort/search/pagination · S4 rich forms + cascade + permissions
+> (v0.7.0/v0.8.0) · S5 selection/multi-delete/CSV export · S6 grouping + tree
+> · S7-S8 component completion (chart, expandable rows, tabs, stepper, nested
+> menu, tooltip, rating, …) · S9 i18n (lib v0.10.0 `__flv_init`) · S10 refactor
+> to per-connection LiveComponents (lib v0.11.0 `component_with`). It became
+> the extraction engine for the whole Companion UI library below and now
+> consumes it, validated bit-for-bit `fitz run` ↔ native binary. The slice
+> plan below is kept as the design record.
 
 > **✅ Companion UI adoption + dogfooding (2026-07-29, v0.15.0).** The
 > employee form adopted the packaged primitives — `Input` (nombre / email /
@@ -504,7 +517,7 @@ via a hand-written attribute.
 **Secondary reliability debts still to schedule (deferred)**: reconnect with
 state replay, backpressure on the outbox, and multi-instance coordination.
 
-## Phase 9 — Companion UI library 🧩
+## Phase 9 — Companion UI library 🧩 (✅ COMPLETE — Sessions A-H, v0.24.0)
 
 **Trigger**: post-migrations completas de Phase 8 **+ the Admin ABM
 flagship showcase (Phase 8.9)**. Emergent de los patterns extraídos en
@@ -558,6 +571,22 @@ real, no por completeness.
 > companion UI across the Admin ABM showcase. Card and Input still compose
 > `icon(...)` in the host; Modal focus-trap / ESC and the `themes/*.css` split remain
 > deferred.
+>
+> **✅ Phase 9 COMPLETE — Sessions A-H, lib v0.24.0 (2026-07-30).** After
+> Cut 1 / Cut 2 / 9.C, the rest of the shortlist shipped one release per
+> session, each extracted from the Admin ABM + adopted + `fitz run` ↔ binary
+> parity: **Shell** family (Breadcrumbs v0.17, ThemeToggle v0.18, Sidebar +
+> Topbar + AppShell v0.19); **Dashboard** (StatCard / BarChart / ProgressBar
+> v0.20); **DataGrid** (DataGrid / SortableHeader / GridToolbar / GridFilters
+> v0.21); **Forms inputs** (Textarea / Select / Checkbox / CheckboxGroup /
+> RadioGroup / Rating / DatePicker v0.22); **Forms composite** (FormLayout /
+> FormRow / GroupSelect / MultiSelect / Tabs / Stepper / TreeView v0.23);
+> **Feedback** (Chip / CountBadge / Tooltip / Divider / ExpansionPanel v0.24).
+> **~40 components + 11 helper/theme modules** in `src/ui/*`; gallery `@test`
+> 227. The 9.A/9.B checklist below is the original plan — kept as record.
+> Remaining Phase-9-adjacent work: the **dual-target SSR→WASM** client build
+> (CW.7/CW.9 — a platform-surface expansion, blocked by the Fitz core wasm
+> envelope), not the SSR library itself.
 
 - [ ] **9.A** **Extract & design decisions** (~1 sesión, docs-only):
     - Consolidar `docs/components-candidates.md` (poblado en 8.6)

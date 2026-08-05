@@ -1,6 +1,14 @@
 # Admin ABM — flagship showcase plan
 
-**Status**: planned (registered 2026-07-19). Not started.
+**Status**: ✅ **BUILT** (slices S1–S10, 2026-07-22 →). The app lives in
+`examples/admin/` (PostgreSQL + Docker, SSR-first responsive, i18n ES/EN,
+refactored to per-connection LiveComponents in S10). It became the
+**extraction engine** for the entire Companion UI library (Phase 9, ~40
+components) and now consumes it end-to-end, validated bit-for-bit
+`fitz run` ↔ native binary against Postgres. This doc is kept as the
+original design record; the slice-by-slice detail lives in the CHANGELOG
+(v0.6.0 → v0.11.0) and the example's own README. Remaining: polish +
+further LiveComponents refactor slices.
 
 **One-liner**: a complete backend **admin panel** — login, dashboard,
 collapsible menu, theme switch, and a rich **ABM/CRUD** (grid + forms)

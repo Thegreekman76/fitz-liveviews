@@ -5,6 +5,27 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.31.0] — 2026-08-03 — VSCode grammar for `.fitzv` + `hydrate` marker highlighting
+
+**Minor bump** — the VSCode extension gains a TextMate grammar for `.fitzv`
+single-file components, including highlighting for the `hydrate` marker (the
+Fitz core v0.31.0 SSR-isomorphic hydration opt-in). No change to the
+`fitz_liveviews` library API — this is editor tooling.
+
+> **Version note**: v0.26.0 → v0.30.0 were never released. The `fitz.toml`
+> version jumped straight from v0.25.0 to v0.31.0 to track the Fitz core
+> version. The work in between landed as examples/docs commits without a
+> library API bump: CW.6 dual-target research, CW.7 client-WASM showcase
+> (grown to 15 components), CW.8 cross-dir/dep wasm imports, the 7-part blog
+> series (EN + ES), the whole-framework `docs/architecture.md`, and the
+> `@rpc` server-functions coverage.
+
+### Added
+
+- **`.fitzv` grammar** in the VSCode extension — syntax highlighting for the
+  single-file component blocks (`component` / `state` / `event` /
+  `<template>` / `<style scoped>`), including the `hydrate` marker.
+
 ## [v0.25.0] — 2026-07-30 — Client-WASM live gallery
 
 **Minor bump** — ships a **live, interactive component gallery** hosted on GitHub
