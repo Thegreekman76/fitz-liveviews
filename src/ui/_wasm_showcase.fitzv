@@ -19,9 +19,18 @@ from ProgressBar import progress_bar as ProgressBar
 from Spinner import spinner as Spinner
 from Button import button as Button
 from GridToolbar import grid_toolbar as GridToolbar
+from Select import select as Select
+from RadioGroup import radio_group as RadioGroup
+from BarChart import bar_chart as BarChart
+from form_input_helpers import FieldOption
+from chart_helpers import Bar
 
 component WasmShowcase {
-  state { heading: Str = "Companion UI - live" }
+  state {
+    heading: Str = "Companion UI - live"
+    opts: List<FieldOption> = [FieldOption { label: "Small", value: "s", on: true }, FieldOption { label: "Medium", value: "m", on: false }, FieldOption { label: "Large", value: "l", on: false }]
+    bars: List<Bar> = [Bar { label: "Q1", value: 40, pct: 80 }, Bar { label: "Q2", value: 55, pct: 100 }, Bar { label: "Q3", value: 30, pct: 60 }]
+  }
 
   <template>
     <div class="sc">
@@ -61,6 +70,13 @@ component WasmShowcase {
       </div>
       <div class="row col">
         <GridToolbar search_label="Search" placeholder="Filter rows..." clear_label="Clear" />
+      </div>
+      <div class="row col">
+        <Select name="size" label="Size" options="{opts}" />
+        <RadioGroup name="size2" options="{opts}" />
+      </div>
+      <div class="row col">
+        <BarChart bars="{bars}" />
       </div>
     </div>
   </template>

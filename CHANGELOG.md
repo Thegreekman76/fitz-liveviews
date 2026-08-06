@@ -5,6 +5,37 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.36.0] — 2026-08-06 — CW.9 iter2: live showcase grows to 20 dual-target components (+ sweep: 36/38 dual-target)
+
+**Minor bump** (tracks Fitz core **v0.36.0**). A sweep of the remaining
+companion components found **16 of 18** already compile to client-WASM;
+three small core fixes (helper-body list `for`/`.push`, interpolated
+non-primitive props, `List<nominal>` state defaults) close the gaps to
+**populate** the list-driven components. The live composed showcase
+(`src/ui/_wasm_showcase.fitzv`, bin `showcase`) now runs **20 dual-target
+components** with real data, all from their exact server source.
+
+### Changed
+
+- **`_wasm_showcase.fitzv`** — adds `Select`, `RadioGroup`, and `BarChart`
+  **with real data**: the showcase holds `List<FieldOption>` + `List<Bar>`
+  state defaults and passes them as interpolated props
+  (`<Select options="{opts}" />`, `<BarChart bars="{bars}" />`). Together
+  with the `Button` + `GridToolbar` added in v0.35.x, the showcase is now 20
+  components (was 15).
+
+### Notes
+
+- **36 of 38 companion components dual-target** to wasm. The two exceptions,
+  **Pager** and **ConfirmDialog**, are *controlled* components: their
+  buttons fire fall-through events to the parent's `@ws` loop
+  (`data-flv-click="page_prev"` / `confirm_delete`, not local component
+  events), which have no standalone-wasm equivalent without event-bubbling
+  wiring. They stay SSR-appropriate.
+- Follow-ups (fitz core): interpolated props into a `Nullable<T>` target
+  (`Some(...)` wrap); filling omitted fields in a `List<nominal>` default
+  from the nominal's declared defaults.
+
 ## [v0.35.0] — 2026-08-06 — CW.9: five markup/list companion components dual-target (SSR + client-WASM)
 
 **Minor bump** (tracks Fitz core **v0.35.0**). Five companion UI components
