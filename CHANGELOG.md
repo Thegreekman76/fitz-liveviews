@@ -5,6 +5,36 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.37.0] — 2026-08-06 — CW.9 follow-ups: 38/38 companion components dual-target (Pager + ConfirmDialog unblocked)
+
+**Minor bump** (tracks Fitz core **v0.37.0**). The three residual CW.9 debts
+in the wasm emitter are closed in Fitz core (all confined to `src/view/`,
+byte-compat, no new `.fitzv` syntax): interpolated props into a `Nullable<T>`
+target now wrap `Some(...)`; `List<nominal>` state defaults fill omitted fields
+from the nominal's declared defaults; and `data-flv-click` fall-through events
+bubble to a composing parent's callback slot (with a view-checker relaxation
+that accepts `<Child @X />` when the child EMITS `X` via `data-flv-*`, not only
+when it declares `event X`). This **unblocks the two *controlled* components
+(`Pager`, `ConfirmDialog`)** whose buttons fire fall-through events — the
+companion UI now reaches **38 of 38 dual-target**.
+
+### Changed
+
+- **`src/ui/_wasm_showcase.fitzv`** — adds `Pager` (numbered buttons via
+  `page_range`, page 2 of 5) and `ConfirmDialog` (mounted closed) to the live
+  composed showcase, taking it to **22 components**. Both compile + render to
+  real WASM from their exact server source; mounted standalone (no `@ws` host
+  loop) their fall-through clicks are inert — they're presentational in the
+  gallery, fully controlled when composed under a server-driven parent.
+
+### Verified
+
+- Fitz core `cargo test --lib` **4020** (default) / **4181** (`--features lsp`);
+  `fitz test` of `examples/ui-gallery` **227/227** SSR green (the checker
+  relaxation only *relaxes* — nothing that passed before now fails). The
+  showcase (`examples/wasm-gallery`, bin `showcase`) compiles to real WASM via
+  `fitz build --target wasm-client` (`wasm-pack` → `:-) Done`).
+
 ## [v0.36.0] — 2026-08-06 — CW.9 iter2: live showcase grows to 20 dual-target components (+ sweep: 36/38 dual-target)
 
 **Minor bump** (tracks Fitz core **v0.36.0**). A sweep of the remaining

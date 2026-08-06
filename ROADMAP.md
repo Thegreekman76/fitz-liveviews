@@ -1036,20 +1036,38 @@ rationale + capability envelope in [`docs/client-wasm-plan.md`](docs/client-wasm
       (`opts: List<FieldOption> = [FieldOption { ... }]`; MVP: all fields must
       be specified). Result: **36 of 38 companion components dual-target**.
 
-      **Gallery status**: the live composed showcase
-      (`src/ui/_wasm_showcase.fitzv`, bin `showcase`) now runs **20 dual-target
-      components** with real data — `Button`, `GridToolbar`, and now `Select` /
-      `RadioGroup` / `BarChart` (fed `List<FieldOption>` / `List<Bar>` state as
-      interpolated props). The **two exceptions** are `Pager` and
-      `ConfirmDialog`: *controlled* components whose buttons fire fall-through
-      events to the parent's `@ws` loop (`data-flv-click="page_prev"` /
-      `confirm_delete`, not local events) — no standalone-wasm equivalent
-      without event-bubbling wiring. They stay SSR-appropriate.
+      **CW.9 follow-ups (fitz core v0.37.0)** — the three remaining residual
+      debts closed, all confined to `src/view/`, byte-compat, no new `.fitzv`
+      syntax:
+      1. **Interpolated props into a `Nullable<T>` target.** `<Badge
+         caption="{note}" />` with `caption: Str?` no longer defers: a
+         non-nullable source wraps `Some(...)`, an already-`Nullable` source
+         clones directly.
+      2. **Omitted fields in a `List<nominal>` default filled from the nominal's
+         declared defaults** (byte-accurate with SSR) — `options:
+         List<FieldOption> = [ FieldOption { label: "Red", value: "red" } ]`
+         drops `on: Bool = true` and it's filled with `true` (no more "missing
+         field" rustc error). Supplied fields keep the exact prior emit.
+      3. **Fall-through-event bubbling on wasm.** A `data-flv-click="page_prev"`
+         whose name isn't a local `event` fires the component's `__on_page_prev`
+         callback slot when a parent binds `<Ctrl @page_prev="..." />`, else no
+         listener is wired (inert standalone). The core view checker was relaxed
+         to accept `<Child @X />` when the child EMITS `X` via `data-flv-*` (not
+         only when it declares `event X`); a genuine typo still errors.
 
-      Remaining CW.9 follow-ups: interpolated props into a `Nullable<T>` target
-      (`Some(...)` wrap); filling omitted fields in a `List<nominal>` default
-      from the nominal's declared defaults; and fall-through-event bubbling on
-      wasm (would let `Pager`/`ConfirmDialog` dual-target inside a parent).
+      This **unblocks `Pager` and `ConfirmDialog`** — the two *controlled*
+      components (buttons fire fall-through events, not local events) — so the
+      companion UI reaches **38 of 38 dual-target**.
+
+      **Gallery status**: the live composed showcase
+      (`src/ui/_wasm_showcase.fitzv`, bin `showcase`) now composes **22
+      dual-target components** — `Select` / `RadioGroup` / `BarChart` (fed
+      `List<FieldOption>` / `List<Bar>` state as interpolated props) plus the
+      controlled `Pager` (numbered buttons via `page_range`, mounted standalone
+      so its fall-through clicks are inert) and `ConfirmDialog` (mounted closed).
+      Both compile + render to real WASM; wiring their fall-through events to a
+      parent needs a `@ws`-style host loop (server-side), so in the standalone
+      gallery they're presentational.
 
 ## Phase 11 — SSR-isomorphic hydration 💧 (core landed v0.31.0)
 

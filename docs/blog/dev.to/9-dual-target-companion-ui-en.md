@@ -1,7 +1,7 @@
 ---
 title: "Write it for the server, run it in the browser: dual-target UI components in Fitz"
 published: false
-description: The Fitz LiveViews companion UI is server-rendered. But the SAME `.fitzv` component now compiles to WebAssembly and runs in the browser too — icons, forms, charts — with no rewrite and no parallel version. 36 of 38 components dual-target from one source. Here's what it took.
+description: The Fitz LiveViews companion UI is server-rendered. But the SAME `.fitzv` component now compiles to WebAssembly and runs in the browser too — icons, forms, charts — with no rewrite and no parallel version. All 38 components dual-target from one source. Here's what it took.
 tags: webdev, rust, opensource, frontend
 series: FitzLiveViews
 cover_image:
@@ -14,8 +14,8 @@ canonical_url:
 > markup component like a `Button` (which renders an SVG icon) and a
 > list-driven one like a `Select` (fed `List<FieldOption>`) both go from
 > *server-only* to *runs-in-the-browser* by changing the compiler, not the
-> component. **36 of 38** components dual-target today; the live gallery
-> runs 20 of them. *(Part 9 of the FitzLiveViews series.)*
+> component. **38 of 38** components dual-target today; the live gallery
+> runs 22 of them. *(Part 9 of the FitzLiveViews series.)*
 
 Part 6 built the companion UI library — ~40 importable components,
 server-rendered, styled with scoped CSS, extracted from a real admin app.
@@ -86,31 +86,43 @@ in 1..pages { out.push(n) }`. That range `for` and a `.push` on a *local*
 list (not a state field) weren't supported in helper bodies. Small fix,
 now they are.
 
-## The sweep: 36 of 38
+## The sweep: 38 of 38
 
 With those in place, the honest measure: build *every* companion component
 to WASM and see what compiles. **16 of the 18 remaining** did with no
-changes at all. Adding the earlier markup/list work, **36 of 38**
-components dual-target — one source, server *and* browser.
+changes at all. Adding the earlier markup/list work got us to 36 of 38.
 
-The two that don't are the interesting ones. `Pager` and `ConfirmDialog`
-are **controlled** components: their buttons fire *fall-through* events
-(`data-flv-click="page_prev"`, `confirm_delete`) that aren't the
-component's own events — they bubble up to the parent's `@ws` loop, which
-does the real work. That's exactly right for a server-driven UI. But a
-fall-through event has no meaning in a standalone browser mount with no
-parent loop. So they stay SSR-appropriate — not a bug, a boundary.
+The two that held out were the interesting ones. `Pager` and
+`ConfirmDialog` are **controlled** components: their buttons fire
+*fall-through* events (`data-flv-click="page_prev"`, `confirm_delete`)
+that aren't the component's own events — they bubble up to the parent's
+`@ws` loop, which does the real work. A fall-through event had no meaning
+in a standalone browser mount with no parent loop.
+
+So we gave it one. A `data-flv-click` whose name isn't a local event now
+fires the component's callback slot when a composing parent binds it
+(`<Pager @page_prev="..." />`), and is a documented inert no-op when
+nobody does (standalone). The view checker was relaxed to accept that
+binding when the child *emits* the event via `data-flv-*` — not only when
+it declares it. With that, `Pager` and `ConfirmDialog` compile and render
+to WASM too: **38 of 38** — one source, server *and* browser.
+
+(Two more residual gaps closed in the same pass: interpolated props into a
+`Nullable<T>` target now wrap `Some(...)`, and a `List<nominal>` state
+default can omit fields — they fill from the nominal's declared defaults,
+byte-accurate with the server.)
 
 ## The payoff
 
-The live gallery now runs **20 companion components** compiled to
+The live gallery now runs **22 companion components** compiled to
 WebAssembly, in the browser, from their exact server source — badges,
 cards, alerts, inputs, a button with a real SVG icon, a select and radio
-group fed live options, a bar chart. No parallel client versions. You
-wrote them for the server; the compiler made them run in the browser too.
+group fed live options, a bar chart, and now the controlled `Pager` +
+`ConfirmDialog`. No parallel client versions. You wrote them for the
+server; the compiler made them run in the browser too.
 
 That's the whole pitch of a compiled, isomorphic language: the component
 is the component. The runtime is a compiler flag.
 
-*Next: fine-grained reactivity (so a live text input keeps its caret), and
-letting the controlled components bubble their events on the WASM side too.*
+*Next: fine-grained reactivity (so a live text input keeps its caret) —
+patch-in-place instead of naive re-render.*

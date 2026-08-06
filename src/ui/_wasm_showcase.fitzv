@@ -22,6 +22,8 @@ from GridToolbar import grid_toolbar as GridToolbar
 from Select import select as Select
 from RadioGroup import radio_group as RadioGroup
 from BarChart import bar_chart as BarChart
+from Pager import pager as Pager
+from ConfirmDialog import confirm_dialog as ConfirmDialog
 from form_input_helpers import FieldOption
 from chart_helpers import Bar
 
@@ -77,6 +79,15 @@ component WasmShowcase {
       </div>
       <div class="row col">
         <BarChart bars="{bars}" />
+      </div>
+      <div class="row col">
+        <!-- CW.9 follow-up — controlled components: their buttons use
+             `data-flv-click="page_prev"` (etc.), events that fall through to a
+             composing parent. Mounted standalone here (no `@event` wiring), so
+             the click handlers are inert, but they compile + render as WASM,
+             taking the companion UI to 38/38 dual-target. -->
+        <Pager page="2" total_pages="5" />
+        <ConfirmDialog title="Delete item?" message="This cannot be undone." confirm_label="Delete" cancel_label="Cancel" />
       </div>
     </div>
   </template>
