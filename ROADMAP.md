@@ -1025,10 +1025,16 @@ rationale + capability envelope in [`docs/client-wasm-plan.md`](docs/client-wasm
          constructs above.
       Independent of CW.8. Some components (DataGrid over server data, forms
       that submit server-side) will only ever render their *shell* client-side
-      — their behavior is intrinsically server-driven. **Next liveviews step**:
-      the five markup/list components above dual-target now — add them to the
-      live wasm gallery (a composed showcase), and sweep the remaining
-      presentational components for any last small envelope gaps.
+      — their behavior is intrinsically server-driven. **Gallery status**:
+      `Button` + `GridToolbar` are now in the live composed showcase
+      (`src/ui/_wasm_showcase.fitzv`, 17 dual-target components) — both use
+      static props, so no core change was needed. `Select` / `RadioGroup` /
+      `BarChart` compile to wasm standalone, but showing them **with data** in
+      the composed showcase needs two more core slices: interpolated
+      **non-primitive props** (`<Select options="{opts}" />` — the emit gate is
+      easy; the checker already allows it) **and** **`List<nominal>` state
+      defaults** (`opts: List<FieldOption> = [FieldOption { ... }]`, currently
+      rejected by `default_expr_to_rust`). That pair is the next CW.9 follow-up.
 
 ## Phase 11 — SSR-isomorphic hydration 💧 (core landed v0.31.0)
 

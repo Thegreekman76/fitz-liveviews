@@ -17,6 +17,8 @@ from Textarea import textarea as Textarea
 from DatePicker import date_picker as DatePicker
 from ProgressBar import progress_bar as ProgressBar
 from Spinner import spinner as Spinner
+from Button import button as Button
+from GridToolbar import grid_toolbar as GridToolbar
 
 component WasmShowcase {
   state { heading: Str = "Companion UI - live" }
@@ -51,6 +53,14 @@ component WasmShowcase {
         <Input name="email" label="Email" input_type="email" placeholder="you@example.com" hint="We never share it." />
         <Textarea name="bio" label="Bio" placeholder="Tell us about yourself" rows="3" />
         <DatePicker name="dob" label="Date of birth" />
+      </div>
+      <div class="row">
+        <Button label="Save" variant="primary" icon="check" />
+        <Button label="Delete" variant="danger" icon="trash" />
+        <Button label="Working" variant="secondary" loading="true" />
+      </div>
+      <div class="row col">
+        <GridToolbar search_label="Search" placeholder="Filter rows..." clear_label="Clear" />
       </div>
     </div>
   </template>
