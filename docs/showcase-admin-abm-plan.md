@@ -285,9 +285,9 @@ one schema migration for the new columns.
 > built**: Tabs + DatePicker + Textarea + Radio + GroupSelect landed in **S8a**
 > (below), and Tooltip / Stepper / Rating / ProgressBar / Spinner /
 > ExpansionPanel / Divider / nested Menu all shipped as part of the **Companion
-> UI extraction (Phase 9, v0.20–v0.24)**. See the README
-> [component catalog](../README.md#companion-ui-library) and CHANGELOG for the
-> complete, current list (~40 components).
+> UI extraction (Phase 9, v0.20–v0.24)**. See the
+> [component catalog](ui-components.md) and CHANGELOG for the complete,
+> current list (~40 components).
 
 ### S8 — Form enrichment + component completion (in progress)
 
