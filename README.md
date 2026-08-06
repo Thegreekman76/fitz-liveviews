@@ -9,19 +9,23 @@
 
   [![CI](https://github.com/Thegreekman76/fitz-liveviews/actions/workflows/ci.yml/badge.svg)](https://github.com/Thegreekman76/fitz-liveviews/actions/workflows/ci.yml)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-  [![Status: Companion UI complete](https://img.shields.io/badge/Status-Companion%20UI%20v0.24.0-brightgreen.svg)](ROADMAP.md)
+  [![Status: v0.31.0](https://img.shields.io/badge/Status-Companion%20UI%20%2B%20Client--WASM%20v0.31.0-brightgreen.svg)](ROADMAP.md)
 </div>
 
 ---
 
-## Status: ✅ Companion UI library complete — v0.24.0
+## Status: ✅ Companion UI complete · Client-WASM gallery live · SSR hydration — v0.31.0
 
-**Requires Fitz core v0.29.1+.** The **companion UI library is complete** — ~35
-importable components under `fitz_liveviews.ui.*` covering the whole surface of a
-real back-office app, every one extracted from (and adopted by) the
-[Admin ABM showcase](examples/admin/) with bit-for-bit `fitz run` ↔ native-binary
-parity. See the **[component catalog](#companion-ui-library)** below
-and the full reference in [`docs/ui-components.md`](docs/ui-components.md).
+**Requires Fitz core v0.31.0+.** Three things are true today: the **companion UI
+library is complete** (~40 importable components under `fitz_liveviews.ui.*`
+covering the whole surface of a real back-office app, every one extracted from —
+and adopted by — the [Admin ABM showcase](examples/admin/) with bit-for-bit
+`fitz run` ↔ native-binary parity); a **live client-WASM component gallery** runs
+in the browser on GitHub Pages (no server, no WebSocket); and **SSR-isomorphic
+hydration** landed in the core (v0.31.0), so a `.fitzv` can server-render for
+first paint and then have a WASM app adopt that exact DOM. See the
+**[component catalog](#companion-ui-library)** below and the full reference in
+[`docs/ui-components.md`](docs/ui-components.md).
 
 Everything you need to ship a real-time UI works end-to-end today:
 
@@ -37,12 +41,14 @@ Everything you need to ship a real-time UI works end-to-end today:
 - **Phase 8 (Fitz core v0.21.0)** 🎨 — All 4 examples migrated to `.fitzv` single-file component syntax. `Counter.fitzv`, `MetricTile.fitzv`, `ChatRoom.fitzv`, `CardEditor.fitzv` shipped with state + events + `<template>` blocks compact in single files. Chat migration surface 6 view pipeline gaps in Fitz core (V-1 to V-6, closed same-session via §9.cc + §9.dd + §9.ee — feedback loop of hours). Component patterns catalog ready for Phase 9 (Companion UI library)
 - **K-1 + K-2 (v0.5.0)** 🔗 — Event bubbling substitute via `dispatch_to(component_name, instance_id, event, payload)` + direct state read/write via `component_state(name, id)` + `set_component_state(name, id, new_state)`. Enables child → parent dispatch patterns (proven via `k12_canonical_child_dispatches_to_parent_via_dispatch_to` test). Unblocks full `Board.fitzv` kanban migration. First new public API since v0.4.0.
 - **Phase 9 — Companion UI library (v0.12.0 → v0.24.0)** 🧩 — importable components under `fitz_liveviews.ui.*` (dotted sub-path). **Cut 1** (v0.12): Pager / Toast / ConfirmDialog + `--flv-*` theme. **Cut 2** (v0.13): the 8 generic primitives — Button / Card / Badge / Alert / Input / Spinner / Icon / Modal. **9.C** (v0.14): the bundled examples refactored onto the primitives. Then the whole Admin ABM was mined into the package, one family per release: **Shell** (v0.17–0.19: Breadcrumbs / ThemeToggle / Sidebar / Topbar / AppShell), **Dashboard** (v0.20: StatCard / BarChart / ProgressBar), **DataGrid** (v0.21: DataGrid / SortableHeader / GridToolbar / GridFilters), **Forms inputs** (v0.22: Textarea / Select / Checkbox / CheckboxGroup / RadioGroup / Rating / DatePicker), **Forms composite** (v0.23: FormLayout / FormRow / GroupSelect / MultiSelect / Tabs / Stepper / TreeView), and **Feedback** (v0.24: Chip / CountBadge / Tooltip / Divider / ExpansionPanel). Every family is adopted by the Admin ABM with `fitz run` ↔ binary parity + a growing gallery test suite (227 tests). **The extraction is complete** — see the [catalog](#companion-ui-library).
+- **Phase 10 — Client-WASM live gallery (v0.25.0)** 🌐 — a live, interactive component gallery hosted on [GitHub Pages](https://thegreekman76.github.io/fitz-liveviews/live/): `.fitzv` components compiled to **WebAssembly**, running in the visitor's browser with no server and no WebSocket, composed into one ~34 KB (gzipped) bundle. CW.6–CW.8 (core v0.29.x) then relaxed dual-targeting so **15 presentational SSR components run client-side from their exact server source** — no hand-written parallel version. The remaining SSR-only components are gated by the wasm capability **envelope (CW.9)**, not by import resolution.
+- **Phase 11 — SSR-isomorphic hydration (Fitz core v0.31.0)** 💧 — the same `.fitzv` paints on the server for first paint, then a WASM app **adopts that exact DOM** via `hydrate()` instead of `mount()` (opt-in with the `hydrate` marker on the root component). Landed in the core with four examples (`hydrate`, `hydrate-mixed`, `hydrate-regions`, `hydrate-composition`) + VSCode grammar highlighting for the marker. See the blog post [SSR + hydration](docs/blog/dev.to/8-ssr-hydration-en.md) for the walkthrough.
 
 See [ROADMAP.md](ROADMAP.md) for what is coming next — with the companion UI
-extraction complete, the nortes are the **Admin ABM flagship showcase**
-(the reference back-office app that drove every component) and **client-side
-dynamic capabilities** (Phase 11.7 — `.fitzv` compiled to WASM so some components
-run without a round-trip).
+extraction complete, the client-WASM gallery live, and hydration landed, the
+nortes are **CW.9** (growing the wasm envelope so more SSR components dual-target
+for free) and the **reliability debts** (reconnect with state replay, outbox
+backpressure, multi-instance coordination) ahead of a public launch.
 
 ---
 
@@ -291,15 +297,16 @@ to a single `code --install-extension thegreekman76.fitz-liveviews`.
 
 ## Contributing
 
-Way too early — the project is in Phase 0 (design and bootstrap). If you
-want to follow along:
+The MVP works end-to-end (SSR + companion UI + client-WASM gallery +
+hydration). The project is pre-1.0 and moving fast, but it's usable today.
+If you want to follow along or help:
 
 - ⭐ Star the repo
 - 👀 Watch releases
 - 💬 Open a discussion if you have ideas about design decisions
   (see the *Design decisions still open* section of [ROADMAP.md](ROADMAP.md))
 
-Once we reach Phase 2 (working MVP), PRs and issues will be welcome.
+Issues and PRs are welcome — expect the API to still shift before 1.0.
 
 ## Credits
 

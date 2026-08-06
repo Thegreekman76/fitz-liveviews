@@ -5,6 +5,39 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.35.0] — 2026-08-06 — CW.9: five markup/list companion components dual-target (SSR + client-WASM)
+
+**Minor bump** (tracks Fitz core **v0.35.0**). Five companion UI components
+that were SSR-only now compile to **client-WASM from their exact server
+source**, with their SSR output byte-identical (all 227 ui-gallery tests
+green). This lands on top of the CW.9 wasm-envelope work in the core
+(`src/view/`): the raw-HTML sink + `Html` shim, a bool field access in a
+`{#if}` condition, `for x in <list>` in helper bodies, and a fn-alias fix
+in the wasm loader.
+
+### Changed
+
+- **`Button.fitzv`** — the icon interpolation is now
+  `{raw_html(render_icon(icon).raw)}` (the explicit raw-HTML marker). Renders
+  the SVG unescaped on both targets: verbatim on SSR (the marker strips to
+  `{...}`) and via `set_inner_html` on wasm. `render_icon` returns `Html`,
+  which the core's wasm emitter models with its `__FlvHtml` shim.
+- **`GridToolbar.fitzv`** — the `{actions}` slot is now `{raw_html(actions)}`
+  so the host-provided action markup renders raw on the wasm target too
+  (byte-identical on SSR).
+- **`Select.fitzv` / `RadioGroup.fitzv`** — now dual-target **unchanged**:
+  the core learned to lower `{#if o.on}` (a `Bool` field on a `{#for}` loop
+  var of `List<FieldOption>`).
+- **`BarChart.fitzv`** — now dual-targets **unchanged**: the core learned to
+  lower `for b in bars` (a list `for`) in the `bar_scale` helper body.
+
+### Docs
+
+- README badge/status refreshed to v0.35.0 (Companion UI + client-WASM +
+  hydration). Phase 0 marked done, **Phase 11 — SSR-isomorphic hydration**
+  formalized, and the CW.9 block updated to reflect the five dual-target
+  components. `showcase-admin-abm-plan.md` stale "not built" list corrected.
+
 ## [v0.31.0] — 2026-08-03 — VSCode grammar for `.fitzv` + `hydrate` marker highlighting
 
 **Minor bump** — the VSCode extension gains a TextMate grammar for `.fitzv`

@@ -280,6 +280,15 @@ and virtual tables are out of scope for an admin panel. → **S8 anchors on form
 enrichment**: Tabs + DatePicker + Textarea + Radio + GroupSelect (reporta_a),
 one schema migration for the new columns.
 
+> **UPDATE (superseded)** — this dated cross-check is a point-in-time record.
+> Everything listed above as "Still open" / "Not yet built" was **subsequently
+> built**: Tabs + DatePicker + Textarea + Radio + GroupSelect landed in **S8a**
+> (below), and Tooltip / Stepper / Rating / ProgressBar / Spinner /
+> ExpansionPanel / Divider / nested Menu all shipped as part of the **Companion
+> UI extraction (Phase 9, v0.20–v0.24)**. See the README
+> [component catalog](../README.md#companion-ui-library) and CHANGELOG for the
+> complete, current list (~40 components).
+
 ### S8 — Form enrichment + component completion (in progress)
 
 - **S8a — DONE** ✅ (2026-07-22, lib v0.9.0) The edit form, enriched and

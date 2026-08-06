@@ -19,7 +19,7 @@
 // scanner (nested quotes). `actions` is RAW HTML you build in the host (the
 // right-side buttons). Colors come from `--flv-*` theme tokens with fallbacks.
 
-from fitz_liveviews import flv
+from fitz_liveviews import flv, raw_html
 
 component grid_toolbar {
   state {
@@ -40,7 +40,7 @@ component grid_toolbar {
           <button class="flv-btn-clear" type="button" data-flv-click="{search_event}" data-flv-value-q="">{flv(clear_label)}</button>
         {/if}
       </form>
-      {#if actions != ""}<div class="flv-grid-actions">{actions}</div>{/if}
+      {#if actions != ""}<div class="flv-grid-actions">{raw_html(actions)}</div>{/if}
     </div>
   </template>
 

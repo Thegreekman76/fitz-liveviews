@@ -1,6 +1,14 @@
 // Button.fitzv — packaged companion UI primitive (Phase 9, corte 2 + 3).
 //
-// Pure presentational / SSR: `button_render(button { ... }).raw`. No state, no
+// DUAL-TARGET (SSR + client-WASM). The icon is injected via
+// `{raw_html(render_icon(icon).raw)}` — the explicit raw-HTML marker that
+// renders unescaped on both targets: verbatim on SSR (the marker is stripped
+// to `{...}`, which is already raw) and via `set_inner_html` on the wasm
+// target (CW.9 1b/1c). `render_icon` returns `Html`, which the wasm emitter
+// models with its `__FlvHtml` shim, so the whole component compiles to
+// `--target wasm-client` from this exact source.
+//
+// Pure presentational: `button_render(button { ... }).raw`. No state, no
 // events of its own — a click emits the fall-through event named by the
 // `on_click` prop (routed to your @ws loop, exactly like the Pager's buttons).
 // The parent passes props (label / variant / size / on_click / disabled / loading /
@@ -29,7 +37,7 @@
 // Style it with your own theme by aliasing the --flv-* tokens (see
 // src/ui/theme.fitz); each token carries a literal fallback.
 
-from fitz_liveviews import flv
+from fitz_liveviews import flv, raw_html
 from icon import icon as render_icon
 
 component button {
@@ -57,11 +65,11 @@ component button {
         {#else}
           {#if disabled}
             <button type="submit" class="flv-btn" data-variant="{variant}" data-size="{size}" data-tooltip="{tooltip}" aria-label="{aria_label}" disabled>
-              {#if icon != ""}<span class="flv-btn-icon">{render_icon(icon).raw}</span>{/if}{#if label != ""}<span class="flv-btn-label">{flv(label)}</span>{/if}
+              {#if icon != ""}<span class="flv-btn-icon">{raw_html(render_icon(icon).raw)}</span>{/if}{#if label != ""}<span class="flv-btn-label">{flv(label)}</span>{/if}
             </button>
           {#else}
             <button type="submit" class="flv-btn" data-variant="{variant}" data-size="{size}" data-tooltip="{tooltip}" aria-label="{aria_label}">
-              {#if icon != ""}<span class="flv-btn-icon">{render_icon(icon).raw}</span>{/if}{#if label != ""}<span class="flv-btn-label">{flv(label)}</span>{/if}
+              {#if icon != ""}<span class="flv-btn-icon">{raw_html(render_icon(icon).raw)}</span>{/if}{#if label != ""}<span class="flv-btn-label">{flv(label)}</span>{/if}
             </button>
           {/if}
         {/if}
@@ -73,11 +81,11 @@ component button {
         {#else}
           {#if disabled}
             <button type="button" class="flv-btn" data-variant="{variant}" data-size="{size}" data-flv-click="{on_click}" data-flv-value-value="{value}" data-tooltip="{tooltip}" aria-label="{aria_label}" disabled>
-              {#if icon != ""}<span class="flv-btn-icon">{render_icon(icon).raw}</span>{/if}{#if label != ""}<span class="flv-btn-label">{flv(label)}</span>{/if}
+              {#if icon != ""}<span class="flv-btn-icon">{raw_html(render_icon(icon).raw)}</span>{/if}{#if label != ""}<span class="flv-btn-label">{flv(label)}</span>{/if}
             </button>
           {#else}
             <button type="button" class="flv-btn" data-variant="{variant}" data-size="{size}" data-flv-click="{on_click}" data-flv-value-value="{value}" data-tooltip="{tooltip}" aria-label="{aria_label}">
-              {#if icon != ""}<span class="flv-btn-icon">{render_icon(icon).raw}</span>{/if}{#if label != ""}<span class="flv-btn-label">{flv(label)}</span>{/if}
+              {#if icon != ""}<span class="flv-btn-icon">{raw_html(render_icon(icon).raw)}</span>{/if}{#if label != ""}<span class="flv-btn-label">{flv(label)}</span>{/if}
             </button>
           {/if}
         {/if}

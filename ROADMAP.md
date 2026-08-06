@@ -8,7 +8,7 @@ as they land. Aspirational timelines are best-effort, not commitments.
 
 ---
 
-## Phase 0 — Repo bootstrap 🏁 (in progress)
+## Phase 0 — Repo bootstrap 🏁 ✅ (done)
 
 Get the repo to a state that looks and feels like a real open-source project,
 even before any real code lands.
@@ -17,12 +17,12 @@ even before any real code lands.
 - [x] `fitz.toml` (package manifest with `[lib]` section)
 - [x] `.gitignore` (Fitz + editor + OS)
 - [x] `src/lib.fitz` placeholder
-- [ ] **Extended README** — pitch, comparison table (LiveViews vs Vue vs Phoenix),
-      quick start (aspirational), install, contributing
-- [ ] **ROADMAP.md** (this file)
-- [ ] **Logo** — main hero (Fitz-related visual language, distinct identity)
+- [x] **Extended README** — pitch, comparison table (LiveViews vs Vue vs Phoenix),
+      quick start, install, contributing
+- [x] **ROADMAP.md** (this file)
+- [x] **Logo** — main hero (`assets/logo.png`, Fitz-related visual language)
+- [x] **`assets/` folder** — SVG source + PNG derivatives + build script
 - [ ] **Social preview** (1280×640 for GitHub Settings → Social preview)
-- [ ] **`assets/` folder** — SVG source + PNG derivatives + build script
 - [ ] **Repo topics** on GitHub (`fitz-lang`, `liveview`, `websocket`,
       `server-rendered`, `real-time`, `reactive-ui`, `no-build`, `native-binary`)
 
@@ -981,24 +981,96 @@ rationale + capability envelope in [`docs/client-wasm-plan.md`](docs/client-wasm
         later iteration).
       - ~~Helper-fn `for` / `match` / local-reassign / string-concat~~ —
         **partly done in v0.29.5**: those constructs now lower in imported
-        helper `fn` bodies + event bodies. `?`/Result in helpers is still open,
-        and a helper that returns **HTML as a string** doesn't render on wasm
-        (interpolating it produces an escaping text node — same intrinsic limit
-        as the CW.6 raw-HTML helpers).
+        helper `fn` bodies + event bodies.
+      - ~~`?` / `Result` in helper-fn bodies~~ — **done (CW.9 1a)** in fitz
+        core `src/view/codegen_wasm.rs`. `Result<T>` now maps to
+        `Result<T, String>` (Err pinned to String, matching classic Fitz +
+        the `@rpc` stub); `Ok(v)` / `Err(e)` constructors, `?` propagation,
+        and `match` arms that bind `Ok(v)` / `Err(e)` all lower. So a helper
+        can validate and propagate failures, and a caller can `match` its
+        Result. Verified end-to-end to real `.wasm`.
+      - ~~HTML-string / `Html`-returning helpers can't render on wasm~~ —
+        **done (CW.9 1b + 1c)**. Two coordinated pieces in fitz core:
+        - **1b — raw-HTML sink.** `{raw_html(x)}` / `{html(x)}` as an element
+          child injects the (unescaped) markup via `set_inner_html` on the
+          parent instead of an escaping text node (React's
+          `dangerouslySetInnerHTML` model — the raw interpolation must be the
+          SOLE content of its parent). Needs `from fitz_liveviews import
+          raw_html` in scope (parallel to `flv`). The SSR emitter strips the
+          marker to `{x}` so the SAME source is byte-identical on SSR.
+        - **1c — `Html` shim.** The companion markup helpers return `Html`
+          (e.g. `icon -> Html` building an SVG via `html(...)`), not a bare
+          `Str`. The wasm emitter now models `Html` with a per-bundle
+          `__FlvHtml` shim (`html`/`raw_html` constructors + `.raw` access),
+          so those helpers transpile. Plus a fn-alias fix in the wasm loader
+          (`from icon import icon as render_icon`).
+        Plus two small core lowerings closed the rest of the
+        markup/list-component surface: a **bool field access in a `{#if}`
+        condition** (`{#if o.on}` over a `List<FieldOption>`) and **`for x in
+        <list>` in helper bodies** (`bar_scale`'s `for b in bars`).
+        - **PROVEN on FIVE real companion components** (fitz core v0.35.0),
+          each compiling to real `.wasm` with its SSR byte-identical (all 227
+          ui-gallery tests green): **Button** (icon SVG via the sink),
+          **Select** + **RadioGroup** (`{#for o in options}` + `{#if o.on}`,
+          unchanged source), **GridToolbar** (`{raw_html(actions)}`), and
+          **BarChart** (`bar_scale`'s list `for`, unchanged source).
+        MVP limits: not yet inside keep-node / hydratable components; the
+        `List<Html>`-folding helpers (`h_join`/`h_when`/`h_either`) stay
+        SSR-only (no single-string form).
 
-      The real remaining gaps in `d:\fitz`:
-      1. **`?` / `Result` in helper-fn bodies + HTML-string helpers** — the
-         `match`/loops/reassign/concat constructs landed (v0.29.5), but a
-         helper using `?`/`Result` still rejects, and a helper that builds an
-         HTML string (`chart_helpers`, `icon`, `grid_helpers`, form helpers
-         that emit markup) can't render its output on wasm — the string
-         escapes. Still gates Select, RadioGroup, GridToolbar, Button, BarChart.
-      2. **Fine-grained reactivity** — patch-in-place instead of naive
-         re-render, so a live text `@input` keeps its caret. Orthogonal to the
-         constructs above; it's a rendering-model upgrade.
+      The real remaining gap in `d:\fitz`:
+      1. **Fine-grained reactivity** — patch-in-place instead of naive
+         re-render, so a live text `@input` keeps its caret. It's a
+         rendering-model upgrade (fitz core Fase 11.10), orthogonal to the
+         constructs above.
       Independent of CW.8. Some components (DataGrid over server data, forms
       that submit server-side) will only ever render their *shell* client-side
-      — their behavior is intrinsically server-driven.
+      — their behavior is intrinsically server-driven. **Next liveviews step**:
+      the five markup/list components above dual-target now — add them to the
+      live wasm gallery (a composed showcase), and sweep the remaining
+      presentational components for any last small envelope gaps.
+
+## Phase 11 — SSR-isomorphic hydration 💧 (core landed v0.31.0)
+
+The bridge that closes the loop between the two halves of the frontend
+story: the **same `.fitzv`** paints on the server for a fast, indexable
+first paint, and then a **WASM app adopts that exact server-painted DOM**
+via `hydrate()` instead of `mount()`. No blank-mount flash, no framework
+runtime shipped to the client, node-for-node adoption (nothing to
+reconcile — unlike React/Next hydration-mismatch warnings). After
+adoption, the keep-node patch model from Phase 10 keeps the DOM alive.
+
+**Landed in Fitz core v0.31.0** (Fase 11.12 on the core side). Opt-in per
+component with the **`hydrate` marker** on the root — this keeps the
+LiveViews SSR path byte-identical for components that don't ask for it.
+Four core examples cover the surface: `hydrate` (primitive state),
+`hydrate-mixed` (interleaved text + interpolation), `hydrate-regions`
+(`{#if}`/`{#for}` regions restored between comment anchors), and
+`hydrate-composition` (child + slot). VSCode grammar highlights the
+marker (v0.31.0). Walkthrough: the blog post
+[`docs/blog/dev.to/8-ssr-hydration-en.md`](docs/blog/dev.to/8-ssr-hydration-en.md).
+
+**For fitz-liveviews specifically**: hydration is what lets a dual-target
+companion component *server-render first* and *then* become interactive
+client-side from the same source — the natural next step on top of the
+CW.6–CW.8 dual-target work. Adopting it across the presentational subset
+(and threading the `hydrate` marker through the SSR renderer + `.fitzv`
+authoring) is the framework-side work.
+
+**The honest edges (MVP)** — carried from the core, none blocking:
+
+- [ ] **Universal auto-hydration** — today it's opt-in via the marker;
+      auto-hydrating every component is a future improvement (opt-in keeps
+      the byte-identical guarantee).
+- [ ] **JSON round-trip of composite state** — primitive / `List` / `Map`
+      (`Str` keys) / nominal state restore on hydration; a `Map` with a
+      non-`Str` key, tuples, or functions reset to default on restore
+      (symmetric with the dump).
+- [ ] **Named slots in the SSR emitter** + **dynamic composition inside
+      `{#if}`/`{#for}`** — later slices; the default slot + static
+      composition adopt today.
+
+---
 
 ## Phase 7 — Beyond MVP (deferred, opportunistic) 🔮
 
