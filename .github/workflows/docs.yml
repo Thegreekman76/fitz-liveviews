@@ -68,7 +68,7 @@ jobs:
             ~/.cargo/bin/fitz
             ~/.cargo/bin/wasm-pack
             examples/wasm-gallery/target
-          key: pages-wasm-${{ runner.os }}-v4
+          key: pages-wasm-${{ runner.os }}-v5
 
       - name: Install Fitz (the `fitz` CLI)
         run: |
@@ -92,11 +92,13 @@ jobs:
         # the Client-WASM guide embed single-component bins via
         # `/live/embed/?c=<name>` (matches the `KNOWN` whitelist in
         # embed.html). `showcase` composes the SSR companion UI via the CW.6
-        # `flv` passthrough, `fileupload` uses `data-flv-file` (v0.29.3), and
-        # `showcase` now includes ProgressBar/Spinner which need mixed
-        # attribute interpolation (v0.29.4) — so the runner needs `fitz` >=
-        # v0.29.4. The cache key (bumped to -v4) forces a fresh `cargo install`
-        # of the current `main` binary.
+        # `flv` passthrough, `fileupload` uses `data-flv-file` (v0.29.3),
+        # `showcase` includes BarChart's list-`for` helper (v0.29.5), and now
+        # the controlled `Pager` + `ConfirmDialog` whose buttons fire
+        # fall-through `data-flv-click` events (v0.37.0) — so the runner needs
+        # `fitz` >= v0.37.0. The cache key (bumped to -v5) forces a fresh
+        # `cargo install` of the current `main` binary. Bump it again whenever
+        # the showcase starts using a newer core feature.
         run: |
           fitz build --bin gallery --target wasm-client
           for c in counter toggle tabs stepper rating accordion modal todolist namelist carousel photo showcase fileupload loader; do
