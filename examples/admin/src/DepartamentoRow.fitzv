@@ -1,0 +1,43 @@
+// DepartamentoRow.fitzv — one Departamentos grid <tr>, as a presentational
+// (controlled) LiveComponent. Brings the Departamentos screen to parity with
+// Empleados (EmpleadoRow.fitzv), which was already componentized.
+//
+// Like EmpleadoRow / Pager / GridToolbar this is CONTROLLED / presentational:
+// every prop (id, nombre, codigo, n_emp, locale) is derived from the grid's
+// per-connection state by the parent, which renders it fresh each frame. It
+// declares NO event handlers, so `edit_departamento` / `ask_delete_one` fall
+// through to the parent's @ws loop.
+//
+// The código is the packaged Chip and the "# empleados" tooltip carries
+// t(locale, "…") inside an attribute (nested-quotes gotcha #1), so both live in
+// the sibling dep_helpers.fitz. The edit/delete tooltips reuse row_helpers
+// (same i18n keys as Empleados). Adds data-flv-key="dep-{id}" for keyed diffing
+// — the old `dep_row` string helper had no key.
+//
+// CSS stays GLOBAL (shell.fitz): .btn-icon / .chip / .col-* are shared.
+from dep_helpers import dep_codigo_chip, dep_tip_empleados
+from row_helpers import row_tip_edit, row_tip_delete
+from fitz_liveviews import flv
+
+component departamento_row {
+  state {
+    id: Int = 0
+    nombre: Str = ""
+    codigo: Str = ""
+    n_emp: Int = 0
+    locale: Str = "es"
+  }
+
+  <template>
+    <tr data-flv-key="dep-{id}">
+      <td data-label="ID" class="col-id">{id}</td>
+      <td data-label="Nombre"><strong>{flv(nombre)}</strong></td>
+      <td data-label="Código">{dep_codigo_chip(codigo)}</td>
+      <td data-label="Empleados" class="col-num" data-tooltip="{dep_tip_empleados(n_emp, locale)}">{n_emp}</td>
+      <td data-label="Acciones" class="col-actions">
+        <button class="btn-icon" data-tooltip="{row_tip_edit(locale)}" data-flv-click="edit_departamento" data-flv-value-id="{id}">✎</button>
+        <button class="btn-icon btn-danger" data-tooltip="{row_tip_delete(locale)}" data-flv-click="ask_delete_one" data-flv-value-id="{id}">🗑</button>
+      </td>
+    </tr>
+  </template>
+}

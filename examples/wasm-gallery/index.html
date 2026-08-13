@@ -35,8 +35,24 @@
 
         --page-bg: #fafafa;
       }
+      /* Dark tokens. Applied on an EXPLICIT `data-theme="dark"` choice
+         (from the theme toggle), and — in auto/unset mode — when the OS
+         prefers dark. An explicit `light`/`dark` choice always wins over
+         the OS media query (the `:not(...)` gate). Mirrors the SSR
+         `theme.fitz` selector (`:root[data-theme="dark"]`). */
+      :root[data-theme="dark"] {
+        --flv-color-muted: #7a7a82;
+        --flv-surface:   #1e1e22;
+        --flv-surface-2: #2a2a30;
+        --flv-border:    #3a3a42;
+        --flv-text:       #e8e8ea;
+        --flv-text-muted: #a0a0a8;
+        --flv-shadow-card: 0 6px 20px rgba(0, 0, 0, .5);
+
+        --page-bg: #131316;
+      }
       @media (prefers-color-scheme: dark) {
-        :root {
+        :root:not([data-theme="light"]):not([data-theme="dark"]) {
           --flv-color-muted: #7a7a82;
           --flv-surface:   #1e1e22;
           --flv-surface-2: #2a2a30;
@@ -78,9 +94,49 @@
         font-size: 0.9em;
       }
       .foot { color: var(--flv-text-muted); font-size: 0.9rem; }
+
+      /* Client-side theme toggle (light → dark → auto). Fixed top-right,
+         out of the way of the mounted gallery in #app. Mirrors the SSR
+         `fitz_liveviews.ui.ThemeToggle` mechanism, but as plain HTML+JS
+         because a client-WASM `.fitzv` component cannot reach <html> /
+         localStorage (it only owns its own mounted subtree). */
+      .theme-toggle {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        z-index: 10;
+        padding: 6px 12px;
+        font: inherit;
+        font-size: 0.9rem;
+        color: var(--flv-text);
+        background: var(--flv-surface);
+        border: 1px solid var(--flv-border);
+        border-radius: var(--flv-radius-md);
+        box-shadow: var(--flv-shadow-card);
+        cursor: pointer;
+      }
+      .theme-toggle:hover { background: var(--flv-surface-2); }
     </style>
+
+    <!-- Anti-FOUC: apply the saved theme before first paint (mirror of
+         `theme_scripts.fitz::theme_boot_script`). -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('flv-gallery-theme') || 'auto';
+          document.documentElement.setAttribute('data-theme', t);
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
+    <button
+      id="flv-theme-btn"
+      class="theme-toggle"
+      type="button"
+      onclick="flvCycleTheme()"
+      aria-label="Toggle color theme"
+    >🌓 Auto</button>
     <h1>client-WASM gallery — Fitz LiveViews</h1>
     <p class="lede">
       Ten <code>.fitzv</code> components compiled to WebAssembly with
@@ -110,6 +166,40 @@
         document.getElementById('app').textContent =
           'WASM failed to load. Check the DevTools console.';
       });
+    </script>
+
+    <!-- Theme cycle (light → dark → auto), persisted to localStorage +
+         `data-theme` on <html>. Mirror of `theme_scripts.fitz::
+         theme_cycle_script`; the button above calls `flvCycleTheme()`. -->
+    <script>
+      (function () {
+        var KEY = 'flv-gallery-theme';
+        var LABELS = { light: '☀️ Light', dark: '🌙 Dark', auto: '🌓 Auto' };
+        function current() { return localStorage.getItem(KEY) || 'auto'; }
+        function paintBtn() {
+          var b = document.getElementById('flv-theme-btn');
+          if (b) { b.textContent = LABELS[current()] || LABELS.auto; }
+        }
+        function setTheme(t) {
+          try { localStorage.setItem(KEY, t); } catch (e) {}
+          document.documentElement.setAttribute('data-theme', t);
+          paintBtn();
+        }
+        window.flvCycleTheme = function () {
+          var order = ['light', 'dark', 'auto'];
+          var i = order.indexOf(current());
+          setTheme(order[(i + 1) % 3]);
+        };
+        paintBtn();
+        // When embedded in an iframe (the docs `live-gallery.md` page,
+        // which already has Material's own theme switch), hide this
+        // toggle to avoid a confusing second one. The standalone /live/
+        // page shows it. `data-theme` still applies inside the iframe.
+        if (window.self !== window.top) {
+          var tb = document.getElementById('flv-theme-btn');
+          if (tb) { tb.style.display = 'none'; }
+        }
+      })();
     </script>
   </body>
 </html>

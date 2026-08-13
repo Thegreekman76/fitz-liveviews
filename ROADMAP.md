@@ -866,15 +866,24 @@ rationale + capability envelope in [`docs/client-wasm-plan.md`](docs/client-wasm
       `!` and inline `==`/`!=` in event bodies, and the wasm emitter defers unary `-1`.
 - [x] **CW.3 — The live gallery page** (2026-07-30) — `Gallery.fitzv` composes the
       eight via cross-file `<Child/>` into one bundle (~34 KB gzipped), mounted at
-      `/live/` and embedded in `/live-gallery/`. Client-side theme toggle still TODO
-      (the page is theme-aware via `prefers-color-scheme`).
+      `/live/` and embedded in `/live-gallery/`. Client-side theme toggle shipped
+      2026-08-13 (see CW.6).
 - [x] **CW.4 — Docs + SSR-vs-client decision matrix** (2026-07-30) —
       `docs/client-wasm.md` (the third rendering mode: decision matrix, the
       "parallel set" rationale, the capability envelope + gotchas, build/deploy),
       in the Guide nav; "▶ see it live" pointers from `docs/ui-components.md` and a
-      cross-link from `live-gallery.md`. (A manual client-side theme toggle stays
-      deferred — the page is theme-aware via `prefers-color-scheme`, and a toggle
-      inside the embedded iframe would clash with Material's own.)
+      cross-link from `live-gallery.md`.
+- [x] **CW.6 — Client-side theme toggle** (2026-08-13) — a plain `<button id=
+      "flv-theme-btn">` + inline JS in `wasm-gallery/index.html` (a client-WASM
+      `.fitzv` can't reach `<html>` / `localStorage` — it only owns its mounted
+      subtree), mirroring `theme_scripts.fitz`'s `flvCycleTheme`/boot: cycles
+      light → dark → auto over `localStorage` + `data-theme` on `<html>`. The dark
+      tokens gained a `:root[data-theme="dark"]` selector (mirroring the SSR
+      `theme.fitz`), with the `prefers-color-scheme` media query gated to
+      auto/unset so an explicit choice wins. Hidden when embedded in an iframe
+      (`window.self !== window.top`) so it doesn't clash with Material's own toggle
+      on the docs `live-gallery.md` page. Validated with a 14/14 headless-Chrome
+      smoke (cycle + CSS tokens + localStorage persistence across reload).
 - [x] **CW.5 — CI + release** (2026-07-30) — bump `0.24.0 → 0.25.0` (fitz.toml +
       extension package.json), CHANGELOG `[Unreleased]` → `[v0.25.0]`; the `.vsix`
       is built in CI by `release.yml` on the tag (grammar/snippets unchanged — the

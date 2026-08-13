@@ -1,0 +1,57 @@
+// DepartamentoForm.fitzv — the create/edit department form, as a presentational
+// (controlled) LiveComponent. Brings the Departamentos screen to parity with
+// Empleados (EmpleadoForm.fitzv), far smaller (2 fields, no tabs/cascades/stepper).
+//
+// CONTROLLED / presentational like the other extracted pieces: every prop is the
+// form's per-connection state, owned by the parent's @ws loop; NO event handlers,
+// so `save_departamento` (submit) / `cancel_form` fall through to the parent's loop.
+//
+// Labels sit in text position (t()'s nested quotes are fine there — same as
+// EmpleadoForm's title). The two placeholders carry t() inside an attribute
+// (nested-quotes gotcha #1), so they go through dep_helpers (dep_ph_*). The
+// `value="{flv(f_x)}"` is a fn call with no nested string literal → fine in an
+// attribute (gotcha #8). The banner reuses the packaged `form_banner` (danger
+// Alert), same as EmpleadoForm.
+//
+// CSS stays GLOBAL (shell.fitz): .abm-form / .form-row / .form-card are shared.
+from dep_helpers import dep_ph_nombre, dep_ph_codigo
+from form_helpers import form_banner
+from i18n import t
+from fitz_liveviews import flv
+
+component departamento_form {
+  state {
+    edit_id: Int = 0
+    f_nombre: Str = ""
+    f_codigo: Str = ""
+    error: Str = ""
+    locale: Str = "es"
+  }
+
+  <template>
+    <div id="departamentos-live" class="grid-wrap">
+      <div class="page-head">
+        <h2>{#if edit_id == 0}{flv(t(locale, "dep.form.title.new"))}{#else}{flv(t(locale, "dep.form.title.edit"))}{/if}</h2>
+        <p>{flv(t(locale, "dep.form.subtitle"))}</p>
+      </div>
+      <div class="grid-card form-card">
+        {form_banner(error)}
+        <form class="abm-form" data-flv-submit="save_departamento">
+          <input type="hidden" name="id" value="{edit_id}" />
+          <div class="form-row">
+            <label>{flv(t(locale, "dep.form.nombre"))}</label>
+            <input name="nombre" value="{flv(f_nombre)}" placeholder="{dep_ph_nombre(locale)}" autocomplete="off" />
+          </div>
+          <div class="form-row">
+            <label>{flv(t(locale, "dep.form.codigo"))}</label>
+            <input name="codigo" value="{flv(f_codigo)}" placeholder="{dep_ph_codigo(locale)}" autocomplete="off" />
+          </div>
+          <div class="form-actions">
+            <button class="btn-primary" type="submit">{flv(t(locale, "form.save"))}</button>
+            <button class="btn-clear" type="button" data-flv-click="cancel_form">{flv(t(locale, "form.cancel"))}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </template>
+}

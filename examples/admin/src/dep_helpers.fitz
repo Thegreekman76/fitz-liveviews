@@ -1,0 +1,19 @@
+// Pure helpers for DepartamentoRow.fitzv / DepartamentoForm.fitzv. Separate
+// module (departamentos.fitz imports the components) — wraps what the view DSL
+// can't express inline:
+//   - the código Chip (a composed library component, injected raw in a <td>),
+//   - the "# empleados" tooltip (t() in an attribute → nested quotes break the
+//     parser; the helper moves the quote inside),
+//   - the two form placeholders (same nested-quote gotcha, plus flv escaping).
+// Same split as row_helpers.fitz / form_helpers.fitz.
+from i18n import t
+from fitz_liveviews import Html, flv
+from fitz_liveviews.ui.Chip import chip, chip_render
+
+// --- DepartamentoRow ---
+fn dep_codigo_chip(codigo: Str) -> Html => chip_render(chip { label: codigo })
+fn dep_tip_empleados(n_emp: Int, locale: Str) -> Str => "{n_emp} " + t(locale, "dep.tip.empleados")
+
+// --- DepartamentoForm placeholders (attribute position → helper, escaped) ---
+fn dep_ph_nombre(locale: Str) -> Str => flv(t(locale, "dep.form.nombre.ph"))
+fn dep_ph_codigo(locale: Str) -> Str => flv(t(locale, "dep.form.codigo.ph"))

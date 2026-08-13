@@ -21,10 +21,13 @@ ConfirmDialog (per-connection), Toast (per-connection, transitorio) y Pager
 | 2. Filtros (deptos + group-by) | `GridFilters.fitzv` | ✅ hecho | run == binario bit-a-bit (19 frames) |
 | 3. Grilla+filas (`grid_row`) | `EmpleadoRow.fitzv` | ✅ hecho | run == binario bit-a-bit (30 frames) |
 | 4. Form (`form_html`) | `EmpleadoForm.fitzv` | ✅ hecho | run == binario, idéntico módulo line-endings (30 frames) |
+| 5. Departamentos (paridad) | `DepartamentoRow.fitzv` + `DepartamentoForm.fitzv` | ✅ hecho | `fitz build` verde (requiere fitz core **v0.37.14**) |
 
-**El refactor cerró.** El monolito quedó descompuesto en los 4 pedazos naturales,
-todos como `.fitzv` presentacional/controlado, compilando a binario nativo con
-paridad ante `fitz run`. Próximo: C6 del curso "Ship it" + playground
+**El refactor cerró para Empleados**; la Rebanada 5 lleva la pantalla
+**Departamentos** a la misma arquitectura (fila + form como `.fitzv`
+presentacional/controlado), cerrando el `dep_row`/`form_html` inline. Todos como
+`.fitzv` presentacional/controlado, compilando a binario nativo con paridad ante
+`fitz run`. Próximo: C6 del curso "Ship it" + playground
 (seed = `examples/gallery`).
 
 **`fitz build` verde. `git status`:** `M empleados.fitz`, `M dev/grid_smoke.py`,
@@ -356,9 +359,12 @@ estilos).
 
 ## Entorno
 
-- **fitz core v0.28.8** compilado e instalado (`~/.cargo/bin/fitz.exe` y
-  `~/.fitz/bin/fitz.exe`). `fitz --version` → `0.28.8`. (Antes de esta sesión el
-  instalado era 0.28.6; se rebuildeó desde `d:\fitz` HEAD `b376887`.)
+- **fitz core v0.37.14** compilado desde `d:\fitz` HEAD. La Rebanada 5
+  (Departamentos) **requiere v0.37.14**: cierra un bug de codegen de state
+  compartido de módulo (un `let PAGE_SIZE: Int = 8` de módulo usado por handlers
+  `@ws` emitía `pub const` + materialización `__FITZ_STATE_PAGE_SIZE` faltante →
+  E0425/E0530). Con < v0.37.14 el `fitz build` del admin falla. `fitz run` andaba
+  en cualquier versión (el intérprete captura el env del módulo).
 - **Postgres local** `fitz_admin` en `localhost:5432`, rol `fitz`/`fitz`
   (superuser `postgres`/`123mgp` solo para seed). 10 empleados, 4 deptos.
   Login demo: `admin@fitz.dev` / `admin1234`.

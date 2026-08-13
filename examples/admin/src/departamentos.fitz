@@ -30,7 +30,8 @@ from fitz_liveviews.ui.Toast import toast, toast_render, toast_show, toast_dismi
 from fitz_liveviews.ui.DataGrid import data_grid, data_grid_render
 from fitz_liveviews.ui.SortableHeader import sortable_header, sortable_header_render
 from fitz_liveviews.ui.GridToolbar import grid_toolbar, grid_toolbar_render
-from fitz_liveviews.ui.Chip import chip, chip_render
+from DepartamentoRow import departamento_row, departamento_row_render
+from DepartamentoForm import departamento_form, departamento_form_render
 
 // --- payload helpers (Map<Str, Str>) --------------------------------------
 
@@ -69,22 +70,8 @@ fn dep_matches(d: Departamento, q: Str) -> Bool {
     return d.nombre.lower().contains(needle) or d.codigo.lower().contains(needle)
 }
 
-// One grid row.
-fn dep_row(d: Departamento, n_emp: Int, locale: Str) -> Str {
-    // The código is the packaged Chip (precomputed so its struct literal stays
-    // out of the interpolation).
-    let codigo_chip = chip_render(chip { label: d.codigo }).raw
-    return """<tr>
-      <td data-label="ID" class="col-id">{d.id}</td>
-      <td data-label="Nombre"><strong>{flv(d.nombre)}</strong></td>
-      <td data-label="Código">{codigo_chip}</td>
-      <td data-label="Empleados" class="col-num" data-tooltip="{n_emp} {t(locale, "dep.tip.empleados")}">{n_emp}</td>
-      <td data-label="Acciones" class="col-actions">
-        <button class="btn-icon" data-tooltip="{t(locale, "grid.tip.edit")}" data-flv-click="edit_departamento" data-flv-value-id="{d.id}">✎</button>
-        <button class="btn-icon btn-danger" data-tooltip="{t(locale, "grid.tip.delete")}" data-flv-click="ask_delete_one" data-flv-value-id="{d.id}">🗑</button>
-      </td>
-    </tr>"""
-}
+// The Departamentos grid row is now the packaged DepartamentoRow.fitzv
+// LiveComponent (rendered in `grid_html`), not an inline string helper.
 
 fn grid_error(e: Str, locale: Str) -> Html {
     return html("""<div id="departamentos-live" class="grid-wrap">
@@ -179,7 +166,13 @@ async fn grid_html(q: Str, sort_col: Str, sort_dir: Str, cid: Str, locale: Str) 
     // empty body is fine.
     if (rows.len() > 0) {
         for d in rows {
-            body_str = body_str + dep_row(d, emp_count(all_emp, d.id), locale)
+            body_str = body_str + departamento_row_render(departamento_row {
+                id: d.id,
+                nombre: d.nombre,
+                codigo: d.codigo,
+                n_emp: emp_count(all_emp, d.id),
+                locale: locale
+            }).raw
         }
     }
     let body = html(body_str)
@@ -188,47 +181,8 @@ async fn grid_html(q: Str, sort_col: Str, sort_dir: Str, cid: Str, locale: Str) 
 
 // --- create / edit form ---------------------------------------------------
 
-fn form_html(edit_id: Int, f_nombre: Str, f_codigo: Str, error: Str, locale: Str) -> Html {
-    let title = match edit_id == 0 {
-        true => t(locale, "dep.form.title.new"),
-        false => t(locale, "dep.form.title.edit"),
-    }
-    let banner = match error == "" {
-        true => "",
-        false => """<div class="form-error">{flv(error)}</div>""",
-    }
-    let l_nombre = t(locale, "dep.form.nombre")
-    let ph_nombre = t(locale, "dep.form.nombre.ph")
-    let l_codigo = t(locale, "dep.form.codigo")
-    let ph_codigo = t(locale, "dep.form.codigo.ph")
-    let l_save = t(locale, "form.save")
-    let l_cancel = t(locale, "form.cancel")
-    let f_sub = t(locale, "dep.form.subtitle")
-    return html("""<div id="departamentos-live" class="grid-wrap">
-      <div class="page-head">
-        <h2>{flv(title)}</h2>
-        <p>{flv(f_sub)}</p>
-      </div>
-      <div class="grid-card form-card">
-        {banner}
-        <form class="abm-form" data-flv-submit="save_departamento">
-          <input type="hidden" name="id" value="{edit_id}" />
-          <div class="form-row">
-            <label>{flv(l_nombre)}</label>
-            <input name="nombre" value="{flv(f_nombre)}" placeholder="{flv(ph_nombre)}" autocomplete="off" />
-          </div>
-          <div class="form-row">
-            <label>{flv(l_codigo)}</label>
-            <input name="codigo" value="{flv(f_codigo)}" placeholder="{flv(ph_codigo)}" autocomplete="off" />
-          </div>
-          <div class="form-actions">
-            <button class="btn-primary" type="submit">{flv(l_save)}</button>
-            <button class="btn-clear" type="button" data-flv-click="cancel_form">{flv(l_cancel)}</button>
-          </div>
-        </form>
-      </div>
-    </div>""")
-}
+// The create/edit form is now the packaged DepartamentoForm.fitzv
+// LiveComponent, rendered in the screen switch (`"form" =>` in the @ws loop).
 
 // --- persistence ----------------------------------------------------------
 
@@ -375,7 +329,13 @@ async fn departamentos_socket(ws: WsConn<LiveFrame>, cookie: Str?) {
             let _ = dispatch_to("confirm_dialog", cid, "cancel", { })
         }
         let screen: Html = match mode {
-            "form" => form_html(edit_id, f_nombre, f_codigo, form_error, locale),
+            "form" => departamento_form_render(departamento_form {
+                edit_id: edit_id,
+                f_nombre: f_nombre,
+                f_codigo: f_codigo,
+                error: form_error,
+                locale: locale
+            }),
             _ => grid_html(q, sort_col, sort_dir, cid, locale).await,
         }
         let new_html = screen.raw
