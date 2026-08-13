@@ -162,9 +162,11 @@ workaround:
 | a helper that returns HTML as a string (`fn stars(...) -> Str` building `<input …>`) | renders as escaped text on WASM — keep that component SSR-only, or build the DOM in the template |
 | a state change with no visual variant | render both states with modifier classes via `{#if}{#else}` (e.g. a toggle's `switch-on` / `knob-on`) |
 
-> Two earlier gotchas are now closed: inline `==` / `!=` in an event body or
-> closure works since v0.28.2, and `match` / range `for` / local reassignment in
-> event & helper bodies work since v0.29.5.
+> Three earlier gotchas are now closed: inline `==` / `!=` in an event body or
+> closure works since v0.28.2; `match` / range `for` / local reassignment in
+> event & helper bodies work since v0.29.5; and nested double quotes inside an
+> attribute-value interpolation (`placeholder="{t(locale, "key")}"`) parse since
+> v0.37.17 — no more one-helper-per-i18n-label in attribute position.
 
 !!! note "Reactivity model"
     Each state mutation re-renders the whole component subtree (naive re-render).

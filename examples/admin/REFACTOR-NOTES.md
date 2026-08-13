@@ -65,15 +65,19 @@ Componente **presentacional/controlado** (modelo Pager, NO per-connection):
 
 ## ⚠️ Gotchas del DSL SSR `.fitzv` (descubiertos en el terreno — CRÍTICO)
 
-1. **Comillas dobles anidadas dentro de un VALOR DE ATRIBUTO rompen el parse.**
-   `placeholder="{t(locale, "grid.search.ph")}"` → *"view parse error: expected
-   attribute name"*. El scanner de valores de atributo cierra el string en la
-   comilla interna.
-   **Fix:** pasar el string pre-computado como prop (`ph_search`), **o** envolver
-   en un helper sin string-literal como arg: `data-tooltip="{tip_edit(locale)}"`
-   donde `tip_edit` internamente hace `t(locale, "grid.tip.edit")` (la comilla
-   vive dentro del helper, no en el template). **Interpolación en TEXTO** (entre
-   tags) sí acepta comillas anidadas: `<h3>{t(locale, "confirm.title")}</h3>` OK.
+1. **✅ CERRADO (fitz core v0.37.17).** Comillas dobles anidadas dentro de un
+   VALOR DE ATRIBUTO **ya funcionan**: `placeholder="{flv(t(locale,
+   "dep.form.nombre.ph"))}"` y `data-tooltip="{t(locale, "grid.tip.edit")}"`
+   parsean e interpolan directo. El view parser (`read_attr_value`) trackea la
+   profundidad de `{...}` + un flag de string anidado, así que solo un `"` a
+   brace-depth 0 cierra el atributo. Vale para full-interp e interp mixta
+   (`data-tooltip="{n_emp} {t(locale, "dep.tip.empleados")}"`).
+   **Antes** (≤ v0.37.16) rompía con *"expected attribute name"* y forzaba un
+   helper por label (`ph_search`/`dep_ph_*`/`row_tip_*`/`tip_edit`) que movía la
+   comilla adentro de un `.fitz`. Los helpers de atributo del Admin ABM se
+   inlinearon (paridad byte-a-byte validada run↔run). **Interpolación en TEXTO**
+   (entre tags) siempre aceptó comillas anidadas: `<h3>{t(locale,
+   "confirm.title")}</h3>` OK.
 
 2. **La interpolación `{expr}` NO auto-escapea.** El emisor SSR emite `{expr}`
    tal cual; `flv(...)` es el escaper explícito (por eso no hay doble-escape).
@@ -292,8 +296,8 @@ importarlo de vuelta). Revisar dependencias cruzadas antes de mover.
 defaults literales.
 
 **Desafíos concretos:**
-- Placeholders/labels con `t(locale, "…")` en atributos → gotcha #1 (props o
-  helpers).
+- Placeholders/labels con `t(locale, "…")` en atributos → inline directo
+  (`placeholder="{flv(t(locale, "…"))}"`), gotcha #1 cerrado en v0.37.17.
 - Los `<select>` con `data-flv-change="cascade_*"` — atributo literal OK; las
   `<option>` las genera un helper (`{pais_options(paises, f_pais)}` crudo).
 - `is_stepper`/`header_nav`/`footer_nav` (alta=stepper, edición=tabs) → `{#if
@@ -378,9 +382,13 @@ estilos).
   CW.9 (v0.29.4): el emisor client-WASM ya soporta `style="width: {pct}%"` /
   `class="toast toast-{kind}"`. Este showcase es SSR-first, así que nunca lo
   necesitó, pero la deuda ya no existe.
+- ~~**#1 comillas dobles anidadas en valor de atributo**~~ — **CERRADO** en Fitz
+  core v0.37.17. Ya no fuerza un helper por label i18n en atributo: los
+  `dep_ph_*`/`row_tip_*`/`dep_tip_empleados`/`ph_notas` se inlinearon en los
+  `.fitzv` (`placeholder="{flv(t(locale, "…"))}"` / `data-tooltip="{t(locale,
+  "…")}"`), paridad byte-a-byte validada run↔run.
 - **Gotchas del DSL `.fitzv` que aún fuerzan helpers** (sección "⚠️ Gotchas"
-  arriba): los dos molestos que quedan son #1 (comillas dobles anidadas en
-  **valor de atributo** → helper por cada label i18n en atributo) y #6 (`{expr}`
-  bare en atributo → variantes `{#if checked}...{#else}...{/if}`). Un fix del
-  view-parser del core los cerraría. #7 (`fitz check` no view-parsea `.fitzv`):
-  los errores de view solo salen en `fitz run`/`fitz build`.
+  arriba): queda #6 (`{expr}` bare en **posición** de atributo → hoy variantes
+  `{#if checked}...{#else}...{/if}` para booleanos condicionales). Un fix del
+  view-parser + emisor del core lo cerraría. #7 (`fitz check` no view-parsea
+  `.fitzv`): los errores de view solo salen en `fitz run`/`fitz build`.

@@ -5,7 +5,7 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
-## [Unreleased] — examples: theme toggle client-side + Admin ABM Departamentos a LiveComponents
+## [Unreleased] — examples: theme toggle client-side + Admin ABM Departamentos a LiveComponents + deshelperize i18n-en-atributo
 
 Cambios de **examples** sobre la lib actual (sin cambio de API pública de
 `fitz-liveviews`, sin bump — la lib sigue en v0.37.0).
@@ -33,6 +33,18 @@ Cambios de **examples** sobre la lib actual (sin cambio de API pública de
   **Requiere fitz core v0.37.14** (cierra el bug de codegen de state compartido
   de módulo con `let PAGE_SIZE` primitivo usado por handlers `@ws`). `fitz build`
   del admin verde, paridad ante `fitz run`.
+
+- **Admin ABM: deshelperize i18n-en-atributo** (aprovecha el cierre del gotcha
+  #1 en fitz core **v0.37.17** — comillas dobles anidadas en valores de
+  atributo). Los `.fitzv` interpolan `t(locale, "…")` directo dentro de
+  `placeholder`/`data-tooltip` en vez de pasar por helpers que movían la comilla
+  a un `.fitz`. Borrados los wrappers `dep_ph_nombre`/`dep_ph_codigo`/
+  `dep_tip_empleados` (`dep_helpers.fitz`), `row_tip_detail`/`row_tip_edit`/
+  `row_tip_delete` (`row_helpers.fitz`) y `ph_notas` (`form_helpers.fitz`, ya era
+  dead code); `dep_helpers.fitz` conserva solo `dep_codigo_chip` y
+  `row_helpers.fitz` solo `row_class` (necesita `match`). Paridad **byte-a-byte**
+  validada (`/departamentos` + `/empleados` + el form de departamentos por WS,
+  helpers vs inline, idénticos módulo el uuid per-connection). +23/−40 LoC.
 
 ### Docs
 

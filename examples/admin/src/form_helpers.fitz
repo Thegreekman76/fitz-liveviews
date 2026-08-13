@@ -269,7 +269,3 @@ fn form_footer_nav(edit_id: Int, f_tab: Str, locale: Str) -> Str {
 fn panel_cls_datos(f_tab: Str) -> Str => tab_panel_cls("datos", f_tab)
 fn panel_cls_org(f_tab: Str) -> Str => tab_panel_cls("org", f_tab)
 fn panel_cls_accesos(f_tab: Str) -> Str => tab_panel_cls("accesos", f_tab)
-
-// Placeholders with i18n (escaped, matching the old `placeholder="{flv(ph)}"`;
-// the `t(...)` string-key can't sit inside an attribute — gotcha #1).
-fn ph_notas(locale: Str) -> Str => flv(t(locale, "form.notas.ph"))

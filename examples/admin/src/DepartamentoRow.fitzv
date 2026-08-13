@@ -8,15 +8,16 @@
 // declares NO event handlers, so `edit_departamento` / `ask_delete_one` fall
 // through to the parent's @ws loop.
 //
-// The código is the packaged Chip and the "# empleados" tooltip carries
-// t(locale, "…") inside an attribute (nested-quotes gotcha #1), so both live in
-// the sibling dep_helpers.fitz. The edit/delete tooltips reuse row_helpers
-// (same i18n keys as Empleados). Adds data-flv-key="dep-{id}" for keyed diffing
-// — the old `dep_row` string helper had no key.
+// The código is the packaged Chip (a composed library component → still lives in
+// the sibling dep_helpers.fitz). The tooltips interpolate `t(locale, "…")`
+// directly inside the `data-tooltip` attribute — nested double quotes in an
+// attribute value work since fitz core v0.37.17 (old gotcha #1, now closed), so
+// the dep_tip_*/row_tip_* helpers are gone. Adds data-flv-key="dep-{id}" for
+// keyed diffing — the old `dep_row` string helper had no key.
 //
 // CSS stays GLOBAL (shell.fitz): .btn-icon / .chip / .col-* are shared.
-from dep_helpers import dep_codigo_chip, dep_tip_empleados
-from row_helpers import row_tip_edit, row_tip_delete
+from dep_helpers import dep_codigo_chip
+from i18n import t
 from fitz_liveviews import flv
 
 component departamento_row {
@@ -33,10 +34,10 @@ component departamento_row {
       <td data-label="ID" class="col-id">{id}</td>
       <td data-label="Nombre"><strong>{flv(nombre)}</strong></td>
       <td data-label="Código">{dep_codigo_chip(codigo)}</td>
-      <td data-label="Empleados" class="col-num" data-tooltip="{dep_tip_empleados(n_emp, locale)}">{n_emp}</td>
+      <td data-label="Empleados" class="col-num" data-tooltip="{n_emp} {t(locale, "dep.tip.empleados")}">{n_emp}</td>
       <td data-label="Acciones" class="col-actions">
-        <button class="btn-icon" data-tooltip="{row_tip_edit(locale)}" data-flv-click="edit_departamento" data-flv-value-id="{id}">✎</button>
-        <button class="btn-icon btn-danger" data-tooltip="{row_tip_delete(locale)}" data-flv-click="ask_delete_one" data-flv-value-id="{id}">🗑</button>
+        <button class="btn-icon" data-tooltip="{t(locale, "grid.tip.edit")}" data-flv-click="edit_departamento" data-flv-value-id="{id}">✎</button>
+        <button class="btn-icon btn-danger" data-tooltip="{t(locale, "grid.tip.delete")}" data-flv-click="ask_delete_one" data-flv-value-id="{id}">🗑</button>
       </td>
     </tr>
   </template>

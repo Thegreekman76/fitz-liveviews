@@ -1,8 +1,8 @@
-// Helpers puros para EmpleadoRow.fitzv. Módulo aparte para evitar el ciclo
-// (empleados.fitz importa EmpleadoRow). Envuelven lo que el DSL no expresa
-// inline: la clase de fila (match) y los tooltips (t() en atributo → comillas
-// anidadas rompen; el helper mueve la comilla adentro).
-from i18n import t
+// Helper puro para EmpleadoRow.fitzv. Módulo aparte para evitar el ciclo
+// (empleados.fitz importa EmpleadoRow). Envuelve lo único que el DSL no expresa
+// inline: la clase de fila (necesita un match). Los tooltips i18n vivían acá,
+// pero desde fitz core v0.37.17 (comillas dobles anidadas en valores de
+// atributo) se interpolan directo en el .fitzv: `data-tooltip="{t(locale, "…")}"`.
 
 fn row_class(checked: Bool, expanded: Bool) -> Str {
     return match checked {
@@ -13,7 +13,3 @@ fn row_class(checked: Bool, expanded: Bool) -> Str {
         },
     }
 }
-
-fn row_tip_detail(locale: Str) -> Str => t(locale, "grid.tip.detail")
-fn row_tip_edit(locale: Str) -> Str => t(locale, "grid.tip.edit")
-fn row_tip_delete(locale: Str) -> Str => t(locale, "grid.tip.delete")
