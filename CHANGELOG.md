@@ -5,6 +5,43 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [Unreleased] — examples: theme toggle client-side + Admin ABM Departamentos a LiveComponents
+
+Cambios de **examples** sobre la lib actual (sin cambio de API pública de
+`fitz-liveviews`, sin bump — la lib sigue en v0.37.0).
+
+### Added
+
+- **Client-side theme toggle en la live gallery** (`examples/wasm-gallery/
+  index.html`, CW.6). Un `<button id="flv-theme-btn">` + JS inline (un
+  componente client-WASM `.fitzv` no alcanza `<html>`/`localStorage` — solo su
+  subtree montado), mirror de `theme_scripts.fitz` (`flvCycleTheme`/boot): cicla
+  light → dark → auto sobre `localStorage` + `data-theme` en `<html>`. Los dark
+  tokens ganan un selector `:root[data-theme="dark"]` (mirror del SSR
+  `theme.fitz`), con `prefers-color-scheme` gateado a auto/unset para que la
+  elección explícita gane. Oculto en iframe (`window.self !== window.top`) para
+  no chocar con el toggle de Material en `live-gallery.md`. Validado 14/14
+  headless-Chrome (ciclo + tokens CSS + persistencia).
+
+### Changed
+
+- **Admin ABM: pantalla Departamentos a LiveComponents** (rebanada 5, paridad
+  con Empleados). `DepartamentoRow.fitzv` + `DepartamentoForm.fitzv` +
+  `dep_helpers.fitz` reemplazan los helpers inline `dep_row`/`form_html` de
+  `departamentos.fitz`, con la misma arquitectura `.fitzv` presentacional/
+  controlado que Empleados (fila + form, `data-flv-key` para diffing keyed).
+  **Requiere fitz core v0.37.14** (cierra el bug de codegen de state compartido
+  de módulo con `let PAGE_SIZE` primitivo usado por handlers `@ws`). `fitz build`
+  del admin verde, paridad ante `fitz run`.
+
+### Docs
+
+- Higiene de trackers: ROADMAP tilda 8.1/8.2/8.3/8.6 (trabajo ya shipeado),
+  unifica el conteo de widgets client-WASM a **13** (era 8/12 disperso),
+  `client-wasm.md` idem; `REFACTOR-NOTES.md` refrescado (refactor cerrado,
+  `git status` stale removido, deuda WASM "mixed attr interp" marcada CERRADA en
+  CW.9, versiones del core normalizadas).
+
 ## [v0.37.0] — 2026-08-06 — CW.9 follow-ups: 38/38 companion components dual-target (Pager + ConfirmDialog unblocked)
 
 **Minor bump** (tracks Fitz core **v0.37.0**). The three residual CW.9 debts

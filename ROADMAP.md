@@ -306,24 +306,22 @@ count: 3 nuevas fns públicas; 83 lib tests (+13 vs v0.4.3).
 deferred backlog". Phase 8 + Phase 9 son concrete-next-work
 post-Fitz-v0.21.0 shipping, temporalmente adelante de Phase 7.
 
-- [ ] **8.1** Bump Fitz core dep `0.20.1 → 0.21.0` en `fitz.toml`
-      + smoke `fitz check` sobre lib. Verificar que `.fitzv` loader
-      (Phase 11.6.d) resuelve transparente y auto-inject (Phase
-      11.6.e §9.bb) elimina `flv_register(...)` manual.
-- [ ] **8.2** Land **counter migration** — draft ya aplicada
-      uncommitted desde §9.z. Files:
-      `examples/counter/src/Counter.fitzv` (nuevo) + rewritten
-      `examples/counter/src/main.fitz` (drop manual
-      `flv_register(...)` — auto-inject Phase 11.6.e §9.bb) +
-      updated `examples/counter/README.md`. Trivial commit + push,
-      ~5 min.
-- [ ] **8.3** **Migrate dashboard** — extract
-      `examples/dashboard/src/MetricTile.fitzv` (single-file
-      component per metric tile) + rewrite `main.fitz` con
+- [x] **8.1 — SHIPPED.** Fitz core dep bumpeado muy por encima de
+      0.21.0 (hoy 0.37.0 en `fitz.toml`); el `.fitzv` loader (Phase
+      11.6.d) resuelve transparente y el auto-inject (Phase 11.6.e §9.bb)
+      elimina la llamada manual `flv_register(...)`.
+- [x] **8.2 — SHIPPED.** Counter migration aterrizada:
+      `examples/counter/src/Counter.fitzv` existe, `main.fitz` usa
+      `from Counter import Counter, Counter_render, Counter_<event>...`
+      (canonical §9.bb) y NO tiene llamada manual `flv_register(...)` — el
+      compilador la auto-inyecta desde la metadata del `.fitzv`. (El
+      símbolo `flv_register` sigue en la lista de import porque el
+      auto-inject de v0.20.1 lo exige en scope.)
+- [x] **8.3 — SHIPPED.** Dashboard migrado:
+      `examples/dashboard/src/MetricTile.fitzv` existe, `main.fitz` usa
       `from MetricTile import MetricTile, MetricTile_render,
-      MetricTile_<events>` (canonical shape §9.bb). Auto-inject
-      removes manual `flv_register(...)`. Probable clean migration
-      (dashboard sigue el mismo shape que counter).
+      MetricTile_bump, MetricTile_reset` (canonical §9.bb) sin llamada
+      manual `flv_register(...)` (auto-inject).
 - [x] **8.4** **Migrate chat — CERRADA 2026-07-16 (post Fitz core
       §9.cc + §9.dd + §9.ee).** El chat migration probe original
       surface 5 blockers concretos del view pipeline (V-1 HTML
@@ -371,10 +369,10 @@ post-Fitz-v0.21.0 shipping, temporalmente adelante de Phase 7.
       DIFERIDA hasta Phase 11.7+ (event bubbling framework
       support). Patterns emergentes catalogados en
       `docs/components-candidates.md`.
-- [ ] **8.6** **Pattern extraction** — durante 8.3-8.5, cataloguar
-      en `docs/components-candidates.md` los patterns comunes que
-      emergen (Button, Card, Modal, Input, MetricStat,
-      MessageBubble, KanbanColumn). Input directo para Phase 9.A.
+- [x] **8.6 — SHIPPED.** `docs/components-candidates.md` cataloga los
+      patterns emergentes de las migraciones SFC; creció hasta el catálogo
+      shipeado `docs/ui-components.md` (~26 componentes extraídos del Admin
+      ABM). Input directo para Phase 9.A (cerrada).
 - [x] **8.7** **Cierre formal Phase 8 CERRADA (2026-07-16)** —
       CHANGELOG entry `[v0.4.3]` aggregating all Phase 8 sub-
       tasks. Migration es 100% **examples + docs**; la API pública
@@ -867,7 +865,9 @@ rationale + capability envelope in [`docs/client-wasm-plan.md`](docs/client-wasm
 - [x] **CW.3 — The live gallery page** (2026-07-30) — `Gallery.fitzv` composes the
       eight via cross-file `<Child/>` into one bundle (~34 KB gzipped), mounted at
       `/live/` and embedded in `/live-gallery/`. Client-side theme toggle shipped
-      2026-08-13 (see CW.6).
+      2026-08-13 (see CW.6). **Since grown to thirteen widgets** (added Carousel,
+      Photo, FileUpload, Loader, NameList; bundle ~44 KB gzipped) — the current
+      count of record is 13, see `docs/client-wasm.md`.
 - [x] **CW.4 — Docs + SSR-vs-client decision matrix** (2026-07-30) —
       `docs/client-wasm.md` (the third rendering mode: decision matrix, the
       "parallel set" rationale, the capability envelope + gotchas, build/deploy),

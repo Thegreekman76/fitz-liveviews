@@ -1,9 +1,13 @@
 # Admin ABM — refactor a LiveComponents del grid (`empleados.fitz`)
 
-> Documento de trabajo del refactor incremental del DataGrid de empleados
-> (`src/empleados.fitz`, ~1840 LoC) a **LiveComponents `.fitzv`**. Se puede
-> borrar cuando el refactor cierre. Base: **fitz core v0.28.8**, lib
-> `fitz_liveviews` v0.11.0.
+> **Estado: refactor CERRADO** (Empleados: rebanadas 1-4; Departamentos:
+> rebanada 5, requiere fitz core **v0.37.14**). Este doc se conserva como
+> registro histórico + catálogo de gotchas del DSL `.fitzv` (sección
+> "⚠️ Gotchas", útil para autoría). Documento de trabajo original del
+> refactor incremental del DataGrid de empleados (`src/empleados.fitz`,
+> ~1840 LoC) a **LiveComponents `.fitzv`**. Las referencias de versión del
+> core adentro de este doc son históricas por rebanada; la de record es la
+> del entorno (abajo).
 
 ## Objetivo
 
@@ -30,10 +34,9 @@ presentacional/controlado), cerrando el `dep_row`/`form_html` inline. Todos como
 `fitz run`. Próximo: C6 del curso "Ship it" + playground
 (seed = `examples/gallery`).
 
-**`fitz build` verde. `git status`:** `M empleados.fitz`, `M dev/grid_smoke.py`,
-`?? EmpleadoRow.fitzv`, `?? EmpleadoForm.fitzv`, `?? row_helpers.fitz`,
-`?? form_helpers.fitz` (+ `GridToolbar/GridFilters.fitzv` de las rebanadas
-1-2 ya commiteadas).
+**`fitz build` verde.** Las rebanadas 1-4 (Empleados) están commiteadas; la
+rebanada 5 (Departamentos) requiere fitz core v0.37.14 y aterriza en el commit
+de esta tanda.
 
 ---
 
@@ -371,5 +374,13 @@ estilos).
 
 ## Deudas residuales anotadas (no bloquean)
 
-- **Mixed attr interpolation en el target WASM** — el emisor client-WASM difiere
-  con error; solo afecta el path WASM, no el SSR de este showcase.
+- ~~**Mixed attr interpolation en el target WASM**~~ — **CERRADO** en Fitz core
+  CW.9 (v0.29.4): el emisor client-WASM ya soporta `style="width: {pct}%"` /
+  `class="toast toast-{kind}"`. Este showcase es SSR-first, así que nunca lo
+  necesitó, pero la deuda ya no existe.
+- **Gotchas del DSL `.fitzv` que aún fuerzan helpers** (sección "⚠️ Gotchas"
+  arriba): los dos molestos que quedan son #1 (comillas dobles anidadas en
+  **valor de atributo** → helper por cada label i18n en atributo) y #6 (`{expr}`
+  bare en atributo → variantes `{#if checked}...{#else}...{/if}`). Un fix del
+  view-parser del core los cerraría. #7 (`fitz check` no view-parsea `.fitzv`):
+  los errores de view solo salen en `fitz run`/`fitz build`.

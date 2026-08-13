@@ -7,10 +7,11 @@ WebSocket. That's what this page is about: the **client-WASM** mode, and when to
 reach for it instead of SSR.
 
 !!! tip "▶ See it live"
-    The **[live gallery](live-gallery.md)** runs twelve client-WASM components
+    The **[live gallery](live-gallery.md)** runs thirteen client-WASM components
     in your browser right now — Counter, Toggle, Tabs, Stepper, Rating,
-    Accordion, Modal, TodoList, Carousel, Photo, FileUpload, Loader. All of it
-    is one ~44 KB (gzipped) bundle, hosted as static files on GitHub Pages.
+    Accordion, Modal, TodoList, Carousel, Photo, FileUpload, Loader, NameList.
+    All of it is one ~44 KB (gzipped) bundle, hosted as static files on GitHub
+    Pages.
     Source: [`examples/wasm-gallery/`](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/wasm-gallery).
 
 ## SSR vs client-WASM — which one?
@@ -142,7 +143,7 @@ component Counter {
   (`style="width: {pct}%"`, `class="toast toast-{kind}"`, v0.29.4) — the literal
   segments interleave with each `{expr}` in a `set_attribute`.
 - **Cross-file composition**: `from Card import Card` then `<Card />` — each child
-  keeps its own state (that's how the gallery composes twelve widgets into one bundle).
+  keeps its own state (that's how the gallery composes thirteen widgets into one bundle).
 - **Dependency imports** (CW.8, v0.29.6): `from fitz_liveviews.ui.Badge import badge as Badge`
   then `<Badge label="live" />` — pull a companion UI component from a `fitz.toml`
   dependency instead of copying it into your app. (The companion component is
