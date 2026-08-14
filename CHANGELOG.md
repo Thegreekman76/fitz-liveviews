@@ -5,17 +5,18 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
-## [Unreleased] — deshelperize atributos booleanos condicionales (gotcha #6) + examples
+## [v0.38.0] — 2026-08-14 — deshelperize atributos booleanos condicionales (gotcha #6) + examples
 
-Aprovecha el cierre del **gotcha #6** en Fitz core **v0.38.0** (`attr={boolExpr}`,
+**Minor bump** (tracks Fitz core **v0.38.0**, la versión que introdujo el
+bool-attr condicional). Aprovecha el cierre del **gotcha #6** (`attr={boolExpr}`,
 llave SIN comillas → atributo presente sii truthy) para colapsar los
 `{#if}<X attr/>{#else}<X/>{/if}` de la companion UI a un único `<X attr={cond}/>`.
 Toca componentes públicos de `src/ui/*` (su HTML renderizado cambia
 cosméticamente: el atributo booleano se emite **bare** — `disabled`, no
 `disabled=""` — y un slot false deja un espacio; el DOM es idéntico). La API
-pública (firmas + props) no cambia. **Decisión de bump pendiente del autor**
-(cambio de output de componentes públicos → candidato a patch bump de la lib
-`0.37.0 → 0.37.1`).
+pública (firmas + props) no cambia. **Requiere Fitz core v0.38.0+** para compilar
+(la sintaxis `attr={expr}`). La extensión VSCode sube a 0.38.0 en paralelo
+(highlight de `attr={expr}` bare + `.vsix` rebuildeado).
 
 ### Changed
 

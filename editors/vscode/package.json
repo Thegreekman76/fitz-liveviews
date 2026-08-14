@@ -2,7 +2,7 @@
   "name": "fitz-liveviews",
   "displayName": "Fitz LiveViews",
   "description": "Syntax highlighting for Fitz LiveViews: `.fitzv` single-file components (template/state/event/style, hydrate marker) and `html(\"\"\"...\"\"\")` templates in classic `.fitz`.",
-  "version": "0.31.0",
+  "version": "0.38.0",
   "publisher": "thegreekman76",
   "license": "MIT",
   "icon": "icon.png",
