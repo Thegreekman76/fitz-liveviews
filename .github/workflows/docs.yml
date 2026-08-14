@@ -68,7 +68,7 @@ jobs:
             ~/.cargo/bin/fitz
             ~/.cargo/bin/wasm-pack
             examples/wasm-gallery/target
-          key: pages-wasm-${{ runner.os }}-v5
+          key: pages-wasm-${{ runner.os }}-v6
 
       - name: Install Fitz (the `fitz` CLI)
         run: |
@@ -95,10 +95,12 @@ jobs:
         # `flv` passthrough, `fileupload` uses `data-flv-file` (v0.29.3),
         # `showcase` includes BarChart's list-`for` helper (v0.29.5), and now
         # the controlled `Pager` + `ConfirmDialog` whose buttons fire
-        # fall-through `data-flv-click` events (v0.37.0) — so the runner needs
-        # `fitz` >= v0.37.0. The cache key (bumped to -v5) forces a fresh
-        # `cargo install` of the current `main` binary. Bump it again whenever
-        # the showcase starts using a newer core feature.
+        # fall-through `data-flv-click` events (v0.37.0), and now the companion
+        # UI uses conditional boolean attributes `attr={expr}` (gotcha #6,
+        # v0.38.0) — so the runner needs `fitz` >= v0.38.0. The cache key
+        # (bumped to -v6) forces a fresh `cargo install` of the current `main`
+        # binary. Bump it again whenever the showcase starts using a newer
+        # core feature.
         run: |
           fitz build --bin gallery --target wasm-client
           for c in counter toggle tabs stepper rating accordion modal todolist namelist carousel photo showcase fileupload loader; do
