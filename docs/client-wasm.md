@@ -160,13 +160,19 @@ workaround:
 | logical-not `!x` in an event body (only `!=` is lexed) | flip a Bool with `on = on == false` |
 | unary negation `-1` in an event body | a non-negative sentinel (e.g. `9` for "none") |
 | a helper that returns HTML as a string (`fn stars(...) -> Str` building `<input …>`) | renders as escaped text on WASM — keep that component SSR-only, or build the DOM in the template |
-| a state change with no visual variant | render both states with modifier classes via `{#if}{#else}` (e.g. a toggle's `switch-on` / `knob-on`) |
+| a state change that only toggles a **class** or text variant | render both states via `{#if}{#else}` (e.g. a toggle's `switch-on` / `knob-on`) — a boolean *attribute* uses `attr={cond}` instead (see below) |
 
-> Three earlier gotchas are now closed: inline `==` / `!=` in an event body or
+> Several earlier gotchas are now closed: inline `==` / `!=` in an event body or
 > closure works since v0.28.2; `match` / range `for` / local reassignment in
-> event & helper bodies work since v0.29.5; and nested double quotes inside an
+> event & helper bodies work since v0.29.5; nested double quotes inside an
 > attribute-value interpolation (`placeholder="{t(locale, "key")}"`) parse since
-> v0.37.17 — no more one-helper-per-i18n-label in attribute position.
+> v0.37.17 — no more one-helper-per-i18n-label in attribute position; and a
+> **conditional boolean attribute** — `checked={on}` / `disabled={cond}` /
+> `selected={o.on}` (unquoted brace) — is present in the DOM iff the expression
+> is truthy since v0.38.0, so a checkbox/radio/`<option>` no longer emits two
+> full `{#if}{#else}` variants. (On the CLI side, `fitz check` view-parses a
+> `.fitzv` entry since v0.39.0, so view errors surface at check time, not just
+> `run`/`build`.)
 
 !!! note "Reactivity model"
     Each state mutation re-renders the whole component subtree (naive re-render).

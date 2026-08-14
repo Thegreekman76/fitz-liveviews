@@ -26,15 +26,7 @@ component textarea {
   <template>
     <label class="flv-field">
       {#if label != ""}<span class="flv-field-label">{flv(label)}</span>{/if}
-      {#if disabled}
-        <textarea class="flv-field-input flv-field-textarea" name="{flv(name)}" rows="{rows}" placeholder="{flv(placeholder)}" disabled>{flv(value)}</textarea>
-      {#else}
-        {#if required}
-          <textarea class="flv-field-input flv-field-textarea" name="{flv(name)}" rows="{rows}" placeholder="{flv(placeholder)}" required>{flv(value)}</textarea>
-        {#else}
-          <textarea class="flv-field-input flv-field-textarea" name="{flv(name)}" rows="{rows}" placeholder="{flv(placeholder)}">{flv(value)}</textarea>
-        {/if}
-      {/if}
+      <textarea class="flv-field-input flv-field-textarea" name="{flv(name)}" rows="{rows}" placeholder="{flv(placeholder)}" disabled={disabled} required={required}>{flv(value)}</textarea>
       {#if error != ""}
         <span class="flv-field-error">{flv(error)}</span>
       {#else}

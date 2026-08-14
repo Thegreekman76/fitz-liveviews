@@ -5,10 +5,37 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
-## [Unreleased] — examples: theme toggle client-side + Admin ABM Departamentos a LiveComponents + deshelperize i18n-en-atributo
+## [Unreleased] — deshelperize atributos booleanos condicionales (gotcha #6) + examples
 
-Cambios de **examples** sobre la lib actual (sin cambio de API pública de
-`fitz-liveviews`, sin bump — la lib sigue en v0.37.0).
+Aprovecha el cierre del **gotcha #6** en Fitz core **v0.38.0** (`attr={boolExpr}`,
+llave SIN comillas → atributo presente sii truthy) para colapsar los
+`{#if}<X attr/>{#else}<X/>{/if}` de la companion UI a un único `<X attr={cond}/>`.
+Toca componentes públicos de `src/ui/*` (su HTML renderizado cambia
+cosméticamente: el atributo booleano se emite **bare** — `disabled`, no
+`disabled=""` — y un slot false deja un espacio; el DOM es idéntico). La API
+pública (firmas + props) no cambia. **Decisión de bump pendiente del autor**
+(cambio de output de componentes públicos → candidato a patch bump de la lib
+`0.37.0 → 0.37.1`).
+
+### Changed
+
+- **Companion UI: atributos booleanos condicionales** (gotcha #6, requiere Fitz
+  core **v0.38.0**). 15 colapsos limpios en `src/ui/*`: `Checkbox`/`CheckboxGroup`/
+  `RadioGroup`/`MultiSelect` (`checked={o.on}`), `Select`/`GroupSelect`
+  (`selected={o.on}`, opciones), `DatePicker`/`Button` (`disabled={disabled}`),
+  `ExpansionPanel` (`open={open}`). **`Textarea` + `Input`** colapsan sus nested
+  `{#if disabled}{#else}{#if required}…` a `disabled={disabled}
+  required={required}` — esto **arregla un bug latente**: la rama `disabled` hoy
+  OMITE `required`, así que un control `disabled + required` perdía el `required`;
+  el colapso emite ambos (HTML válido). `Admin ABM/EmpleadoRow.fitzv`: el checkbox
+  de selección pasa a `checked={checked}`. Los `{#if}/{#else}` restantes (chevron,
+  badges, Pager, Button-loading, Select-disabled externo) cambian texto/markup o
+  togglean pares handler+attr, no un atributo booleano suelto → sin tocar. Suite
+  `@test` de la gallery: 227/227 verde (7 asserts actualizados al render bare del
+  bool-attr). Validado: `fitz check` de los 11 componentes + Admin ABM real
+  (login + grid `/empleados` renderizando `EmpleadoRow` con `checked={checked}`).
+  +29/−75 LoC. **Cierra el catálogo de gotchas del `.fitzv`** que forzaban
+  helpers/variantes (junto con #1 en v0.37.17).
 
 ### Added
 

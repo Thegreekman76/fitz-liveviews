@@ -28,23 +28,7 @@ component input {
   <template>
     <label class="flv-field">
       {#if label != ""}<span class="flv-field-label">{flv(label)}</span>{/if}
-      {#if disabled}
-        <input class="flv-field-input" name="{flv(name)}" type="{input_type}" value="{flv(value)}" placeholder="{flv(placeholder)}" autocomplete="{autocomplete}" disabled />
-      {#else}
-        {#if required}
-          {#if clear}
-            <input class="flv-field-input" name="{flv(name)}" type="{input_type}" value="{flv(value)}" placeholder="{flv(placeholder)}" autocomplete="{autocomplete}" required data-flv-clear />
-          {#else}
-            <input class="flv-field-input" name="{flv(name)}" type="{input_type}" value="{flv(value)}" placeholder="{flv(placeholder)}" autocomplete="{autocomplete}" required />
-          {/if}
-        {#else}
-          {#if clear}
-            <input class="flv-field-input" name="{flv(name)}" type="{input_type}" value="{flv(value)}" placeholder="{flv(placeholder)}" autocomplete="{autocomplete}" data-flv-clear />
-          {#else}
-            <input class="flv-field-input" name="{flv(name)}" type="{input_type}" value="{flv(value)}" placeholder="{flv(placeholder)}" autocomplete="{autocomplete}" />
-          {/if}
-        {/if}
-      {/if}
+      <input class="flv-field-input" name="{flv(name)}" type="{input_type}" value="{flv(value)}" placeholder="{flv(placeholder)}" autocomplete="{autocomplete}" required={required} data-flv-clear={clear} disabled={disabled} />
       {#if error != ""}
         <span class="flv-field-error">{flv(error)}</span>
       {#else}

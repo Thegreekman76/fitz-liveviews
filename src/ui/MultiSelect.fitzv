@@ -29,7 +29,7 @@ component multi_select {
             <legend>{flv(g.label)}</legend>
             <div class="flv-ms-checks">
               {#for o in g.options}
-                {#if o.on}<label class="flv-ms-check"><input type="checkbox" name="{flv(name)}" value="{flv(o.value)}" checked /> {flv(o.label)}</label>{#else}<label class="flv-ms-check"><input type="checkbox" name="{flv(name)}" value="{flv(o.value)}" /> {flv(o.label)}</label>{/if}
+                <label class="flv-ms-check"><input type="checkbox" name="{flv(name)}" value="{flv(o.value)}" checked={o.on} /> {flv(o.label)}</label>
               {/for}
             </div>
           </fieldset>

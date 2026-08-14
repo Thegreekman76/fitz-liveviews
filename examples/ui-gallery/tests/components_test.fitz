@@ -204,7 +204,8 @@ from fitz_liveviews import html
 
 @test fn button_disabled_blocks_click_without_spinner() {
     let h = button_render(button { label: "x", on_click: "e", disabled: true }).raw
-    assert(h.contains("disabled=\"\""))
+    // v0.38.0 bool-attr: a truthy `disabled={disabled}` emits the bare `disabled` (not `disabled=""`)
+    assert(h.contains("aria-label=\"\" disabled>"))
     assert(not h.contains("flv-btn-spin flv-btn-spin-"))
 }
 
@@ -399,7 +400,8 @@ from fitz_liveviews import html
 
 @test fn input_disabled_renders_disabled_attr() {
     let h = input_render(input { name: "x", disabled: true }).raw
-    assert(h.contains("disabled=\"\""))
+    // v0.38.0 bool-attr: truthy `disabled={disabled}` emits the bare `disabled`
+    assert(h.contains(" disabled />"))
 }
 
 @test fn input_required_and_clear_emit_live_form_attrs() {
@@ -905,8 +907,9 @@ fn sample_nav() -> List<NavGroup> {
     assert(h.contains("name=\"dept\""))
     assert(h.contains("data-flv-change=\"cascade\""))
     // the .fitzv emitter normalizes the bare `selected` bool attr to selected=""
-    assert(h.contains("<option value=\"0\" selected=\"\">All</option>"))
-    assert(h.contains("<option value=\"1\">Eng</option>"))
+    // v0.38.0 bool-attr: truthy `selected={o.on}` emits bare `selected`; a false slot leaves a space before `>`
+    assert(h.contains("<option value=\"0\" selected>All</option>"))
+    assert(h.contains("<option value=\"1\" >Eng</option>"))
 }
 
 @test fn select_without_change_omits_change_attr() {
@@ -943,7 +946,8 @@ fn sample_nav() -> List<NavGroup> {
     let h = checkbox_group_render(checkbox_group { name: "skills", label: "Skills", options: opts }).raw
     // both boxes share the name
     assert(h.contains("name=\"skills\" value=\"1\" checked"))
-    assert(h.contains("name=\"skills\" value=\"2\" />"))
+    // v0.38.0 bool-attr: a false `checked={o.on}` slot leaves a space (so `value="2"  />`)
+    assert(h.contains("name=\"skills\" value=\"2\"  />"))
     assert(h.contains(">Skills</span>"))
 }
 
@@ -964,7 +968,8 @@ fn sample_nav() -> List<NavGroup> {
     ]
     let h = radio_group_render(radio_group { name: "activo", label: "Estado", options: opts }).raw
     assert(h.contains("type=\"radio\" name=\"activo\" value=\"true\" checked"))
-    assert(h.contains("type=\"radio\" name=\"activo\" value=\"false\" />"))
+    // v0.38.0 bool-attr: a false `checked={o.on}` slot leaves a space (so `value="false"  />`)
+    assert(h.contains("type=\"radio\" name=\"activo\" value=\"false\"  />"))
     assert(h.contains(">Estado</span>"))
 }
 
@@ -1050,8 +1055,9 @@ fn sample_nav() -> List<NavGroup> {
     ]
     let h = group_select_render(group_select { name: "boss", label: "Reporta", groups: groups, head_label: "— none —", head_on: false }).raw
     assert(h.contains("<optgroup label=\"Eng\">"))
-    assert(h.contains("<option value=\"1\" selected=\"\">Ada</option>"))
-    assert(h.contains("<option value=\"0\">— none —</option>"))  // head, not selected
+    // v0.38.0 bool-attr: truthy `selected={o.on}` emits bare `selected`; a false slot leaves a space before `>`
+    assert(h.contains("<option value=\"1\" selected>Ada</option>"))
+    assert(h.contains("<option value=\"0\" >— none —</option>"))  // head, not selected
     assert(h.contains("name=\"boss\""))
 }
 
@@ -1065,7 +1071,8 @@ fn sample_nav() -> List<NavGroup> {
     assert(h.contains("<fieldset"))
     assert(h.contains(">Empleados</legend>"))
     assert(h.contains("name=\"permisos\" value=\"1\" checked"))
-    assert(h.contains("name=\"permisos\" value=\"2\" />"))
+    // v0.38.0 bool-attr: a false `checked={o.on}` slot leaves a space (so `value="2"  />`)
+    assert(h.contains("name=\"permisos\" value=\"2\"  />"))
 }
 
 // --- Tabs ---

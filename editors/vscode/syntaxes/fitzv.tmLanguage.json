@@ -149,7 +149,10 @@
       "endCaptures": {
         "1": { "name": "punctuation.definition.tag.end.html" }
       },
-      "patterns": [{ "include": "#html-attribute" }]
+      "patterns": [
+        { "include": "#html-attribute" },
+        { "comment": "Conditional boolean attribute `attr={expr}` (unquoted brace, fitz core v0.38.0) — highlight the bare interpolation. Quoted values are consumed by #html-attribute first, so only a bare `{...}` reaches here.", "include": "#interpolation" }
+      ]
     },
     "html-attribute": {
       "patterns": [

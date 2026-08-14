@@ -21,7 +21,7 @@ component radio_group {
       {#if label != ""}<span class="flv-field-label">{flv(label)}</span>{/if}
       <div class="flv-radio-group">
         {#for o in options}
-          {#if o.on}<label class="flv-radio"><input type="radio" name="{flv(name)}" value="{flv(o.value)}" checked /> {flv(o.label)}</label>{#else}<label class="flv-radio"><input type="radio" name="{flv(name)}" value="{flv(o.value)}" /> {flv(o.label)}</label>{/if}
+          <label class="flv-radio"><input type="radio" name="{flv(name)}" value="{flv(o.value)}" checked={o.on} /> {flv(o.label)}</label>
         {/for}
       </div>
     </div>

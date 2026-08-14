@@ -29,20 +29,20 @@ component select {
       {#if disabled}
         <select class="flv-field-input flv-field-select" name="{flv(name)}" disabled>
           {#for o in options}
-            {#if o.on}<option value="{flv(o.value)}" selected>{flv(o.label)}</option>{#else}<option value="{flv(o.value)}">{flv(o.label)}</option>{/if}
+            <option value="{flv(o.value)}" selected={o.on}>{flv(o.label)}</option>
           {/for}
         </select>
       {#else}
         {#if on_change != ""}
           <select class="flv-field-input flv-field-select" name="{flv(name)}" data-flv-change="{on_change}">
             {#for o in options}
-              {#if o.on}<option value="{flv(o.value)}" selected>{flv(o.label)}</option>{#else}<option value="{flv(o.value)}">{flv(o.label)}</option>{/if}
+              <option value="{flv(o.value)}" selected={o.on}>{flv(o.label)}</option>
             {/for}
           </select>
         {#else}
           <select class="flv-field-input flv-field-select" name="{flv(name)}">
             {#for o in options}
-              {#if o.on}<option value="{flv(o.value)}" selected>{flv(o.label)}</option>{#else}<option value="{flv(o.value)}">{flv(o.label)}</option>{/if}
+              <option value="{flv(o.value)}" selected={o.on}>{flv(o.label)}</option>
             {/for}
           </select>
         {/if}

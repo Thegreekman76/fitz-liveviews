@@ -387,8 +387,14 @@ estilos).
   `dep_ph_*`/`row_tip_*`/`dep_tip_empleados`/`ph_notas` se inlinearon en los
   `.fitzv` (`placeholder="{flv(t(locale, "…"))}"` / `data-tooltip="{t(locale,
   "…")}"`), paridad byte-a-byte validada run↔run.
-- **Gotchas del DSL `.fitzv` que aún fuerzan helpers** (sección "⚠️ Gotchas"
-  arriba): queda #6 (`{expr}` bare en **posición** de atributo → hoy variantes
-  `{#if checked}...{#else}...{/if}` para booleanos condicionales). Un fix del
-  view-parser + emisor del core lo cerraría. #7 (`fitz check` no view-parsea
-  `.fitzv`): los errores de view solo salen en `fitz run`/`fitz build`.
+- ~~**#6 atributos booleanos condicionales**~~ — **CERRADO** en Fitz core
+  v0.38.0. `attr={boolExpr}` (llave SIN comillas) deja el atributo presente en el
+  DOM sii `boolExpr` es truthy. El checkbox de selección de `EmpleadoRow.fitzv`
+  pasó de emitir dos variantes `{#if checked}<input checked/>{#else}<input/>{/if}`
+  a `<input ... checked={checked} />`. Los `{#if}/{#else}` que quedan (chevron,
+  badge de estado) cambian texto/markup, no un atributo booleano suelto.
+- ~~**#7 `fitz check` no view-parsea `.fitzv`**~~ — **CERRADO** en Fitz core
+  v0.39.0. `fitz check` sobre un `.fitzv` (entry del manifest o `fitz check
+  App.fitzv` explícito) corre el pipeline de view; los errores de view ya no
+  salen solo en `fitz run`/`fitz build`. **El catálogo de gotchas del `.fitzv`
+  queda cerrado entero** (#1 v0.37.17, #6 v0.38.0, #7 v0.39.0).

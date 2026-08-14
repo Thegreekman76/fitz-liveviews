@@ -18,7 +18,7 @@ component checkbox {
 
   <template>
     <label class="flv-checkbox">
-      {#if on}<input type="checkbox" name="{flv(name)}" value="{flv(value)}" checked />{#else}<input type="checkbox" name="{flv(name)}" value="{flv(value)}" />{/if}
+      <input type="checkbox" name="{flv(name)}" value="{flv(value)}" checked={on} />
       <span class="flv-checkbox-label">{flv(label)}</span>
     </label>
   </template>

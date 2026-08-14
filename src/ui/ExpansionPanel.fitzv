@@ -17,17 +17,10 @@ component expansion_panel {
   }
 
   <template>
-    {#if open}
-      <details class="flv-exp" open>
-        <summary class="flv-exp-summary">{flv(summary)}</summary>
-        <div class="flv-exp-body">{body}</div>
-      </details>
-    {#else}
-      <details class="flv-exp">
-        <summary class="flv-exp-summary">{flv(summary)}</summary>
-        <div class="flv-exp-body">{body}</div>
-      </details>
-    {/if}
+    <details class="flv-exp" open={open}>
+      <summary class="flv-exp-summary">{flv(summary)}</summary>
+      <div class="flv-exp-body">{body}</div>
+    </details>
   </template>
 
   <style scoped>

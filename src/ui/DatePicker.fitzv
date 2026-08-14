@@ -21,11 +21,7 @@ component date_picker {
   <template>
     <label class="flv-field">
       {#if label != ""}<span class="flv-field-label">{flv(label)}</span>{/if}
-      {#if disabled}
-        <input class="flv-field-input flv-field-date" type="date" name="{flv(name)}" value="{flv(value)}" disabled />
-      {#else}
-        <input class="flv-field-input flv-field-date" type="date" name="{flv(name)}" value="{flv(value)}" />
-      {/if}
+      <input class="flv-field-input flv-field-date" type="date" name="{flv(name)}" value="{flv(value)}" disabled={disabled} />
       {#if error != ""}
         <span class="flv-field-error">{flv(error)}</span>
       {#else}

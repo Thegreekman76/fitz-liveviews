@@ -26,13 +26,13 @@ component checkbox_group {
       {#if chips}
         <div class="flv-check-list flv-check-chips">
           {#for o in options}
-            {#if o.on}<label class="flv-check"><input type="checkbox" name="{flv(name)}" value="{flv(o.value)}" checked /> {flv(o.label)}</label>{#else}<label class="flv-check"><input type="checkbox" name="{flv(name)}" value="{flv(o.value)}" /> {flv(o.label)}</label>{/if}
+            <label class="flv-check"><input type="checkbox" name="{flv(name)}" value="{flv(o.value)}" checked={o.on} /> {flv(o.label)}</label>
           {/for}
         </div>
       {#else}
         <div class="flv-check-list flv-check-stack">
           {#for o in options}
-            {#if o.on}<label class="flv-check"><input type="checkbox" name="{flv(name)}" value="{flv(o.value)}" checked /> {flv(o.label)}</label>{#else}<label class="flv-check"><input type="checkbox" name="{flv(name)}" value="{flv(o.value)}" /> {flv(o.label)}</label>{/if}
+            <label class="flv-check"><input type="checkbox" name="{flv(name)}" value="{flv(o.value)}" checked={o.on} /> {flv(o.label)}</label>
           {/for}
         </div>
       {/if}

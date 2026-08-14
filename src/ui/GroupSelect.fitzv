@@ -29,12 +29,12 @@ component group_select {
       {#if label != ""}<span class="flv-field-label">{flv(label)}</span>{/if}
       <select class="flv-field-input flv-field-select" name="{flv(name)}">
         {#if head_label != ""}
-          {#if head_on}<option value="{flv(head_value)}" selected>{flv(head_label)}</option>{#else}<option value="{flv(head_value)}">{flv(head_label)}</option>{/if}
+          <option value="{flv(head_value)}" selected={head_on}>{flv(head_label)}</option>
         {/if}
         {#for g in groups}
           <optgroup label="{flv(g.label)}">
             {#for o in g.options}
-              {#if o.on}<option value="{flv(o.value)}" selected>{flv(o.label)}</option>{#else}<option value="{flv(o.value)}">{flv(o.label)}</option>{/if}
+              <option value="{flv(o.value)}" selected={o.on}>{flv(o.label)}</option>
             {/for}
           </optgroup>
         {/for}

@@ -63,15 +63,9 @@ component button {
             <span class="flv-btn-spin"></span>{#if label != ""}<span class="flv-btn-label">{flv(label)}</span>{/if}
           </button>
         {#else}
-          {#if disabled}
-            <button type="submit" class="flv-btn" data-variant="{variant}" data-size="{size}" data-tooltip="{tooltip}" aria-label="{aria_label}" disabled>
-              {#if icon != ""}<span class="flv-btn-icon">{raw_html(render_icon(icon).raw)}</span>{/if}{#if label != ""}<span class="flv-btn-label">{flv(label)}</span>{/if}
-            </button>
-          {#else}
-            <button type="submit" class="flv-btn" data-variant="{variant}" data-size="{size}" data-tooltip="{tooltip}" aria-label="{aria_label}">
-              {#if icon != ""}<span class="flv-btn-icon">{raw_html(render_icon(icon).raw)}</span>{/if}{#if label != ""}<span class="flv-btn-label">{flv(label)}</span>{/if}
-            </button>
-          {/if}
+          <button type="submit" class="flv-btn" data-variant="{variant}" data-size="{size}" data-tooltip="{tooltip}" aria-label="{aria_label}" disabled={disabled}>
+            {#if icon != ""}<span class="flv-btn-icon">{raw_html(render_icon(icon).raw)}</span>{/if}{#if label != ""}<span class="flv-btn-label">{flv(label)}</span>{/if}
+          </button>
         {/if}
       {#else}
         {#if loading}
@@ -79,15 +73,9 @@ component button {
             <span class="flv-btn-spin"></span>{#if label != ""}<span class="flv-btn-label">{flv(label)}</span>{/if}
           </button>
         {#else}
-          {#if disabled}
-            <button type="button" class="flv-btn" data-variant="{variant}" data-size="{size}" data-flv-click="{on_click}" data-flv-value-value="{value}" data-tooltip="{tooltip}" aria-label="{aria_label}" disabled>
-              {#if icon != ""}<span class="flv-btn-icon">{raw_html(render_icon(icon).raw)}</span>{/if}{#if label != ""}<span class="flv-btn-label">{flv(label)}</span>{/if}
-            </button>
-          {#else}
-            <button type="button" class="flv-btn" data-variant="{variant}" data-size="{size}" data-flv-click="{on_click}" data-flv-value-value="{value}" data-tooltip="{tooltip}" aria-label="{aria_label}">
-              {#if icon != ""}<span class="flv-btn-icon">{raw_html(render_icon(icon).raw)}</span>{/if}{#if label != ""}<span class="flv-btn-label">{flv(label)}</span>{/if}
-            </button>
-          {/if}
+          <button type="button" class="flv-btn" data-variant="{variant}" data-size="{size}" data-flv-click="{on_click}" data-flv-value-value="{value}" data-tooltip="{tooltip}" aria-label="{aria_label}" disabled={disabled}>
+            {#if icon != ""}<span class="flv-btn-icon">{raw_html(render_icon(icon).raw)}</span>{/if}{#if label != ""}<span class="flv-btn-label">{flv(label)}</span>{/if}
+          </button>
         {/if}
       {/if}
     </span>

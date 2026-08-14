@@ -11,10 +11,11 @@
 // `row_helpers.fitz` module (`row_class`). The tooltips interpolate
 // `t(locale, "…")` directly inside `data-tooltip` — nested double quotes in an
 // attribute value work since fitz core v0.37.17 (old gotcha #1, now closed), so
-// the row_tip_* helpers are gone. Everything else is declarative: the chevron,
-// checkbox `checked` and estado badge use inline `{#if}/{#else}` (the DSL has no
-// `match`; gotcha #6 still forbids a bare `{...}` in attribute position, so the
-// checkbox emits its two full variants).
+// the row_tip_* helpers are gone. Everything else is declarative: the chevron
+// and estado badge use inline `{#if}/{#else}` (the DSL has no `match`, and those
+// two switch text/markup, not a lone attribute). The selection checkbox uses a
+// conditional boolean attribute `checked={checked}` (gotcha #6, closed in fitz
+// core v0.38.0), so it no longer emits two full variants.
 //
 // CSS stays GLOBAL (shell.fitz): `.btn-icon` / `.badge` / `.col-*` are shared.
 
@@ -38,7 +39,7 @@ component empleado_row {
   <template>
     <tr class="{row_class(checked, expanded)}" data-flv-key="emp-{id}">
       <td data-label="" class="col-exp"><button class="btn-icon btn-exp" data-tooltip="{t(locale, "grid.tip.detail")}" data-flv-click="toggle_row" data-flv-value-id="{id}">{#if expanded}▾{#else}▸{/if}</button></td>
-      <td data-label="" class="col-sel">{#if checked}<input type="checkbox" class="row-sel" data-flv-click="toggle_sel" data-flv-value-id="{id}" checked />{#else}<input type="checkbox" class="row-sel" data-flv-click="toggle_sel" data-flv-value-id="{id}" />{/if}</td>
+      <td data-label="" class="col-sel"><input type="checkbox" class="row-sel" data-flv-click="toggle_sel" data-flv-value-id="{id}" checked={checked} /></td>
       <td data-label="ID" class="col-id">{id}</td>
       <td data-label="Nombre"><strong>{flv(nombre)}</strong></td>
       <td data-label="Email">{flv(email)}</td>
