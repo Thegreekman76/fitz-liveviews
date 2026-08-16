@@ -1,0 +1,34 @@
+# Standalone manifest for the SSR → client hydration-of-composition demo.
+#
+# ONE `App.fitzv` compiled two ways from one source (both compose the REAL
+# `src/ui/Badge` via the cross-file `<Child />` import):
+#
+#   * `[[bin]] app`      → `target = "wasm-client"`: the browser bundle that
+#     ADOPTS the server DOM (Badge included) on boot (`fitz build --bin app`).
+#   * `[[bin]] prerender`→ classic Fitz: prints the SSR HTML that seeds
+#     `index.html`'s `#app` (`fitz run --bin prerender`). Cross-file
+#     `<Child />` composition through the classic loader needs Fitz core
+#     v0.41.3.
+#
+# `fitz_liveviews` is a path dependency: the prerender resolves
+# `from fitz_liveviews.ui.Badge import badge` through it, and the wasm build
+# inlines the Badge from it.
+
+[package]
+name = "hydration-composition-demo"
+version = "0.1.0"
+edition = "2026"
+description = "SSR → client hydration of a tree composing the real src/ui/Badge companion (Phase 11)."
+
+[dependencies]
+fitz_liveviews = { path = "../.." }
+
+[[bin]]
+name = "app"
+main = "App.fitzv"
+target = "wasm-client"
+mount = "#app"
+
+[[bin]]
+name = "prerender"
+main = "prerender.fitz"

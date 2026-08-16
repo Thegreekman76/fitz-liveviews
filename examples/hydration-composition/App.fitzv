@@ -1,0 +1,60 @@
+// App.fitzv — Phase 11 next slice: SSR → client hydration of COMPOSITION with a
+// REAL companion component.
+//
+// The v0.41.2 `examples/hydration/` demo hydrated a single keep-node component
+// styled to LOOK like the companion UI. This one goes further: it composes the
+// actual `src/ui/Badge.fitzv` primitive via a cross-file `<Child />` import
+// (CW.8) inside a `component App hydrate` tree. The SAME source server-renders
+// (the companion Badge included, with its `<style scoped>` + `{flv(...)}`) and
+// then the client-WASM bundle ADOPTS that server-painted DOM across the
+// parent/child boundary — the composed `<div class="__fitz-child-Badge">` and
+// the Badge inside it are adopted, not recreated.
+//
+// Requires Fitz core v0.41.3: SSR-composing a cross-file `<Child />` through the
+// classic loader (what `fitz run --bin prerender` uses) landed there. Before it,
+// `App_render` couldn't resolve an imported companion — only the wasm target
+// could.
+//
+// Naive-composition caveat (core hydrate-composition, v0.31.0): composition has
+// no in-place patch model, so hydration = adopt + wire on boot (no first-paint
+// flash, server nodes preserved). The FIRST state change re-renders the tree
+// wholesale — that is when the restored state and the naive-rebuilt Badge become
+// visible. That is why the interaction here is a `@click` toggle, not a live
+// `@input` (a live text input belongs in the keep-node `examples/hydration/`).
+
+from fitz_liveviews.ui.Badge import badge as Badge
+
+component App hydrate {
+  state {
+    // The service the card reports on, and its live status. The pill is a REAL
+    // `<Badge>` reflecting `label` + `variant` via interpolated props.
+    service: Str = "api-gateway"
+    label: Str = "active"
+    variant: Str = "success"
+  }
+
+  // Toggle the service status. A plain `if`/`else` keeps the event body in the
+  // SSR ∩ WASM envelope (the component must render on both targets).
+  event toggle() {
+    if (variant == "success") { variant = "muted" } else { variant = "success" }
+    if (label == "active") { label = "paused" } else { label = "active" }
+  }
+
+  <template>
+    <div class="flv-hcard">
+      <h2 class="flv-hcard-title">Service status</h2>
+      <p class="flv-hcard-note">
+        Server-rendered — the pill below is the real
+        <code>src/ui/Badge</code> composed cross-file — then hydrated: the WASM
+        bundle adopts this exact DOM, Badge and all. Toggle re-renders the tree.
+      </p>
+
+      <div class="flv-hcard-row">
+        <span class="flv-hcard-svc">{service}</span>
+        <Badge label="{label}" variant="{variant}" size="md" />
+      </div>
+
+      <button class="flv-btn" @click="toggle">toggle status</button>
+    </div>
+  </template>
+}

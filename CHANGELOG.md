@@ -5,6 +5,36 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.41.3] — 2026-08-16 — Phase 11: hydration of composition with the REAL Badge
+
+Aligns with Fitz core **v0.41.3** and adds the next hydration slice: composing
+the actual `src/ui/Badge` companion inside a hydrating tree. This needed a core
+fix — SSR-composing a cross-file `<Child />` through the classic loader — which
+landed in core v0.41.3 (before it, only the wasm target could resolve an
+imported companion; `App_render` couldn't).
+
+### Added
+
+- **`examples/hydration-composition/`** — SSR → client hydration of a `component
+  App hydrate` tree that composes the **real `src/ui/Badge.fitzv`** via a
+  cross-file `<Child />` import (CW.8) with interpolated props
+  (`label="{label}"`). The **same** `App.fitzv` compiles two ways: `fitz run
+  --bin prerender` server-renders the card (the Badge included, with its
+  `<style scoped>` + `{flv(...)}`) and `fitz build --bin app` builds the wasm
+  bundle that **adopts** that server-painted DOM **across the parent/child
+  boundary**. **Headless-Chrome validated 7/7** (boot · state restored from the
+  `<script>` payload — `paused`, not the default `active` · cross-boundary
+  adoption witness survives · child scoped `<style>` preserved · toggle
+  re-render ×2 · no page errors) + no horizontal overflow at 320px.
+
+  Two findings worth recording: the composed child's **leading `<style scoped>`
+  does not break the adopt walk** (an earlier worry — it hydrates fine), and
+  **interpolated child props work in the composition-hydration path**. The
+  naive-composition caveat stands (first state change re-renders the tree
+  wholesale — the interaction is a `@click` toggle, not a live `@input`, which
+  belongs in the keep-node `examples/hydration/`). `{#if}`/`{#for}` regions
+  inside a hydrating composition tree are the next slice.
+
 ## [v0.41.2] — 2026-08-16 — Phase 11 first adoption: SSR → client hydration demo
 
 Realigns the lib version with Fitz core (**v0.41.2**), jumping from v0.38.0. The

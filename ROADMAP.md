@@ -1116,6 +1116,21 @@ authoring) is the framework-side work.
       authoring pattern (no `<style scoped>` on the hydrating root; event body in
       the SSR∩WASM envelope; sole-child text interpolations). Cross-file
       `<Badge>` composition + regions in the hydration path are the next slices.
+- [x] **Composition adoption — `examples/hydration-composition/`** (validated
+      against core v0.41.3). Goes further: a `component App hydrate` tree
+      composes the REAL `src/ui/Badge` primitive via a cross-file `<Child />`
+      import (CW.8) with interpolated props (`label="{label}"`). The same source
+      server-renders the Badge (its `<style scoped>` + `{flv(...)}` included) and
+      the wasm bundle ADOPTS it **across the parent/child boundary**. Needed a
+      core fix: **SSR-composing a cross-file `<Child />` through the classic
+      loader** (Fitz core v0.41.3) — before it, `App_render` couldn't resolve an
+      imported companion (only the wasm target could). Headless-Chrome validated
+      7/7 (boot · state restored from server ≠ default · cross-boundary adoption
+      witness survives · child scoped `<style>` preserved · toggle re-render ×2 ·
+      no page errors) + no overflow at 320px. Confirms the child's leading
+      `<style scoped>` does NOT break the adopt walk, and interpolated child
+      props work in the composition-hydration path. `{#if}`/`{#for}` regions
+      INSIDE a hydrating composition tree remain the next slice.
 
 **The honest edges (MVP)** — carried from the core, none blocking:
 

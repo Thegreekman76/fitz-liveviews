@@ -1,0 +1,22 @@
+// prerender.fitz — build-time prerender of App.fitzv's SSR output (composition).
+//
+// Prints the server-painted HTML that seeds `index.html`'s `#app`:
+// `App_render(state).raw` — the `<div class="__fitz-child-Badge">` wrapper with
+// the real Badge inside (its `<style scoped>` + escaped label), the `data-flv-*`
+// attrs, and the `<script>` state payload the `hydrate` marker appends.
+//
+// The state is DELIBERATELY different from the component default
+// (`label: "active", variant: "success"`) — here `paused` / `muted` — so on boot
+// you can see the wasm restored the state from the `<script>` (the pill reads
+// "paused" in the muted colour, not the default "active" green).
+//
+// Cross-file `<Child />` composition through the classic loader needs Fitz core
+// v0.41.3. Regenerate with:
+//
+//   fitz run --bin prerender
+
+from fitz_liveviews import flv_register
+from App import App, App_render, App_toggle
+
+let state = App { service: "api-gateway", label: "paused", variant: "muted" }
+print(App_render(state).raw)
