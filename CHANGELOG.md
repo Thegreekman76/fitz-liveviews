@@ -5,6 +5,37 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.41.2] — 2026-08-16 — Phase 11 first adoption: SSR → client hydration demo
+
+Realigns the lib version with Fitz core (**v0.41.2**), jumping from v0.38.0. The
+intervening core releases (v0.39 `fitz check` for `.fitzv`, v0.40 checker
+refinements, v0.41 `jwt.decode`/`jwt.encode` heterogéneo + LSP dedup) are
+**transparent to the lib** — no API/authoring change was required; the companion
+UI `@test` suite passes **227/227** against v0.41.2. The headline of this release
+is the first framework-side adoption of **Phase 11 (SSR → client hydration)**,
+landed on the core in v0.31.0 and documented in the lib but not yet exercised by
+any `.fitzv`.
+
+### Added
+
+- **`examples/hydration/`** — the isomorphic hydration bridge, end-to-end. One
+  `App.fitzv` (`component App hydrate { ... }`) compiles **two ways** from **one**
+  source: `fitz run --bin prerender` prints the server HTML that seeds
+  `index.html`'s `#app`, and `fitz build --bin app` builds the wasm-client bundle
+  that **adopts** that server-painted DOM on boot (`hydrate()`, not `mount()`) —
+  no blank-mount flash, node-for-node adoption, then keep-node patches keep it
+  alive. A companion-flavoured card: a live `<input>`, a `--flv-*`-styled pill
+  echoing it (caret preserved on edit), and a `toggle colour` button that patches
+  the pill's `data-variant` on the adopted node. **Headless-Chrome validated 9/9**
+  (boot · state restored from the `<script>` payload, not the default · adoption
+  witness survives · live patch · caret preserved on mid-string edit · variant
+  attr patch · label preserved · no page errors) + no horizontal overflow at
+  320px. Establishes the authoring pattern for hydrating components: no
+  `<style scoped>` on the hydrating root (styling goes in the host `<head>`);
+  event bodies in the SSR∩WASM envelope (plain `if`/`else`, not `match`);
+  sole-child text interpolations. Cross-file `<Badge>` composition + `{#if}`/
+  `{#for}` regions in the hydration path are the next slices.
+
 ## [v0.38.0] — 2026-08-14 — deshelperize atributos booleanos condicionales (gotcha #6) + examples
 
 **Minor bump** (tracks Fitz core **v0.38.0**, la versión que introdujo el

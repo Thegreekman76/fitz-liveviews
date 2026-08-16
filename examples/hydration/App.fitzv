@@ -1,0 +1,77 @@
+// App.fitzv — Phase 11 adoption: SSR → client hydration for fitz-liveviews.
+//
+// The SAME source paints on the server (fast first paint, indexable, works
+// with JS off) and then a client-WASM bundle ADOPTS that exact server-painted
+// DOM via `hydrate()` instead of re-creating it — no blank-mount flash, no
+// framework runtime shipped, node-for-node adoption (nothing to reconcile,
+// unlike React/Next hydration-mismatch warnings). After adoption the keep-node
+// patch model keeps the DOM alive, so the live `<input>` keeps its caret.
+//
+// This is the natural next step on top of the CW.6–CW.8 dual-target work: a
+// companion-flavoured, interactive component that is server-rendered first and
+// then becomes interactive from a single `.fitzv`.
+//
+// The `hydrate` marker (Fitz core v0.31.0) is SSR-side: it tells the SSR
+// emitter to append the trailing
+// `<script type="application/json" id="__flv_state_App">` state payload so the
+// server HTML carries the state the wasm restores on boot. It is opt-in so
+// components SSR-rendered for the WS-takeover (whose HTML diff forbids
+// `<script>` in the LiveView root) stay byte-identical.
+//
+// Hydration gate (core slice-1): keep-node, region-free (a live `@input` /
+// `@click` over a static template, no `{#if}`/`{#for}`), and dynamic text
+// interpolations must be the SOLE child of their element (`<span>{label}</span>`)
+// so the server text nodes map 1:1 onto the adopt walk. That is why the pill
+// wraps its text in its own `<span>`. Cross-file `<Badge>` composition +
+// regions in the hydration path are later slices; here the pill is styled
+// with the same `--flv-*` tokens as `src/ui/Badge.fitzv` so it looks like the
+// companion primitive without leaving the reliable gate.
+//
+// No `<style scoped>` on purpose: a scoped block would be emitted as the FIRST
+// child of the mount root, and the adopt walk descends into the first ELEMENT
+// child (it would map the template root onto the `<style>` and break). Styling
+// lives in the host page's `<head>` with the same `--flv-*` tokens — the same
+// pattern the core `examples/view/hydrate/` uses.
+
+component App hydrate {
+  state {
+    label: Str = "shipping"
+    variant: Str = "primary"
+  }
+
+  event on_label() { label = payload["value"] }
+
+  // Toggle the pill colour. A button-driven state change over a
+  // `data-variant="{variant}"` attribute on a NON-input `<span>` — keep-node
+  // patches it with `setAttribute`, which updates a `<span>` cleanly (unlike an
+  // `<input>`'s value, where the browser keeps a user-typed property over the
+  // attribute — the controlled-input nuance that fine-grained reactivity, core
+  // Phase 11.10, will smooth out). A plain `if`/`else` keeps the event body in
+  // the intersection of the SSR + WASM envelopes (`match` compiles to WASM but
+  // the SSR walker defers it, and this component must render on both targets).
+  event toggle() {
+    if (variant == "primary") { variant = "success" } else { variant = "primary" }
+  }
+
+  <template>
+    <div class="flv-hcard">
+      <h2 class="flv-hcard-title">Live badge preview</h2>
+      <p class="flv-hcard-note">
+        Server-rendered first paint, then hydrated from the same source. Type to
+        update the pill with no round-trip — the caret stays put — and cycle its
+        colour with the button.
+      </p>
+
+      <div class="flv-hcard-preview">
+        <span class="flv-badge" data-variant="{variant}"><span class="flv-badge-txt">{label}</span></span>
+      </div>
+
+      <label class="flv-field">
+        <span class="flv-field-label">Badge label</span>
+        <input class="flv-input" @input="on_label" value="{label}" placeholder="type a label" autocomplete="off" />
+      </label>
+
+      <button class="flv-btn" @click="toggle">toggle colour</button>
+    </div>
+  </template>
+}

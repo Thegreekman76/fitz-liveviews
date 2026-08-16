@@ -1105,6 +1105,18 @@ CW.6–CW.8 dual-target work. Adopting it across the presentational subset
 (and threading the `hydrate` marker through the SSR renderer + `.fitzv`
 authoring) is the framework-side work.
 
+- [x] **First adoption — `examples/hydration/`** (validated against core
+      v0.41.2). One `App.fitzv` (`component App hydrate`) compiles TWO ways:
+      `fitz run --bin prerender` prints the server HTML that seeds `#app`, and
+      `fitz build --bin app` builds the wasm bundle that ADOPTS it on boot. A
+      live `<input>` + a companion-styled `--flv-*` pill + a `toggle colour`
+      button. Headless-Chrome validated 9/9 (boot · state restore · adoption
+      witness survives · live patch · caret preserved · variant attr patch on
+      the adopted node · no page errors) + no overflow at 320px. Establishes the
+      authoring pattern (no `<style scoped>` on the hydrating root; event body in
+      the SSR∩WASM envelope; sole-child text interpolations). Cross-file
+      `<Badge>` composition + regions in the hydration path are the next slices.
+
 **The honest edges (MVP)** — carried from the core, none blocking:
 
 - [ ] **Universal auto-hydration** — today it's opt-in via the marker;

@@ -1,0 +1,34 @@
+# Standalone manifest for the SSR → client hydration demo (Phase 11).
+#
+# The SAME `App.fitzv` is compiled TWO ways from ONE source:
+#
+#   * `[[bin]] app`      → `target = "wasm-client"`: the browser bundle that
+#     ADOPTS the server-painted DOM on boot (`fitz build --bin app`).
+#   * `[[bin]] prerender`→ classic Fitz: prints the SSR HTML that seeds
+#     `index.html`'s `#app` (`fitz run --bin prerender`). It imports
+#     `App_render` from `App.fitzv` through the SSR emitter, so the output
+#     already carries the `data-flv-*` attrs + the `<script>` state payload
+#     that the `hydrate` marker appends.
+#
+# `fitz_liveviews` is a path dependency used only by the prerender bin (its
+# `flv_register` boots the SSR render registry). `App.fitzv` itself imports
+# nothing, so the wasm-client build never resolves the dep.
+
+[package]
+name = "hydration-demo"
+version = "0.1.0"
+edition = "2026"
+description = "SSR → client hydration demo for Fitz LiveViews (Phase 11): one .fitzv, server-rendered then hydrated client-side."
+
+[dependencies]
+fitz_liveviews = { path = "../.." }
+
+[[bin]]
+name = "app"
+main = "App.fitzv"
+target = "wasm-client"
+mount = "#app"
+
+[[bin]]
+name = "prerender"
+main = "prerender.fitz"

@@ -1,0 +1,22 @@
+// prerender.fitz — build-time prerender of App.fitzv's SSR output.
+//
+// Prints the EXACT server-painted HTML that seeds `index.html`'s `#app`:
+// `App_render(state).raw` — the `data-flv-*` attrs (inert to the wasm adopt
+// walk; they bind to fitz-liveviews' WS-takeover) plus the trailing
+// `<script type="application/json" id="__flv_state_App">` state payload that
+// the `hydrate` marker appends.
+//
+// The state is `App { label: "priority" }` — DELIBERATELY different from the
+// component default `"shipping"` — so you can see on boot that the wasm
+// restored the state from the `<script>` (the pill reads "priority", not the
+// default). Regenerate the server HTML with:
+//
+//   fitz run --bin prerender
+//
+// and paste the output inside `<div id="app">…</div>` in index.html.
+
+from fitz_liveviews import flv_register
+from App import App, App_render, App_on_label, App_toggle
+
+let state = App { label: "priority" }
+print(App_render(state).raw)

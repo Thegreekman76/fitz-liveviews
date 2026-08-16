@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fitz LiveViews — SSR → client hydration (Phase 11)</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%23ce412b'/%3E%3C/svg%3E" />
+
+    <!--
+      The `--flv-*` design tokens, defined ONCE at the host level (same values
+      as `src/ui/theme.fitz`), plus the component's plain-class CSS. The
+      hydrating `App.fitzv` carries NO `<style scoped>` on purpose (a scoped
+      block would be emitted as the first child of #app and the adopt walk would
+      map the template root onto it) — styling lives here, exactly like the core
+      `examples/view/hydrate/` demo. Theme-aware out of the box: light by
+      default, dark under `prefers-color-scheme: dark`.
+    -->
+    <style>
+      :root {
+        color-scheme: light dark;
+
+        --flv-color-primary: #ce412b;
+        --flv-color-success: #2e7d32;
+        --flv-color-danger:  #c62828;
+        --flv-color-info:    #1565c0;
+        --flv-surface:   #ffffff;
+        --flv-surface-2: #f5f5f7;
+        --flv-border:    #d9d9e0;
+        --flv-text:       #1a1a1a;
+        --flv-text-muted: #55555c;
+        --flv-radius-md:   8px;
+        --flv-shadow-card: 0 6px 20px rgba(0, 0, 0, .12);
+
+        --page-bg: #fafafa;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --flv-surface:   #1e1e22;
+          --flv-surface-2: #2a2a30;
+          --flv-border:    #3a3a42;
+          --flv-text:       #e8e8ea;
+          --flv-text-muted: #a0a0a8;
+          --flv-shadow-card: 0 6px 20px rgba(0, 0, 0, .5);
+          --page-bg: #131316;
+        }
+      }
+
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 40rem; margin: 3rem auto; padding: 0 1rem;
+        background: var(--page-bg); color: var(--flv-text);
+      }
+      .lede { color: var(--flv-text-muted); font-size: .92rem; line-height: 1.5; }
+
+      /* Component CSS (plain classes — no scope hash; the hydrating component
+         ships no scoped style). Mirrors the --flv-* look of src/ui/Badge.fitzv. */
+      .flv-hcard {
+        display: flex; flex-direction: column; gap: .85rem;
+        max-width: 26rem; padding: 1.4rem;
+        background: var(--flv-surface); border: 1px solid var(--flv-border);
+        border-radius: var(--flv-radius-md); box-shadow: var(--flv-shadow-card);
+        color: var(--flv-text);
+      }
+      .flv-hcard-title { margin: 0; font-size: 1.15rem; font-weight: 700; }
+      .flv-hcard-note { margin: 0; font-size: .85rem; line-height: 1.4; color: var(--flv-text-muted); }
+      .flv-hcard-preview { display: flex; align-items: center; min-height: 2rem; }
+
+      .flv-badge {
+        display: inline-flex; align-items: center; justify-content: center;
+        font-weight: 600; line-height: 1; white-space: nowrap;
+        border-radius: 999px; font-size: .78rem; padding: .2rem .6rem;
+        min-width: 1.5rem; min-height: 1.1rem;
+        background: var(--flv-color-primary); color: #fff;
+        border: 1px solid var(--flv-color-primary);
+      }
+      .flv-badge[data-variant="success"] {
+        background: var(--flv-color-success); border-color: var(--flv-color-success);
+      }
+      .flv-badge[data-variant="info"] {
+        background: var(--flv-color-info); border-color: var(--flv-color-info);
+      }
+
+      .flv-field { display: flex; flex-direction: column; gap: .3rem; }
+      .flv-field-label { font-size: .8rem; font-weight: 600; color: var(--flv-text-muted); }
+      .flv-input {
+        padding: .5rem .65rem; font-size: .95rem;
+        border: 1px solid var(--flv-border); border-radius: var(--flv-radius-md);
+        background: var(--flv-surface); color: var(--flv-text);
+      }
+      .flv-input:focus { outline: 2px solid var(--flv-color-primary); outline-offset: 1px; }
+
+      .flv-btn {
+        align-self: flex-start;
+        padding: .45rem .9rem; font-size: .85rem; font-weight: 600;
+        border-radius: var(--flv-radius-md);
+        background: var(--flv-surface-2); color: var(--flv-text);
+        border: 1px solid var(--flv-border); cursor: pointer;
+      }
+      .flv-btn:hover { background: var(--flv-border); }
+    </style>
+  </head>
+  <body>
+    <h1>SSR → client hydration</h1>
+    <p class="lede">
+      The card below is <strong>server-painted HTML</strong> — it works with JS
+      off. When the WASM bundle boots it <strong>adopts</strong> this exact DOM
+      (no wipe, no re-create) and wires the listeners, so the input is
+      interactive from the same <code>App.fitzv</code>. The pill reads
+      <strong>"priority"</strong> (the server state), not the component default
+      <code>"shipping"</code> — proof the state was restored from the
+      <code>&lt;script&gt;</code> payload.
+    </p>
+
+    <!--
+      Server-painted DOM (Phase 11). Everything inside `#app` below is the
+      VERBATIM output of `App_render(App { label: "priority" }).raw` — NOT
+      hand-authored. Regenerate with `fitz run --bin prerender` (see README).
+      The `data-flv-*` attrs (fitz-liveviews' WS-takeover) are inert to the wasm
+      adopt walk; the trailing `<script>` carries the state to restore.
+    -->
+    <div id="app">
+    <div class="flv-hcard">
+      <h2 class="flv-hcard-title">Live badge preview</h2>
+      <p class="flv-hcard-note">
+        Server-rendered first paint, then hydrated from the same source. Type to
+        update the pill with no round-trip — the caret stays put — and cycle its
+        colour with the button.
+      </p>
+
+      <div class="flv-hcard-preview">
+        <span class="flv-badge" data-variant="primary"><span class="flv-badge-txt">priority</span></span>
+      </div>
+
+      <label class="flv-field">
+        <span class="flv-field-label">Badge label</span>
+        <input class="flv-input" data-flv-input="on_label" value="priority" placeholder="type a label" autocomplete="off" />
+      </label>
+
+      <button class="flv-btn" data-flv-click="toggle">toggle colour</button>
+    </div>
+  <script type="application/json" id="__flv_state_App">{"label":"priority","variant":"primary"}</script>
+</div>
+
+    <script type="module">
+      // Tag the pill's text node BEFORE hydration. If the wasm ADOPTS the
+      // server-painted DOM (rather than recreating it), this JS property
+      // survives — the proof that hydration reused the existing node.
+      const txt = document.querySelector('#app .flv-badge-txt');
+      if (txt) txt.__hydrationWitness = 'server-node';
+
+      import init from './pkg/app.js';
+      await init();
+
+      // For manual / automated (headless) inspection.
+      window.__flvHydrated = true;
+    </script>
+  </body>
+</html>
