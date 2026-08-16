@@ -22,6 +22,9 @@ on:
       - 'examples/**/README.md'
       - 'examples/**/src/**'
       - 'examples/wasm-gallery/**'
+      - 'examples/hydration/**'
+      - 'examples/hydration-composition/**'
+      - 'examples/hydration-composition-regions/**'
       - '.github/workflows/docs.yml'
       - '.github/requirements-docs.txt'
   workflow_dispatch:
@@ -68,7 +71,10 @@ jobs:
             ~/.cargo/bin/fitz
             ~/.cargo/bin/wasm-pack
             examples/wasm-gallery/target
-          key: pages-wasm-${{ runner.os }}-v6
+            examples/hydration/target
+            examples/hydration-composition/target
+            examples/hydration-composition-regions/target
+          key: pages-wasm-${{ runner.os }}-v7
 
       - name: Install Fitz (the `fitz` CLI)
         run: |
@@ -97,14 +103,28 @@ jobs:
         # the controlled `Pager` + `ConfirmDialog` whose buttons fire
         # fall-through `data-flv-click` events (v0.37.0), and now the companion
         # UI uses conditional boolean attributes `attr={expr}` (gotcha #6,
-        # v0.38.0) — so the runner needs `fitz` >= v0.38.0. The cache key
-        # (bumped to -v6) forces a fresh `cargo install` of the current `main`
-        # binary. Bump it again whenever the showcase starts using a newer
-        # core feature.
+        # v0.38.0), and the hydration demos below need cross-file `<Child />`
+        # SSR composition (v0.41.3) + region hydration (v0.41.4) — so the runner
+        # needs `fitz` >= v0.41.4. The cache key (bumped to -v7) forces a fresh
+        # `cargo install` of the current `main` binary. Bump it again whenever
+        # the showcase or a demo starts using a newer core feature.
         run: |
           fitz build --bin gallery --target wasm-client
           for c in counter toggle tabs stepper rating accordion modal todolist namelist carousel photo showcase fileupload loader; do
             fitz build --bin "$c" --target wasm-client
+          done
+
+      - name: Build the hydration demos
+        # Each hydration demo is its OWN project (server-render + client-adopt
+        # from one .fitzv). Unlike the gallery bins (which mount into an empty
+        # #app), these are full standalone pages: the committed index.html holds
+        # the server-painted DOM (baked from `fitz run --bin prerender`), and the
+        # wasm bundle adopts it on boot. We build each `app` bin here; the
+        # assemble step copies the committed index.html + the built pkg to
+        # site/live/<demo>/. Documented on the Hydration guide page (iframes).
+        run: |
+          for d in hydration hydration-composition hydration-composition-regions; do
+            ( cd "examples/$d" && fitz build --bin app --target wasm-client )
           done
 
       - name: Assemble site/live
@@ -117,6 +137,16 @@ jobs:
           for c in counter toggle tabs stepper rating accordion modal todolist namelist carousel photo showcase fileupload loader; do
             cp "examples/wasm-gallery/target/wasm/$c/$c.js" site/live/embed/pkg/
             cp "examples/wasm-gallery/target/wasm/$c/${c}_bg.wasm" site/live/embed/pkg/
+          done
+          # Hydration demos → site/live/<demo>/ (full standalone pages: the
+          # committed index.html carries the server-painted DOM, the wasm pkg
+          # adopts it). Served at /live/<demo>/, embedded via iframe on the
+          # Hydration guide page.
+          for d in hydration hydration-composition hydration-composition-regions; do
+            mkdir -p "site/live/$d/pkg"
+            cp "examples/$d/index.html" "site/live/$d/index.html"
+            cp "examples/$d/target/wasm/app/app.js" "site/live/$d/pkg/"
+            cp "examples/$d/target/wasm/app/app_bg.wasm" "site/live/$d/pkg/"
           done
           echo "== site/live ==" && ls -R site/live
 

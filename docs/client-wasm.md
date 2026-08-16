@@ -34,6 +34,12 @@ local and you want zero server round-trips.
 it's SSR. If it's a self-contained widget that could run on a static page with no
 backend at all, client-WASM gives you native-speed reactivity with no round-trip.
 
+!!! tip "Want both — a server first paint *and* local interactivity?"
+    [**Hydration**](hydration.md) is the third option: the same `.fitzv`
+    server-renders (fast first paint, SEO, works with JS off) and then the wasm
+    bundle **adopts** that exact DOM instead of re-creating it — no blank-mount
+    flash, node-for-node.
+
 ## Sharing source with the SSR kit
 
 A client component used to be a genuinely *separate* file from its SSR twin.

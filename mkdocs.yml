@@ -51,6 +51,7 @@ nav:
       - UI components (catalog): ui-components.md
       - Companion UI — benefits: companion-ui-benefits.md
       - Client-WASM (offline widgets): client-wasm.md
+      - Hydration (SSR → client): hydration.md
       - Deploy: deploy.md
   - Course:
       - Overview: course/index.md
