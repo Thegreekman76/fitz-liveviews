@@ -83,15 +83,17 @@ byte-identical.
 ### The shape rules
 
 This is a **keep-node** component: a live control (`@input`) over a static
-template. Two authoring rules make the adopt line up 1:1 with the server DOM:
+template. One authoring rule makes the adopt line up 1:1 with the server DOM:
 
 - **Sole-child interpolations.** A dynamic `{label}` is the *only* child of its
   element (`<span class="lbl">{label}</span>`), so the server text node maps
   cleanly onto the adopt walk. That's why the label is wrapped in its own
   `<span>`, not written inline as `Label: {label}`.
-- **No `<style scoped>` on the hydrating root.** A scoped block would be emitted
-  as the first child of the mount root and the adopt walk would map the template
-  root onto it. Styling goes in the host page's `<head>` (next section).
+
+We'll put the CSS in the host page's `<head>` for this demo (next section) — but
+a hydrating component **can** carry its own `<style scoped>` since core v0.41.5;
+the adopt walk skips the server-painted style block. See
+[Styling & theming](../styling.md).
 
 ## 3. The manifest — two bins from one file
 
@@ -211,22 +213,121 @@ Live version of this exact demo:
 - Typing in the input updates the label live and **keeps the caret** (keep-node
   patches the adopted node in place). **reset** restores `"shipping"`.
 
-## 7. Go further — hydrate a composition
+## 7. Capstone — hydrate a composition **with a region**
 
-The reference page has two more demos you can read the same way:
+Now the complex case: a tree that **composes the real `<Badge>`** companion **and**
+renders a `{#for}` region — both adopted on boot. This is the shape a real
+"status card with a list" takes. It's the
+[`examples/hydration-composition-regions/`](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/hydration-composition-regions)
+demo, built piece by piece.
 
-- [`examples/hydration-composition/`](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/hydration-composition)
-  — a `hydrate` tree that composes the **real `src/ui/Badge`** via a cross-file
-  `<Child />` import; the wasm adopts the composed Badge across the parent/child
-  boundary.
-- [`examples/hydration-composition-regions/`](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/hydration-composition-regions)
-  — the same, plus a `{#for}` region whose list items are adopted from the
-  server.
+### 7a. Compose the real Badge
 
-Composition hydrates **naively**: it adopts on boot (no flash), but the first
-state change re-renders the tree wholesale — so its interaction is a `@click`
-toggle, not a live `@input`. Keep live text inputs (with a preserved caret) in a
-keep-node component like the one you just built.
+A hydrating tree can import a companion component from `src/ui/` and compose it
+with `<Child />` — the same source server-renders the Badge (its own scoped
+styles included) and the wasm adopts it **across the parent/child boundary**.
+
+`App.fitzv`:
+
+```
+from fitz_liveviews.ui.Badge import badge as Badge
+
+component App hydrate {
+  state {
+    label: Str = "active"
+    variant: Str = "success"
+    tags: List<Str> = ["build", "deploy", "verify"]
+  }
+
+  event toggle() {
+    if (variant == "success") { variant = "muted" } else { variant = "success" }
+    if (label == "active")    { label = "idle" }    else { label = "active" }
+  }
+
+  <template>
+    <div class="flv-hcard">
+      <div class="flv-hcard-row">
+        <span class="flv-hcard-svc">pipeline</span>
+        <Badge label="{label}" variant="{variant}" size="md" />
+      </div>
+
+      <ul class="flv-hcard-stages">
+        {#for t in tags}
+          <li class="flv-hcard-stage"><span class="tn">{t}</span></li>
+        {/for}
+      </ul>
+
+      <button class="flv-btn" @click="toggle">toggle status</button>
+    </div>
+  </template>
+}
+```
+
+Two things to notice:
+
+- `from fitz_liveviews.ui.Badge import badge as Badge` — the companion is aliased
+  `Badge` so the tag is `<Badge ... />`. The prop values are **interpolated** from
+  parent state (`label="{label}"`), so the Badge reflects the parent — and it
+  updates when the parent re-renders.
+- The `{#for t in tags}` is a **region**. Its items are server-painted between
+  `<!--fr-->` / `<!--/fr-->` comment anchors, and the adopt walk **skips** those
+  anchors to leave the server-painted list in place.
+
+### 7b. Naive composition — why `@click`, not `@input`
+
+Composition hydrates **naively**: it adopts the whole tree on boot (no flash,
+server nodes preserved), but the **first state change re-renders the tree
+wholesale** — there's no in-place patch across a component boundary. That's why
+the interaction here is a `@click` toggle: a live `@input` would lose its caret on
+the re-render (keep those in a keep-node component, like §2–6). The `{#for}`
+region adopts on boot and rebuilds from state on each change.
+
+### 7c. Prerender, build, and observe
+
+Same loop as before — `prerender.fitz` imports the event fns too so the implicit
+registration resolves:
+
+```
+from fitz_liveviews import flv_register
+from App import App, App_render, App_toggle
+
+let state = App { label: "idle", variant: "muted", tags: ["clone", "test"] }
+print(App_render(state).raw)
+```
+
+```sh
+fitz run --bin prerender      # server HTML → paste into #app
+fitz build --bin app          # wasm bundle → ./pkg/
+python -m http.server 8000
+```
+
+Live version:
+
+<div class="live-embed">
+  <iframe
+    src="https://thegreekman76.github.io/fitz-liveviews/live/hydration-composition-regions/"
+    title="Live — hydration of composition + region"
+    loading="lazy"
+    style="width:100%; height:380px; border:1px solid var(--md-default-fg-color--lightest); border-radius:8px;">
+  </iframe>
+</div>
+
+**What you should see:** on first paint the pill reads **"idle"** (muted) and the
+list is `clone`, `test` — the **server** state, not the defaults. A JS property
+tagged on the Badge node survives boot → the composed Badge was **adopted across
+the boundary**. **toggle status** re-renders the tree: the pill flips
+colour/label and the list is rebuilt.
+
+### 7d. What's still out of scope
+
+A `<Child/>` **dynamically inside** a `{#for}` — a *list of composed children* with
+keyed reconciliation — is not supported: it clashes with the naive
+wipe-and-rebuild model. The region here holds plain items and the composed
+`<Badge>` sits **outside** the loop.
+
+> **Scoped styles on a hydrating root** (since core v0.41.5): a hydrating
+> component can carry its own `<style scoped>` — you don't have to move the CSS to
+> the host `<head>`. See the [Styling & theming](../styling.md) guide.
 
 ## Checkpoint
 

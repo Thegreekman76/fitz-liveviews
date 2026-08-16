@@ -50,6 +50,7 @@ nav:
       - LiveComponents: components.md
       - UI components (catalog): ui-components.md
       - Companion UI — benefits: companion-ui-benefits.md
+      - Styling & theming: styling.md
       - Client-WASM (offline widgets): client-wasm.md
       - Hydration (SSR → client): hydration.md
       - Deploy: deploy.md

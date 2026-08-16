@@ -161,10 +161,13 @@ tabs/steppers/accordions that have no live `@input` of their own.
   adopts across the boundary; naive re-render on state change.
 - **Regions inside a composition tree** (core v0.41.4): a static `{#if}`/`{#for}`
   adopts (the adopt walk skips the server anchors).
+- **Scoped styles** (core v0.41.5): a hydrating component can carry its own
+  `<style scoped>` / `<style global>` — the adopt walk skips the server-painted
+  style block. Co-locate the CSS with the component, or keep it in the host
+  `<head>`. See [Styling & theming](styling.md).
 - **Authoring constraints:** dynamic text interpolations are the sole child of
-  their element (`<span>{x}</span>`); the hydrating root ships no `<style scoped>`
-  (styling goes in the host `<head>`, or on a composed child); event bodies stay
-  in the SSR ∩ WASM envelope (plain `if`/`else`).
+  their element (`<span>{x}</span>`); event bodies stay in the SSR ∩ WASM
+  envelope (plain `if`/`else`).
 - **Out of scope:** a `<Child/>` **dynamically inside** a `{#for}` (keyed
   reconciliation of composed children) — it clashes with the naive
   wipe-and-rebuild model.
