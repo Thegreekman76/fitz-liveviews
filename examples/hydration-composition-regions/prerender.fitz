@@ -1,0 +1,9 @@
+// Prints App_render(state).raw → the server HTML seeding index.html's #app.
+// State is DELIBERATELY different from the defaults (label/variant/tags) so on
+// boot you can see the wasm restored it from the <script>, not the defaults.
+// Regenerate with: fitz run --bin prerender
+from fitz_liveviews import flv_register
+from App import App, App_render, App_bump
+
+let state = App { label: "idle", variant: "muted", tags: ["clone", "test"] }
+print(App_render(state).raw)

@@ -1,0 +1,82 @@
+<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Fitz LiveViews — hydration: composition + region</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%23ce412b'/%3E%3C/svg%3E"/>
+<style>
+:root{color-scheme:light dark;--flv-color-primary:#ce412b;--flv-color-success:#2e7d32;--flv-color-danger:#c62828;--flv-color-info:#1565c0;--flv-surface:#fff;--flv-surface-2:#f5f5f7;--flv-border:#d9d9e0;--flv-text:#1a1a1a;--flv-text-muted:#55555c;--flv-radius-md:8px;--flv-shadow-card:0 6px 20px rgba(0,0,0,.12);--page-bg:#fafafa;}
+@media(prefers-color-scheme:dark){:root{--flv-surface:#1e1e22;--flv-surface-2:#2a2a30;--flv-border:#3a3a42;--flv-text:#e8e8ea;--flv-text-muted:#a0a0a8;--page-bg:#131316;}}
+body{font-family:system-ui,sans-serif;max-width:40rem;margin:3rem auto;padding:0 1rem;background:var(--page-bg);color:var(--flv-text);}
+.lede{color:var(--flv-text-muted);font-size:.92rem;line-height:1.5;}
+.flv-hcard{display:flex;flex-direction:column;gap:.85rem;max-width:28rem;padding:1.4rem;background:var(--flv-surface);border:1px solid var(--flv-border);border-radius:var(--flv-radius-md);box-shadow:var(--flv-shadow-card);}
+.flv-hcard-title{margin:0;font-size:1.15rem;font-weight:700;}
+.flv-hcard-note{margin:0;font-size:.85rem;line-height:1.4;color:var(--flv-text-muted);}
+.flv-hcard-note code{background:var(--flv-surface-2);padding:.05rem .3rem;border-radius:4px;}
+.flv-hcard-row{display:flex;align-items:center;gap:.6rem;}
+.flv-hcard-svc{font-family:ui-monospace,monospace;font-size:.9rem;}
+.flv-hcard-stages{display:flex;flex-wrap:wrap;gap:.4rem;list-style:none;padding:0;margin:0;}
+.flv-hcard-stage{font-size:.78rem;padding:.15rem .55rem;background:var(--flv-surface-2);border:1px solid var(--flv-border);border-radius:6px;}
+.flv-btn{align-self:flex-start;padding:.45rem .9rem;font-size:.85rem;font-weight:600;border-radius:var(--flv-radius-md);background:var(--flv-surface-2);color:var(--flv-text);border:1px solid var(--flv-border);cursor:pointer;}
+.flv-btn:hover{background:var(--flv-border);}
+</style></head>
+<body>
+<h1>SSR → client hydration: composition + region</h1>
+<p class="lede">The card is server-painted — a composed real <code>src/ui/Badge</code> next to a repeated list. The WASM bundle <strong>adopts</strong> both on boot. State reads the server values (<strong>idle</strong>, <code>clone/test</code>), not the defaults.</p>
+<div id="app">
+    <div class="flv-hcard">
+      <h2 class="flv-hcard-title">Pipeline status</h2>
+      <p class="flv-hcard-note">
+        A composed <code>src/ui/Badge</code> next to a repeated list — both
+        server-painted, both adopted on boot.
+      </p>
+
+      <div class="flv-hcard-row">
+        <span class="flv-hcard-svc">pipeline</span>
+        <div class="__fitz-child-Badge"><style>
+    .flv-badge-badge-c-11fb56e9 {
+      display: inline-flex; align-items: center; justify-content: center;
+      font-weight: 600; line-height: 1; white-space: nowrap;
+      border-radius: 999px;
+      background: var(--flv-surface-2, #f5f5f7);
+      color: var(--flv-text, #1a1a1a);
+      border: 1px solid var(--flv-border, #d9d9e0);
+    }
+    .flv-badge-badge-c-11fb56e9[data-size="sm"] { font-size: .7rem; padding: .12rem .5rem; }
+    .flv-badge-badge-c-11fb56e9[data-size="md"] { font-size: .78rem; padding: .2rem .6rem; }
+    .flv-badge-badge-c-11fb56e9[data-variant="primary"] {
+      background: var(--flv-color-primary, #ce412b); color: #fff;
+      border-color: var(--flv-color-primary, #ce412b);
+    }
+    .flv-badge-badge-c-11fb56e9[data-variant="success"] {
+      background: var(--flv-color-success, #2e7d32); color: #fff;
+      border-color: var(--flv-color-success, #2e7d32);
+    }
+    .flv-badge-badge-c-11fb56e9[data-variant="danger"] {
+      background: var(--flv-color-danger, #c62828); color: #fff;
+      border-color: var(--flv-color-danger, #c62828);
+    }
+    .flv-badge-badge-c-11fb56e9[data-variant="info"] {
+      background: var(--flv-color-info, #1565c0); color: #fff;
+      border-color: var(--flv-color-info, #1565c0);
+    }
+    .flv-badge-badge-c-11fb56e9[data-variant="muted"] {
+      background: var(--flv-surface-2, #f5f5f7);
+      color: var(--flv-text-muted, #55555c);
+      border-color: var(--flv-border, #d9d9e0);
+    }
+  </style>
+    <span class="flv-badge flv-badge-badge-c-11fb56e9" data-variant="muted" data-size="md">idle</span></div>
+      </div>
+
+      <ul class="flv-hcard-stages">
+        <!--fr-->
+          <li class="flv-hcard-stage"><span class="tn">clone</span></li>
+          <li class="flv-hcard-stage"><span class="tn">test</span></li><!--/fr-->
+      </ul>
+
+      <button class="flv-btn" data-flv-click="bump">toggle status</button>
+    </div>
+  <script type="application/json" id="__flv_state_App">{"label":"idle","variant":"muted","tags":["clone","test"]}</script>
+</div>
+<script type="module">
+const badge=document.querySelector('#app .flv-badge'); if(badge) badge.__w='server-node';
+import init from './pkg/app.js'; await init(); window.__flvHydrated=true;
+</script></body></html>

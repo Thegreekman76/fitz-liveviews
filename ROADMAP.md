@@ -1131,6 +1131,20 @@ authoring) is the framework-side work.
       `<style scoped>` does NOT break the adopt walk, and interpolated child
       props work in the composition-hydration path. `{#if}`/`{#for}` regions
       INSIDE a hydrating composition tree remain the next slice.
+- [x] **Composition + region — `examples/hydration-composition-regions/`**
+      (validated against core v0.41.4). Adds a `{#for}` list next to the composed
+      `<Badge>` inside the same `component App hydrate` tree: on boot the wasm
+      adopts the composed Badge AND the region's list items (server-painted
+      between `<!--fr-->`/`<!--/fr-->` anchors). Needed a core fix: **a naive
+      (composition) component with an explicit `hydrate` marker now adopts a
+      static `{#if}`/`{#for}` region** (Fitz core v0.41.4, handle-less cursor
+      skip) — before it this shape aborted with a "naive-region adopt not
+      supported" error. Unblocks tabs/steppers/accordions composed without a live
+      `@input`. Headless-Chrome validated 7/7 (boot · state restored · composed
+      Badge adopted · `{#for}` region adopted from server · toggle re-render ·
+      region survives re-render · no page errors) + no overflow at 320px. Still
+      out of scope: a `<Child/>` **dynamically inside** a `{#for}` (keyed
+      reconciliation) — a larger slice that clashes with the naive re-render.
 
 **The honest edges (MVP)** — carried from the core, none blocking:
 

@@ -1,0 +1,58 @@
+// App.fitzv — Phase 11 slice: hydration of a COMPOSITION tree that ALSO has a
+// `{#if}`/`{#for}` REGION.
+//
+// `../hydration-composition/` composed the real `src/ui/Badge` but had no
+// regions. This one adds a `{#for}` list next to the composed Badge, inside the
+// same `component App hydrate` tree. On boot the WASM bundle adopts the whole
+// server-painted DOM — the composed `<Badge>` AND the region's list items,
+// server-painted between `<!--fr-->`/`<!--/fr-->` anchors — instead of
+// recreating it.
+//
+// Requires Fitz core v0.41.4: a naive (composition) component with an explicit
+// `hydrate` marker can now adopt a static `{#if}`/`{#for}` region (the adopt
+// walk skips the cursor past the server anchors; the naive re-render rebuilds
+// the region from state). Before it, this shape aborted with a "naive-region
+// adopt not supported" error.
+//
+// Naive-composition caveat stands: the first state change re-renders the tree
+// wholesale — the adopt only wins the first paint. A `<Child/>` DYNAMICALLY
+// inside a `{#for}` (keyed reconciliation) is still out of scope; the region
+// here holds plain items, and the composed `<Badge>` sits OUTSIDE the loop.
+
+from fitz_liveviews.ui.Badge import badge as Badge
+
+component App hydrate {
+  state {
+    label: Str = "active"
+    variant: Str = "success"
+    tags: List<Str> = ["build", "deploy", "verify"]
+  }
+
+  event bump() {
+    if (variant == "success") { variant = "muted" } else { variant = "success" }
+    if (label == "active") { label = "idle" } else { label = "active" }
+  }
+
+  <template>
+    <div class="flv-hcard">
+      <h2 class="flv-hcard-title">Pipeline status</h2>
+      <p class="flv-hcard-note">
+        A composed <code>src/ui/Badge</code> next to a repeated list — both
+        server-painted, both adopted on boot.
+      </p>
+
+      <div class="flv-hcard-row">
+        <span class="flv-hcard-svc">pipeline</span>
+        <Badge label="{label}" variant="{variant}" size="md" />
+      </div>
+
+      <ul class="flv-hcard-stages">
+        {#for t in tags}
+          <li class="flv-hcard-stage"><span class="tn">{t}</span></li>
+        {/for}
+      </ul>
+
+      <button class="flv-btn" @click="bump">toggle status</button>
+    </div>
+  </template>
+}

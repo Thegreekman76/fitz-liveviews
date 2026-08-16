@@ -5,6 +5,33 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.41.4] — 2026-08-16 — Phase 11: hydration of composition + a `{#for}` region
+
+Aligns with Fitz core **v0.41.4** and adds the next hydration slice: a `{#for}`
+region next to a composed companion, inside a hydrating tree. Needed a core fix
+— a naive (composition) component with an explicit `hydrate` marker can now adopt
+a static `{#if}`/`{#for}` region — which landed in core v0.41.4 (before it, this
+shape aborted with a "naive-region adopt not supported" error).
+
+### Added
+
+- **`examples/hydration-composition-regions/`** — a `component App hydrate` tree
+  that composes the real `src/ui/Badge` **and** renders a `{#for}` list beside
+  it. On boot the wasm bundle **adopts both** — the composed Badge across the
+  parent/child boundary, and the region's list items server-painted between
+  `<!--fr-->`/`<!--/fr-->` anchors — instead of recreating them. **Headless-Chrome
+  validated 7/7** (boot · Badge state restored from the `<script>` — `idle`, not
+  the default `active` · composed Badge adopted · `{#for}` region adopted from
+  the server — `clone`/`test`, not the defaults · toggle re-render · region
+  survives re-render · no page errors) + no horizontal overflow at 320px.
+
+  Unblocks tabs/steppers/accordions composed **without** a live `@input` (which
+  had no clean workaround — keep-node region adopt requires `@input`). Still out
+  of scope: a `<Child/>` **dynamically inside** a `{#for}` (keyed reconciliation
+  of composed children) — a larger slice that clashes with the naive
+  wipe-and-rebuild model. The naive-composition caveat stands (hydration wins the
+  first paint; the first state change re-renders the tree wholesale).
+
 ## [v0.41.3] — 2026-08-16 — Phase 11: hydration of composition with the REAL Badge
 
 Aligns with Fitz core **v0.41.3** and adds the next hydration slice: composing
