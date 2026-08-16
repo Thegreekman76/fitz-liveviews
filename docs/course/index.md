@@ -27,9 +27,11 @@ It's the companion to the [Fitz language course](https://thegreekman76.github.io
 | **C4** | [Persistent & multi-user state](c4-persistent-multiuser.md) | A Postgres-backed notes list, `ws.broadcast(...)`, two tabs in sync — and why this one is string-helper only | ✅ |
 | **C5** | [LiveComponents](c5-livecomponents.md) | One `Tile` definition, three independent instances — per-instance state, the dashboard/kanban pattern | ✅ |
 | **C6** | [Ship it](c6-ship-it.md) | `fitz build` → one binary, Docker, deploy — the Admin ABM as the blueprint | ✅ |
+| **C7** | [Hydration](c7-hydration.md) | Server-render first, then adopt client-side — one `.fitzv`, a fast first paint that becomes interactive with a preserved caret | ✅ |
 
 Each chapter is self-contained and ends with a **checkpoint** (what should work
-now) and a **troubleshooting** box for the mistakes people actually hit.
+now) and a **troubleshooting** box for the mistakes people actually hit. C1–C6
+are the SSR path; **C7** is the client-side capstone (hydration).
 
 ---
 

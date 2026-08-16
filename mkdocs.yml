@@ -61,6 +61,7 @@ nav:
       - C4 — Persistent & multi-user: course/c4-persistent-multiuser.md
       - C5 — LiveComponents: course/c5-livecomponents.md
       - C6 — Ship it: course/c6-ship-it.md
+      - C7 — Hydration: course/c7-hydration.md
   - Examples:
       - Counter (Phase 2): examples/counter.md
       - Chat (Phase 3a + 3b): examples/chat.md

@@ -280,7 +280,12 @@ Where to go from here:
   server.
 - **[Component gallery](../examples/gallery.md)** — every control on one page, and
   the seed for the edit-and-preview **playground** that's coming next.
+- **[C7 — Hydration](c7-hydration.md)** — the client-side capstone: server-render
+  first, then adopt client-side from one `.fitzv`. An optional advanced chapter
+  on top of the SSR path you just finished.
 
-That's the course. You now understand a Fitz LiveViews app end to end — from one
-counter to a deployed, database-backed, internationalized admin panel — with no
-bundler, no `npm install`, and no JavaScript you had to write.
+That's the SSR path, end to end — from one counter to a deployed,
+database-backed, internationalized admin panel — with no bundler, no
+`npm install`, and no JavaScript you had to write. For the client-side story
+(offline widgets and hydration), continue to
+**[C7 — Hydration](c7-hydration.md)**.
