@@ -1046,6 +1046,15 @@ async fn empleados_export(cookie: Str?, q: Str?, estado: Str?, depto: Int?) -> R
 @header(name="cookie")
 @ws("/live/empleados")
 async fn empleados_socket(ws: WsConn<LiveFrame>, cookie: Str?) {
+    // Auth gate (v0.46.x) — the live socket must carry a valid session, or it is
+    // dropped before any data streams. The browser sends the HttpOnly session
+    // cookie on the WS upgrade; `user_from_cookie` decodes + validates it. The
+    // SSR `@get` page already redirects an anon browser; this guards the socket
+    // itself against a direct connection.
+    let _user: User = match user_from_cookie(cookie).await {
+        Ok(u) => u,
+        Err(_) => { return },
+    }
     // The active language is read from the handshake cookie — the WS upgrade is
     // an HTTP request, so `@header` works on `@ws` (Fitz core v0.28.0). No
     // client-side handshake needed.

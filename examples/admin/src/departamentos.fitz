@@ -228,6 +228,12 @@ async fn departamentos_page(cookie: Str?) -> Response {
 @header(name="cookie")
 @ws("/live/departamentos")
 async fn departamentos_socket(ws: WsConn<LiveFrame>, cookie: Str?) {
+    // Auth gate (v0.46.x) — reject an anonymous socket before any data streams
+    // (the SSR `@get` page redirects anon browsers; this guards the socket).
+    let _user: User = match user_from_cookie(cookie).await {
+        Ok(u) => u,
+        Err(_) => { return },
+    }
     let locale = locale_from_cookie(cookie)
     let cid = Uuid.v4().to_str()
     // Grid + form state (per-connection).

@@ -178,9 +178,10 @@ Compact patches over the wire, DOM state preserved on the client.
       library-only — zero Fitz-core change** (core already had `@header @ws`,
       pre-upgrade `@auth_provider`, and cookie-in-headers). Demo:
       `examples/auth-live/` (headless-validated 5/5: authenticated tab streams,
-      anon WS gets zero frames, anon `GET /` redirects to `/login`). **Known gap
-      deferred:** the admin ABM's own sockets read the cookie only for locale, so
-      they're currently unauthenticated — a separate hardening slice.
+      anon WS gets zero frames, anon `GET /` redirects to `/login`). **The admin
+      ABM's sockets were hardened in v0.46.1** — `empleados_socket` /
+      `departamentos_socket` now gate on `user_from_cookie` (validated against
+      local Postgres: authenticated streams the grid, anon gets zero frames).
 - [x] **Lifecycle hooks** (v0.43.0, Phase 3c slice 2) — `flv_mount(name, id)` /
       `flv_disconnect(name, id)` fire a component instance's `on_mount` /
       `on_disconnect` event from the `@ws` loop (on entry, and after a

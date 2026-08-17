@@ -5,6 +5,31 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.46.1] — 2026-08-17 — Harden the admin's live sockets + `flv_cookie` robustness
+
+Follow-up to v0.46.0: closes the deferred security gap in the flagship demo and
+makes `flv_cookie` handle any cookie value.
+
+### Fixed / hardened
+
+- **Admin ABM live sockets now authenticate.** `empleados_socket` and
+  `departamentos_socket` (`examples/admin/`) read the session cookie via
+  `@header(name="cookie")` but only used it to pick the locale — the sockets
+  themselves were open to a direct anonymous connection. They now gate on
+  `user_from_cookie(cookie)` at connect and drop an anon socket before any data
+  streams (Pattern A). **Validated against local Postgres:** the authenticated
+  grid smoke still passes (30 frames), and an anonymous WS gets **zero frames**;
+  the same holds for `departamentos` (grid renders authenticated, anon dropped).
+- **`flv_cookie` preserves values containing `=`.** It used to truncate a cookie
+  value at the first `=` (fine for a JWT, wrong for padded base64). It now
+  rejoins everything after the first `=`. +1 lib `@test` (122 lib tests pass).
+
+### Notes
+
+- Byte-compatible: `flv_cookie` doesn't touch `LIVE_CLIENT_JS`; the admin change
+  is runtime behavior of its own sockets (its rendered HTML is unchanged). VSCode
+  extension stays at 0.38.0.
+
 ## [v0.46.0] — 2026-08-17 — Auth on live sockets (Phase 3c)
 
 Closes the last remaining Phase 3c item: authenticating a LiveView WebSocket.

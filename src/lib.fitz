@@ -2421,8 +2421,8 @@ fn flv_versioned(endpoint: Str, frame: LiveFrame) -> LiveFrame {
 //   }
 //
 // A `return` before the first render/broadcast closes the socket — an anon
-// client gets zero frames. (A JWT session cookie carries no `=`, so the value
-// is read cleanly; a value containing `=` is truncated at the first one.)
+// client gets zero frames. The value is everything after the first `=`, so a
+// value that itself contains `=` (e.g. padded base64) is preserved intact.
 fn flv_cookie(cookie: Str?, name: Str) -> Str? {
   let raw = match cookie {
     null => { return null },
@@ -2433,7 +2433,14 @@ fn flv_cookie(cookie: Str?, name: Str) -> Str? {
     let kv = part.trim().split("=")
     if (kv.len() >= 2) {
       if (kv[0] == name) {
-        return kv[1]
+        // Rejoin everything after the first `=` so a value with `=` survives.
+        let val = kv[1]
+        let i = 2
+        while (i < kv.len()) {
+          val = val + "=" + kv[i]
+          i = i + 1
+        }
+        return val
       }
     }
   }
@@ -2867,6 +2874,15 @@ fn flv_cookie_missing_name_is_null() {
 fn flv_cookie_single_cookie_no_semicolon() {
   let c: Str? = "session=xyz"
   assert(flv_cookie(c, "session") == "xyz")
+}
+
+@test
+fn flv_cookie_value_with_equals_survives() {
+  // A padded-base64 value contains `=`; the whole value after the first `=`
+  // must survive (D6).
+  let c: Str? = "tok=YWJjZA==; lang=en"
+  assert(flv_cookie(c, "tok") == "YWJjZA==")
+  assert(flv_cookie(c, "lang") == "en")
 }
 
 @test
