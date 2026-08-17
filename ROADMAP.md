@@ -190,8 +190,15 @@ Compact patches over the wire, DOM state preserved on the client.
       HH:MM:SS clock, headless-Chrome validated 3/3 — the time advances every
       second with no client interaction). For shared state, broadcast instead of
       send (each connection's ticker still fires, idempotently).
-- [ ] Version-numbered patches to detect out-of-sync clients (currently
-      silent fallback to `html`)
+- [x] **Version-numbered patches** (v0.45.0, Phase 3c) — `LiveFrame` gains an
+      optional monotonic `version: Int`. The client tracks `lastVersion` and, on
+      a gap (a frame that isn't exactly `lastVersion + 1` — a missed frame), skips
+      the patches and takes the full `html` resync instead of applying a patch
+      batch onto a stale tree. This makes the *silent semantic-gap* case explicit
+      (the existing try/catch → `html` already covered the throwing case). Opt-in:
+      stamp with `flv_versioned(endpoint, frame)` (a per-endpoint shared counter,
+      so a broadcast fan-out agrees on the sequence); `version: 0` (unstamped)
+      keeps the old behavior, byte-compatible for every current sender.
 
 ## Phase 4 — Stateful components (LiveComponents) 🧩 (Session 3 landed 2026-07-12)
 

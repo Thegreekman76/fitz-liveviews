@@ -469,6 +469,25 @@ An `@every(N)` decorator that writes the ticker + spawn for you is a possible
 future; today it's this small, explicit pattern. Runnable in
 [`examples/clock/`](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/clock).
 
+### Versioned patches (v0.45.0)
+
+Patches are applied optimistically: the client tries `applyPatches`, and on any
+throw it falls back to the frame's full `html`. That already resyncs a
+*misapplied* batch. To also catch a *silently stale* one — patches that apply
+without throwing but target a tree the client no longer matches (a missed frame
+in a broadcast fan-out) — stamp your frames with a **monotonic version**:
+
+```
+ws.broadcast(flv_versioned("/live/clock", flv_frame("Clock", "room")))?
+```
+
+`flv_versioned(endpoint, frame)` gives every frame on `endpoint` a strictly
+increasing `version`. The client tracks `lastVersion`; if a frame isn't exactly
+`lastVersion + 1`, it skips the patches and takes the `html` resync. Use **one
+shared endpoint counter** across all senders reaching the same clients, so
+everyone agrees on the sequence. It's **opt-in** — unstamped frames stay
+`version: 0` and behave exactly as before.
+
 ### The parser scope
 
 We ship a minimal HTML parser that covers everything our templates

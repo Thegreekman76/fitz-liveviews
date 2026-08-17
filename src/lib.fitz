@@ -201,6 +201,11 @@ type LiveFrame {
   payload: Map<Str, Str> = {}
   html: Str = ""
   patches: List<Patch> = []
+  // v0.45.0 — optional monotonic sequence number. When > 0 the client checks
+  // it's exactly `lastVersion + 1`; a gap (a missed frame) skips the patches and
+  // takes the full `html` resync instead. Default 0 = unversioned: senders that
+  // don't stamp keep the old behavior. Stamp with `flv_versioned(endpoint, frame)`.
+  version: Int = 0
 }
 
 
@@ -303,19 +308,29 @@ let LIVE_CLIENT_JS: Str = """(function() \{
       \}
     \}
   \}
+  // v0.45.0 — versioned patches. A frame may carry a monotonic `version`; if it
+  // isn't exactly lastVersion+1 we've missed a frame, so the client's tree is at
+  // the wrong version — skip the patches and take the full `html` resync. A
+  // version of 0 (unversioned) preserves the old behavior for senders that don't
+  // stamp with `flv_versioned(...)`.
+  let lastVersion = 0;
   ws.onmessage = function(e) \{
     const msg = JSON.parse(e.data);
     const root = document.getElementById(rootId);
     if (!root) return;
-    if (msg.patches && msg.patches.length > 0) \{
+    const v = msg.version | 0;
+    const gap = v > 0 && v !== lastVersion + 1;
+    if (!gap && msg.patches && msg.patches.length > 0) \{
       try \{
         applyPatches(root, msg.patches);
+        if (v > 0) lastVersion = v;
         return;
       \} catch (err) \{
       \}
     \}
     if (msg.html) \{
       root.outerHTML = msg.html;
+      if (v > 0) lastVersion = v;
     \}
   \};
   // v0.10.0 — on connect, hand the @ws handler the connection's query params as
@@ -2104,6 +2119,10 @@ let COMPONENT_REGISTRY: Map<Str, ComponentReg> = {}
 // components of different shapes without changing the framework.
 let COMPONENT_STATE_STORE: Map<Str, Any> = {}
 
+// v0.45.0 — per-endpoint monotonic frame counters for versioned patches.
+// `"{endpoint}"` → last version stamped. See `flv_versioned`.
+let __FLV_VERSION_COUNTERS: Map<Str, Int> = {}
+
 
 // -----------------------------------------------------------------------------
 // Registry API
@@ -2363,6 +2382,27 @@ fn flv_disconnect(name: Str, id: Str) -> Bool {
 // build `LiveFrame { html: now, patches: diff_html(last, now) }` yourself.
 fn flv_frame(name: Str, id: Str) -> LiveFrame {
   return LiveFrame { html: component(name, id).raw, patches: [] }
+}
+
+// Stamp a frame with the next monotonic version for `endpoint` (v0.45.0). Every
+// frame you send/broadcast on the same endpoint gets a strictly increasing
+// version, so the client can detect a missed frame and force a full `html`
+// resync instead of applying patches onto a stale tree. Endpoints count
+// independently. Opt-in: unstamped frames stay `version: 0` (old behavior).
+//
+//   ws.broadcast(flv_versioned("/live/clock", flv_frame("Clock", "room")))?
+//
+// Use ONE shared endpoint counter across all senders that reach the same
+// clients (a broadcast fan-out), so everyone agrees on the sequence.
+fn flv_versioned(endpoint: Str, frame: LiveFrame) -> LiveFrame {
+  let cur = 0
+  if (__FLV_VERSION_COUNTERS.has(endpoint)) {
+    cur = __FLV_VERSION_COUNTERS[endpoint]
+  }
+  let next = cur + 1
+  __FLV_VERSION_COUNTERS[endpoint] = next
+  frame.version = next
+  return frame
 }
 
 // K-2 (v0.5.0, 2026-07-16) — Read + write API for component state
@@ -2744,6 +2784,38 @@ fn flv_frame_builds_full_render_with_empty_patches() {
   let frame = flv_frame("ff_target", "room")
   assert(frame.html.contains("Count: 1"))
   assert(len(frame.patches) == 0)
+}
+
+@test
+fn flv_versioned_stamps_monotonic_per_endpoint() {
+  // Phase 3c — flv_versioned(endpoint, frame) stamps a strictly increasing
+  // version per endpoint.
+  let a = flv_versioned("/live/vt1", LiveFrame { html: "a" })
+  let b = flv_versioned("/live/vt1", LiveFrame { html: "b" })
+  let c = flv_versioned("/live/vt1", LiveFrame { html: "c" })
+  assert(a.version == 1)
+  assert(b.version == 2)
+  assert(c.version == 3)
+}
+
+@test
+fn flv_versioned_endpoints_are_independent() {
+  // Two endpoints keep separate counters.
+  let x1 = flv_versioned("/live/vt2", LiveFrame { html: "x" })
+  let y1 = flv_versioned("/live/vt3", LiveFrame { html: "y" })
+  let x2 = flv_versioned("/live/vt2", LiveFrame { html: "x2" })
+  assert(x1.version == 1)
+  assert(y1.version == 1)
+  assert(x2.version == 2)
+}
+
+@test
+fn live_layout_includes_version_gap_detection() {
+  // The client runtime tracks lastVersion and forces a full `html` resync on a
+  // gap (a missed frame).
+  let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
+  assert(full.raw.contains("lastVersion"))
+  assert(full.raw.contains("msg.version"))
 }
 
 

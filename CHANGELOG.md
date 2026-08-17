@@ -5,6 +5,40 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.45.0] — 2026-08-17 — Phase 3c: version-numbered patches
+
+Closes one of the two remaining Phase 3c items. A `LiveFrame` can carry a
+**monotonic version**, so the client detects a *missed frame* and resyncs with a
+full `html` replace instead of applying a patch batch onto a tree at the wrong
+version. Library-only, opt-in, **byte-compatible**.
+
+### Added
+
+- **`LiveFrame.version: Int = 0`** — an optional sequence number. The client
+  tracks `lastVersion`; if a frame's version isn't exactly `lastVersion + 1` (a
+  gap), it skips the patches and takes the frame's `html`. `version: 0`
+  (unstamped) is "unversioned" — the old behavior, so every current sender is
+  unaffected and the wire stays compatible (frames just gain a `"version":0`).
+- **`flv_versioned(endpoint, frame) -> LiveFrame`** — stamps a frame with the
+  next version for `endpoint`, backed by a per-endpoint shared counter so a
+  broadcast fan-out (every client reached by `ws.broadcast` / `ws_broadcast`)
+  agrees on one sequence. Endpoints count independently.
+
+  ```
+  ws.broadcast(flv_versioned("/live/clock", flv_frame("Clock", "room")))?
+  ```
+
+### Notes
+
+- **Why modest:** the existing `onmessage` try/catch already falls back to `html`
+  whenever `applyPatches` *throws*, so it already resynced the corrupt/misapplied
+  case. Versioning adds the *silent semantic-gap* case (patches that apply cleanly
+  but target a stale tree) — worth the field + helper + client gap-check, not a
+  bidirectional resync protocol. That larger protocol stays deferred.
+- **Byte-compatible.** No compiler change; existing examples untouched (they send
+  unstamped `version: 0` frames). 3 new lib `@test`s (117 tests pass). VSCode
+  extension stays at 0.38.0.
+
 ## [v0.44.0] — 2026-08-17 — Phase 3c slice 3: `@every(N)` server-pushed updates
 
 The third slice of **Phase 3c**. The **server** can now push updates on an
