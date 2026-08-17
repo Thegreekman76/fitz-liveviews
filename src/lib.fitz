@@ -2306,6 +2306,55 @@ fn dispatch_to(component_name: Str, instance_id: Str, event: Str, payload: Map<S
   return true
 }
 
+// -----------------------------------------------------------------------------
+// Lifecycle hooks (Phase 3c, v0.43.0)
+// -----------------------------------------------------------------------------
+
+// Fire a component instance's `on_mount` event when a client connects.
+//
+// Fitz-core `@ws` can't intercept `recv`, so lifecycle dispatch happens in
+// YOUR `@ws` handler: call `flv_mount(name, id)` once, on entry, BEFORE the
+// recv loop and before the first render/broadcast — so any state the
+// `on_mount` handler seeds is visible in the paint the client receives.
+//
+// Convention: the component declares `event on_mount() { ... }` in its
+// `.fitzv` (a normal event, dispatched programmatically here rather than by a
+// `data-flv-*` binding). This is a thin wrapper over `dispatch_to(name, id,
+// "on_mount", {})`, so it returns `true` iff the component is registered AND
+// declares an `on_mount` handler — `false` (silent no-op) otherwise, so it's
+// safe to call unconditionally.
+//
+// Canonical loop shape (note the `match`/`break` — `recv()?` would return
+// from the handler on disconnect, so `flv_disconnect` below would never run):
+//   @ws("/live/x")
+//   async fn socket(ws: WsConn<LiveFrame>) {
+//     let _ = flv_mount("Presence", "room")
+//     ws.broadcast(LiveFrame { html: component("Presence", "room").raw, patches: [] })?
+//     loop {
+//       let r = ws.recv()
+//       match r {
+//         Ok(frame) => { dispatch_component_events(frame); ...re-render + broadcast... }
+//         Err(_)    => { break }
+//       }
+//     }
+//     let _ = flv_disconnect("Presence", "room")
+//     let _ = ws.broadcast(LiveFrame { html: component("Presence", "room").raw, patches: [] })
+//   }
+fn flv_mount(name: Str, id: Str) -> Bool {
+  return dispatch_to(name, id, "on_mount", {})
+}
+
+// Fire a component instance's `on_disconnect` event when a client's socket
+// closes. Call it AFTER the recv loop breaks (see the `match`/`break` shape
+// in `flv_mount`). Broadcasting the re-render afterwards reaches the REMAINING
+// clients: `ws.broadcast(...)` does not require the sender to be alive, so a
+// "farewell" frame (e.g. a decremented presence count) still lands. Thin
+// wrapper over `dispatch_to(name, id, "on_disconnect", {})`; returns `false`
+// (silent) if the component declares no `on_disconnect` handler.
+fn flv_disconnect(name: Str, id: Str) -> Bool {
+  return dispatch_to(name, id, "on_disconnect", {})
+}
+
 // K-2 (v0.5.0, 2026-07-16) — Read + write API for component state
 // from outside a component's event handler. Complements the auto-
 // managed store via `component(name, id)` (read+render) and
@@ -2391,6 +2440,10 @@ fn __p4_counter_render(state: __P4Counter) -> Html {
 
 fn __p4_counter_increment(state: __P4Counter, payload: Map<Str, Str>) -> __P4Counter {
   return __P4Counter { count: state.count + 1 }
+}
+
+fn __p4_counter_decrement(state: __P4Counter, payload: Map<Str, Str>) -> __P4Counter {
+  return __P4Counter { count: state.count - 1 }
 }
 
 fn __p4_counter_reset(state: __P4Counter, payload: Map<Str, Str>) -> __P4Counter {
@@ -2632,6 +2685,43 @@ fn k1_dispatch_to_distinct_instances_isolate_state() {
   dispatch_to("k1_isolated", "b", "increment", { })
   assert(component("k1_isolated", "a").raw.contains("Count: 2"))
   assert(component("k1_isolated", "b").raw.contains("Count: 1"))
+}
+
+@test
+fn lifecycle_flv_mount_fires_on_mount_handler() {
+  // Phase 3c — flv_mount(name, id) fires the component's `on_mount` event.
+  // Presence pattern: on_mount bumps a shared count.
+  flv_register("lc_mount", __P4Counter { count: 0 }, __p4_counter_render,
+               { "on_mount": __p4_counter_increment, "on_disconnect": __p4_counter_decrement })
+  let joined = flv_mount("lc_mount", "room")
+  assert(joined)
+  assert(component("lc_mount", "room").raw.contains("Count: 1"))
+}
+
+@test
+fn lifecycle_flv_disconnect_fires_on_disconnect_handler() {
+  // flv_disconnect(name, id) fires `on_disconnect`; here it decrements the
+  // count back down (mount → 1, disconnect → 0).
+  flv_register("lc_leave", __P4Counter { count: 0 }, __p4_counter_render,
+               { "on_mount": __p4_counter_increment, "on_disconnect": __p4_counter_decrement })
+  flv_mount("lc_leave", "room")
+  flv_mount("lc_leave", "room")
+  assert(component("lc_leave", "room").raw.contains("Count: 2"))
+  let left = flv_disconnect("lc_leave", "room")
+  assert(left)
+  assert(component("lc_leave", "room").raw.contains("Count: 1"))
+}
+
+@test
+fn lifecycle_helpers_are_silent_no_op_without_a_handler() {
+  // A component that declares no lifecycle handler → flv_mount/flv_disconnect
+  // return false (silent), so the loop can call them unconditionally.
+  flv_register("lc_none", __P4Counter { count: 0 }, __p4_counter_render,
+               { "increment": __p4_counter_increment })
+  assert(not flv_mount("lc_none", "room"))
+  assert(not flv_disconnect("lc_none", "room"))
+  // an unregistered component is also a silent false
+  assert(not flv_mount("lc_never_registered", "room"))
 }
 
 

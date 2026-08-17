@@ -5,6 +5,45 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.43.0] — 2026-08-17 — Phase 3c slice 2: lifecycle hooks (on_mount / on_disconnect)
+
+The second slice of **Phase 3c**. A component can now run code when a client
+**connects** and when its socket **closes** — presence counters, per-connection
+setup/teardown, "who's online". Library-only (a convention over the existing
+dispatch/registry), **zero Fitz-core change**.
+
+### Added
+
+- **`flv_mount(name, id) -> Bool`** — fires the component instance's `on_mount`
+  event. Call it once on `@ws` handler entry, before the recv loop and the first
+  render, so seeded state shows in the client's first frame.
+- **`flv_disconnect(name, id) -> Bool`** — fires the instance's `on_disconnect`
+  event. Call it after the loop breaks. `ws.broadcast(...)` still delivers even
+  though the sender's socket is closed, so an `on_disconnect` "farewell" frame
+  (a decremented count, a "user left" note) reaches the clients still connected.
+- Both are thin wrappers over `dispatch_to(name, id, "<hook>", {})` — a silent
+  `false` no-op when the component declares no such handler, so the loop can call
+  them unconditionally. The component opts in by declaring `event on_mount()` /
+  `event on_disconnect()` in its `.fitzv` (normal events, dispatched
+  programmatically rather than by a `data-flv-*` binding).
+- **`examples/presence/`** — a live "N online" counter with **no buttons**: each
+  connecting tab bumps a shared count via `on_mount`, each closing tab drops it
+  via `on_disconnect`, broadcast to everyone still connected. **Headless-Chrome
+  validated 4/4** (tab 1 → "1" · tab 2 → both "2" · close tab 1 → the remaining
+  tab shows "1" · zero page errors).
+
+### Notes
+
+- **The loop shape matters.** `ws.recv()?` *returns from the handler* on
+  disconnect, so `flv_disconnect` would never run. The canonical shape is a
+  `match` on `recv()` with `Err(_) => break`, then fire the leave hook after the
+  loop. Documented in the guide and the `flv_mount` doc comment.
+- **Pure library, byte-compatible.** No compiler change; existing examples'
+  loops are untouched (the demo lives in a new example). 3 new lib `@test`s
+  (113 lib tests pass).
+- **Next in Phase 3c:** `@every(N secs)` server-pushed periodic updates
+  (slice 3). VSCode extension stays at 0.38.0.
+
 ## [v0.42.0] — 2026-08-16 — Phase 3c slice 1: live input events + debounce
 
 The first slice of **Phase 3c** (real-world LiveView polish). The client runtime

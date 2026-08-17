@@ -1,0 +1,29 @@
+// Fitz LiveViews — presence counter (Phase 3c lifecycle demo).
+//
+// No buttons: the count is driven entirely by the WebSocket lifecycle.
+//   event on_mount()      → fires when a client connects  (flv_mount)
+//   event on_disconnect() → fires when a client's socket closes (flv_disconnect)
+//
+// The count is shared (one instance id "room"), so every open tab bumps it and
+// closing a tab drops it — broadcast to everyone still connected.
+
+component Presence {
+  state { count: Int = 0 }
+
+  event on_mount() { count = count + 1 }
+  event on_disconnect() { count = count - 1 }
+
+  <template>
+    <div id="presence-app" class="wrap">
+      <h1><span class="n">{count}</span> online</h1>
+      <p class="hint">Open this page in another tab — the count goes up. Close one — it goes down. No buttons: the WebSocket lifecycle drives it.</p>
+    </div>
+  </template>
+
+  <style scoped>
+    .wrap { font-family: system-ui, sans-serif; max-width: 30rem; margin: 3rem auto; text-align: center; }
+    h1 { font-size: 2.4rem; margin: 0 0 .4rem; }
+    .n { color: var(--flv-color-primary, #ce412b); }
+    .hint { color: var(--flv-text-muted, #55555c); font-size: .9rem; line-height: 1.5; }
+  </style>
+}

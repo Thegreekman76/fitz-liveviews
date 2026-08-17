@@ -168,7 +168,17 @@ Compact patches over the wire, DOM state preserved on the client.
       `{#for}`. WASM target sets it as a plain DOM attr (parity). Validated
       `fitz run` ↔ native binary (identical `<li data-flv-key="...">`).
 - [ ] Auth integration (`@authenticated @live(...)`, user injected)
-- [ ] `@on_mount` and `@on_disconnect` lifecycle hooks
+- [x] **Lifecycle hooks** (v0.43.0, Phase 3c slice 2) — `flv_mount(name, id)` /
+      `flv_disconnect(name, id)` fire a component instance's `on_mount` /
+      `on_disconnect` event from the `@ws` loop (on entry, and after a
+      `match`/`break` on `recv()` — `recv()?` would return before the leave
+      hook). Library-only convention: the component declares `event on_mount()`
+      / `event on_disconnect()`; the helpers are thin wrappers over `dispatch_to`
+      so they're a silent `false` no-op if the handler isn't declared.
+      `ws.broadcast(...)` still lands after the socket closes, so an
+      `on_disconnect` "farewell" (e.g. a decremented presence count) reaches the
+      remaining clients. Demo: `examples/presence/` (a live "N online" counter
+      driven purely by connect/disconnect, headless-Chrome validated 4/4).
 - [ ] `@every(N secs)` for server-pushed periodic updates
 - [ ] Version-numbered patches to detect out-of-sync clients (currently
       silent fallback to `html`)

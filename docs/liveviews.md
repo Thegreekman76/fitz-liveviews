@@ -373,6 +373,57 @@ isn't in `.value` yet), so use `@input` when you need the typed value and
 `@keydown` (+ `data-flv-keyfilter`) for key-driven actions. A runnable
 debounced filter lives in [`examples/live-search/`](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/live-search).
 
+### Lifecycle hooks — `on_mount` / `on_disconnect` (v0.43.0)
+
+Run code when a client **connects** and when its socket **closes** — presence
+counters, per-connection setup/teardown, "who's online". The component declares
+two ordinary events:
+
+```
+component Presence {
+  state { count: Int = 0 }
+  event on_mount()      { count = count + 1 }
+  event on_disconnect() { count = count - 1 }
+  <template><div id="presence-app"><h1>{count} online</h1></div></template>
+}
+```
+
+Fitz-core `@ws` can't intercept `recv`, so **you** fire the hooks from the loop
+with `flv_mount(name, id)` / `flv_disconnect(name, id)`. The shape matters —
+`ws.recv()?` *returns from the handler* on disconnect, so the leave hook would
+never run. Use a `match` on `recv()` with `Err(_) => break`:
+
+```
+@ws("/live/presence")
+async fn presence_socket(ws: WsConn<LiveFrame>) {
+  let _ = flv_mount("Presence", "room")                                 // on connect
+  ws.broadcast(LiveFrame { html: component("Presence", "room").raw, patches: [] })?
+  loop {
+    let r = ws.recv()
+    match r {
+      Ok(frame) => {
+        let _ = dispatch_component_events(frame)
+        ws.broadcast(LiveFrame { html: component("Presence", "room").raw, patches: [] })?
+      }
+      Err(_) => { break }
+    }
+  }
+  let _ = flv_disconnect("Presence", "room")                            // on close
+  let _ = ws.broadcast(LiveFrame { html: component("Presence", "room").raw, patches: [] })
+}
+```
+
+- Call `flv_mount` **before** the first render/broadcast, so state it seeds shows
+  in the client's first frame.
+- `ws.broadcast(...)` **still delivers after the socket closes**, so the
+  `on_disconnect` "farewell" (the decremented count) reaches the clients still
+  connected.
+- The helpers are thin wrappers over `dispatch_to(...)` — a silent `false` no-op
+  if the component declares no `on_mount`/`on_disconnect`, so calling them is
+  always safe.
+
+Runnable in [`examples/presence/`](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/presence) — a live "N online" counter with no buttons at all.
+
 ### The parser scope
 
 We ship a minimal HTML parser that covers everything our templates

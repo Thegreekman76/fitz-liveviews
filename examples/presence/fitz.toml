@@ -1,0 +1,11 @@
+[package]
+name = "presence-example"
+version = "0.0.1"
+edition = "2026"
+description = "Fitz LiveViews — presence counter (Phase 3c: @on_mount / @on_disconnect lifecycle)"
+
+[bin]
+main = "src/main.fitz"
+
+[dependencies]
+fitz_liveviews = { path = "../.." }

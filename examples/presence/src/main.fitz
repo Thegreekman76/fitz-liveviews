@@ -1,0 +1,61 @@
+// Fitz LiveViews — presence counter (Phase 3c: lifecycle hooks).
+//
+// Run:   fitz run
+// Open http://127.0.0.1:3000/ in a few tabs. Each tab that connects bumps the
+// shared "N online" count via the component's `on_mount` handler; closing a
+// tab drops it via `on_disconnect`. No buttons — the WebSocket lifecycle
+// drives the whole thing, broadcast to everyone still connected.
+
+from fitz_liveviews import Html, html, live_layout, html_response, LiveFrame, diff_html, component, dispatch_component_events, flv_register, flv_mount, flv_disconnect
+from Presence import Presence, Presence_render, Presence_on_mount, Presence_on_disconnect
+
+
+// -----------------------------------------------------------------------------
+// HTTP GET — initial render + client runtime
+// -----------------------------------------------------------------------------
+
+@get("/")
+fn presence_page() -> Response {
+  let initial = component("Presence", "room")
+  return html_response(live_layout("/live/presence", "presence-app", initial))
+}
+
+
+// -----------------------------------------------------------------------------
+// WebSocket — lifecycle-driven presence
+// -----------------------------------------------------------------------------
+//
+// Note the `match`/`break` shape: `ws.recv()?` would RETURN from the handler
+// on disconnect, so `flv_disconnect` below would never run. Matching on the
+// `Result` lets us break out cleanly and fire the leave hook.
+
+@ws("/live/presence")
+async fn presence_socket(ws: WsConn<LiveFrame>) {
+  // on connect: bump the shared count, tell everyone.
+  let _joined = flv_mount("Presence", "room")
+  ws.broadcast(LiveFrame { html: component("Presence", "room").raw, patches: [] })?
+
+  loop {
+    let r = ws.recv()
+    match r {
+      Ok(frame) => {
+        let _handled = dispatch_component_events(frame)
+        ws.broadcast(LiveFrame { html: component("Presence", "room").raw, patches: [] })?
+      }
+      Err(_) => { break }
+    }
+  }
+
+  // on disconnect: drop the count, tell the clients still connected. Broadcast
+  // works even though this socket is closed — the farewell frame still lands.
+  let _left = flv_disconnect("Presence", "room")
+  let _ = ws.broadcast(LiveFrame { html: component("Presence", "room").raw, patches: [] })
+}
+
+
+// -----------------------------------------------------------------------------
+// Server config
+// -----------------------------------------------------------------------------
+
+@server(3000)
+fn main() => 0
