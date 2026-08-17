@@ -1,9 +1,9 @@
-// Fitz LiveViews — server-pushed clock (Phase 3c: @every periodic updates).
+// Fitz LiveViews — server-pushed clock (Phase 3c: @every global ticker).
 //
 // Run:   fitz run
 // Open http://127.0.0.1:3000/ — the time updates every second with no client
-// polling. Each connection spawns a background ticker that sleeps, re-renders,
-// and pushes. The `ws.send(...)?` ends the ticker cleanly when the tab closes.
+// polling. A SINGLE global @every(1) ticker re-renders the shared Clock and
+// `ws_broadcast`s it to every connected tab — no per-connection spawn.
 
 from fitz_liveviews import Html, html, live_layout, html_response, LiveFrame, diff_html, component, dispatch_component_events, dispatch_to, flv_register, flv_frame
 from Clock import Clock, Clock_render, Clock_tick
@@ -16,23 +16,22 @@ fn clock_page() -> Response {
 }
 
 
-// The @every pattern (library convention — no core decorator yet): a
-// @background fn loops on `sleep` + push, spawned per connection with the ws.
-@background
-async fn clock_tick(ws: WsConn<LiveFrame>) {
-  loop {
-    let _ = sleep(1000).await
-    let t = DateTime.now().format("%H:%M:%S")
-    let _ = dispatch_to("Clock", "room", "tick", {"now": t})
-    ws.send(flv_frame("Clock", "room"))?
-  }
+// The @every pattern done right for shared state: ONE global interval job
+// re-renders the shared component and broadcasts to the endpoint. No `spawn`,
+// no per-connection ticker — every tab gets the same frame.
+@every(1)
+async fn clock_tick() -> Null {
+  let t = DateTime.now().format("%H:%M:%S")
+  let _ = dispatch_to("Clock", "room", "tick", {"now": t})
+  ws_broadcast("/live/clock", flv_frame("Clock", "room"))
+  return null
 }
 
 
 @ws("/live/clock")
 async fn clock_socket(ws: WsConn<LiveFrame>) {
-  spawn(clock_tick(ws))
-  // immediate first frame so the client doesn't wait a whole second
+  // immediate first frame so a new tab doesn't wait up to a second for the
+  // next global tick.
   let t0 = DateTime.now().format("%H:%M:%S")
   let _ = dispatch_to("Clock", "room", "tick", {"now": t0})
   ws.send(flv_frame("Clock", "room"))?

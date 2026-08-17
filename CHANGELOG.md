@@ -5,6 +5,16 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.45.1] — 2026-08-17 — Clock demo: global `@every` ticker
+
+The `examples/clock/` server-pushed clock now uses Fitz core's **`@every(N)`
+decorator** (v0.42.0) instead of a per-connection `@background` ticker `spawn`ed
+with the socket: a **single global** `@every(1)` fn re-renders the shared clock
+and `ws_broadcast`s it to every connected tab — one ticker for all clients, no
+`spawn(tick(ws))`. Requires Fitz core **≥ v0.42.1** (which installs a global WS
+broadcaster so a scheduler task can `ws_broadcast`). Headless-Chrome validated:
+the time advances every second across tabs.
+
 ## [v0.45.0] — 2026-08-17 — Phase 3c: version-numbered patches
 
 Closes one of the two remaining Phase 3c items. A `LiveFrame` can carry a
