@@ -1,0 +1,11 @@
+[package]
+name = "auth-live-example"
+version = "0.0.1"
+edition = "2026"
+description = "Fitz LiveViews — authenticated live socket (Phase 3c): reject anon via the session cookie"
+
+[bin]
+main = "src/main.fitz"
+
+[dependencies]
+fitz_liveviews = { path = "../.." }

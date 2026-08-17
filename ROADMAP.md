@@ -167,7 +167,20 @@ Compact patches over the wire, DOM state preserved on the client.
       scoped with the loop var, type-checked, and byte-for-byte for keyless
       `{#for}`. WASM target sets it as a plain DOM attr (parity). Validated
       `fitz run` ↔ native binary (identical `<li data-flv-key="...">`).
-- [ ] Auth integration (`@authenticated @live(...)`, user injected)
+- [x] **Auth on live sockets** (v0.46.0, Phase 3c) — a `@ws` handler
+      authenticates by reading the same-origin **HttpOnly session cookie** the
+      browser sends on the WS upgrade: `@header(name="cookie")` (Fitz core) reads
+      it, and the new `flv_cookie(cookie, name) -> Str?` helper + `jwt.decode`
+      validate it, closing an anon socket before the first frame. **Pattern A**
+      (in-loop validation) is the library-blessed MVP; **Pattern C**
+      (`@authenticated @ws` + a cookie-reading `@auth_provider`) gives the literal
+      "user injected" ergonomic with reject-before-upgrade. **Both are
+      library-only — zero Fitz-core change** (core already had `@header @ws`,
+      pre-upgrade `@auth_provider`, and cookie-in-headers). Demo:
+      `examples/auth-live/` (headless-validated 5/5: authenticated tab streams,
+      anon WS gets zero frames, anon `GET /` redirects to `/login`). **Known gap
+      deferred:** the admin ABM's own sockets read the cookie only for locale, so
+      they're currently unauthenticated — a separate hardening slice.
 - [x] **Lifecycle hooks** (v0.43.0, Phase 3c slice 2) — `flv_mount(name, id)` /
       `flv_disconnect(name, id)` fire a component instance's `on_mount` /
       `on_disconnect` event from the `@ws` loop (on entry, and after a

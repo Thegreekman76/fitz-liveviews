@@ -2405,6 +2405,41 @@ fn flv_versioned(endpoint: Str, frame: LiveFrame) -> LiveFrame {
   return frame
 }
 
+// Pull one cookie value out of a raw `Cookie` header string (v0.46.0). Use it
+// to authenticate a live socket: a `@ws` handler reads the handshake cookie via
+// `@header(name="cookie")` — the browser sends the same-origin HttpOnly session
+// cookie on the WS upgrade automatically — and this helper extracts the named
+// value. Returns `null` when the cookie header is absent or the named cookie
+// isn't present, so it drops straight into a `match` gate:
+//
+//   @header(name="cookie")
+//   @ws("/live/secure")
+//   async fn secure_socket(ws: WsConn<LiveFrame>, cookie: Str?) {
+//     let token = match flv_cookie(cookie, "session") { null => { return }, t => t }
+//     let claims = match jwt.decode(token, secret()) { Ok(c) => c, Err(_) => { return } }
+//     // ...validated: render + loop...
+//   }
+//
+// A `return` before the first render/broadcast closes the socket — an anon
+// client gets zero frames. (A JWT session cookie carries no `=`, so the value
+// is read cleanly; a value containing `=` is truncated at the first one.)
+fn flv_cookie(cookie: Str?, name: Str) -> Str? {
+  let raw = match cookie {
+    null => { return null },
+    c => c,
+  }
+  let parts = raw.split(";")
+  for part in parts {
+    let kv = part.trim().split("=")
+    if (kv.len() >= 2) {
+      if (kv[0] == name) {
+        return kv[1]
+      }
+    }
+  }
+  return null
+}
+
 // K-2 (v0.5.0, 2026-07-16) — Read + write API for component state
 // from outside a component's event handler. Complements the auto-
 // managed store via `component(name, id)` (read+render) and
@@ -2807,6 +2842,31 @@ fn flv_versioned_endpoints_are_independent() {
   assert(x1.version == 1)
   assert(y1.version == 1)
   assert(x2.version == 2)
+}
+
+@test
+fn flv_cookie_extracts_named_value() {
+  let c: Str? = "session=abc123; lang=en"
+  assert(flv_cookie(c, "session") == "abc123")
+  assert(flv_cookie(c, "lang") == "en")
+}
+
+@test
+fn flv_cookie_null_header_is_null() {
+  let c: Str? = null
+  assert(flv_cookie(c, "session") == null)
+}
+
+@test
+fn flv_cookie_missing_name_is_null() {
+  let c: Str? = "lang=en; theme=dark"
+  assert(flv_cookie(c, "session") == null)
+}
+
+@test
+fn flv_cookie_single_cookie_no_semicolon() {
+  let c: Str? = "session=xyz"
+  assert(flv_cookie(c, "session") == "xyz")
 }
 
 @test

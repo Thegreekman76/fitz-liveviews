@@ -1,0 +1,31 @@
+// Fitz LiveViews — the authenticated view (Phase 3c auth demo).
+//
+// The socket that drives this component only streams to a request carrying a
+// valid session cookie (see main.fitz). An anonymous connection is dropped
+// before the first frame — this component never renders for it.
+
+component Secure {
+  state { email: Str = "", count: Int = 0 }
+
+  event set_email() { email = payload["email"] }
+  event bump() { count = count + 1 }
+
+  <template>
+    <div id="secure-app" class="wrap">
+      <h1>Signed in as <span class="email">{email}</span></h1>
+      <p class="hint">This live socket only streams to a valid session cookie — an anonymous connection is dropped before the first frame.</p>
+      <p class="count">Clicked <b class="n">{count}</b> times.</p>
+      <button class="btn" data-flv-click="bump">+1</button>
+    </div>
+  </template>
+
+  <style scoped>
+    .wrap { font-family: system-ui, sans-serif; max-width: 32rem; margin: 3rem auto; }
+    h1 { font-size: 1.6rem; }
+    .email { color: var(--flv-color-primary, #ce412b); }
+    .hint { color: var(--flv-text-muted, #55555c); font-size: .9rem; line-height: 1.5; }
+    .n { color: var(--flv-color-primary, #ce412b); }
+    .btn { padding: .5rem 1rem; font-size: 1rem; border: 1px solid var(--flv-border, #d9d9e0);
+           border-radius: var(--flv-radius-md, 8px); background: var(--flv-surface-2, #f5f5f7); cursor: pointer; }
+  </style>
+}

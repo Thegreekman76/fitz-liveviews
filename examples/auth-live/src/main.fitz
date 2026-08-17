@@ -1,0 +1,131 @@
+// Fitz LiveViews — authenticated live socket (Phase 3c: pattern A).
+//
+// Run:   fitz run
+// Open http://127.0.0.1:3000/ — anonymous, you're redirected to /login. Log in
+// (ada@example.com / secret) and the LiveView connects; the socket validates
+// the HttpOnly session cookie on the handshake and drops any connection without
+// a valid one.
+//
+// The whole auth flow is library-only: the browser sends the same-origin
+// HttpOnly cookie on the WS upgrade automatically, `@header(name="cookie")`
+// reads it, and `flv_cookie(...)` + `jwt.decode(...)` validate it.
+
+from fitz_liveviews import Html, html, live_layout, html_response, LiveFrame, diff_html, component, dispatch_component_events, dispatch_to, flv_register, flv_frame, flv_cookie
+from Secure import Secure, Secure_render, Secure_set_email, Secure_bump
+
+
+type Credentials { email: Str, password: Str }
+
+fn jwt_secret() -> Str => env_or("JWT_SECRET", "auth-live-demo-secret-change-me")
+fn cookie_name() -> Str => "flv_session"
+
+
+// The session token → email, or `null` if the cookie is absent / invalid /
+// expired. This is the whole gate: no framework magic, just the helpers.
+fn email_from_cookie(cookie: Str?) -> Str? {
+  let token = match flv_cookie(cookie, cookie_name()) {
+    null => { return null },
+    t => t,
+  }
+  let claims = match jwt.decode(token, jwt_secret()) {
+    Ok(c) => c,
+    Err(_) => { return null },
+  }
+  return match claims.get("email") {
+    Ok(e) => e,
+    Err(_) => null,
+  }
+}
+
+
+// --- GET /login — a tiny fetch-JSON login form ---------------------------
+
+@get("/login")
+fn login_page() -> Response {
+  return html_response(html("""<!doctype html>
+<html><head><meta charset="utf-8"><title>Log in</title>
+<style>body\{font-family:system-ui;max-width:22rem;margin:4rem auto\} input\{display:block;width:100%;padding:.5rem;margin:.4rem 0;box-sizing:border-box\} button\{padding:.5rem 1rem\}</style>
+</head><body>
+<h1>Log in</h1>
+<form id="f">
+  <input name="email" value="ada@example.com" />
+  <input name="password" type="password" value="secret" />
+  <button>Log in</button>
+</form>
+<p id="msg"></p>
+<script>
+f.onsubmit = async (e) => \{
+  e.preventDefault();
+  const r = await fetch('/login', \{ method: 'POST', headers: \{ 'Content-Type': 'application/json' \},
+    body: JSON.stringify(\{ email: f.email.value, password: f.password.value \}) \});
+  if (r.ok) location.href = '/'; else document.getElementById('msg').textContent = 'Invalid credentials';
+\};
+</script>
+</body></html>"""))
+}
+
+
+// --- POST /login — validate, sign a JWT, set the HttpOnly cookie ---------
+
+@post("/login")
+fn login_submit(creds: Credentials) -> Response {
+  // Hardcoded demo user (a real app would look it up + verify hash.verify).
+  if (creds.email != "ada@example.com" or creds.password != "secret") {
+    return Response { status: 401, content_type: "application/json", body: """\{"ok": false\}""" }
+  }
+  let token = jwt.encode({"email": creds.email}, jwt_secret())
+  let set_cookie = cookie_name() + "=" + token + "; HttpOnly; Path=/; SameSite=Lax; Max-Age=86400"
+  return Response {
+    status: 200,
+    content_type: "application/json",
+    headers: { "Set-Cookie": set_cookie },
+    body: """\{"ok": true\}""",
+  }
+}
+
+
+// --- GET / — protected page: redirect anon to /login ---------------------
+
+@header(name="cookie")
+@get("/")
+fn home(cookie: Str?) -> Response {
+  let email = match email_from_cookie(cookie) {
+    null => { return Response { status: 302, headers: { "Location": "/login" }, body: "" } },
+    e => e,
+  }
+  let _ = dispatch_to("Secure", "room", "set_email", {"email": email})
+  let initial = component("Secure", "room")
+  return html_response(live_layout("/live/secure", "secure-app", initial))
+}
+
+
+// --- @ws /live/secure — the authenticated live socket --------------------
+//
+// Pattern A: read the handshake cookie via @header, validate it BEFORE the
+// first render/broadcast, and `return` (silent close) if anon. An anonymous
+// client gets zero frames.
+
+@header(name="cookie")
+@ws("/live/secure")
+async fn secure_socket(ws: WsConn<LiveFrame>, cookie: Str?) {
+  let email = match email_from_cookie(cookie) {
+    null => { return },
+    e => e,
+  }
+  let _ = dispatch_to("Secure", "room", "set_email", {"email": email})
+  ws.send(flv_frame("Secure", "room"))?
+  loop {
+    let r = ws.recv()
+    match r {
+      Ok(frame) => {
+        let _ = dispatch_component_events(frame)
+        ws.send(flv_frame("Secure", "room"))?
+      }
+      Err(_) => { break }
+    }
+  }
+}
+
+
+@server(3000)
+fn main() => 0

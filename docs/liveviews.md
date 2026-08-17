@@ -488,6 +488,63 @@ shared endpoint counter** across all senders reaching the same clients, so
 everyone agrees on the sequence. It's **opt-in** — unstamped frames stay
 `version: 0` and behave exactly as before.
 
+### Securing a live socket (v0.46.0)
+
+A LiveView socket is a plain WebSocket: unless you check, **anyone can connect**.
+The browser sends the same-origin **HttpOnly session cookie** on the WS upgrade
+automatically, so a `@ws` handler authenticates by reading that cookie —
+`@header(name="cookie")` (Fitz core) reads it into a param, and
+`flv_cookie(cookie, name)` pulls out the value:
+
+```
+fn email_from_cookie(cookie: Str?) -> Str? {
+  let token  = match flv_cookie(cookie, "session") { null => { return null }, t => t }
+  let claims = match jwt.decode(token, secret())   { Ok(c) => c, Err(_) => { return null } }
+  return match claims.get("email") { Ok(e) => e, Err(_) => null }
+}
+
+@header(name="cookie")
+@ws("/live/secure")
+async fn secure_socket(ws: WsConn<LiveFrame>, cookie: Str?) {
+  let email = match email_from_cookie(cookie) {
+    null => { return },          // anon → silent close, zero frames
+    e => e,
+  }
+  ws.send(flv_frame("Secure", email))?
+  loop {
+    let r = ws.recv()
+    match r {
+      Ok(f) => { dispatch_component_events(f); ws.send(flv_frame("Secure", email))? }
+      Err(_) => { break }
+    }
+  }
+}
+```
+
+- Validate **before the first `ws.send`/`broadcast`** — a `return` there closes
+  the socket and an anonymous client gets nothing. (`jwt.encode` at login sets
+  the cookie `HttpOnly; SameSite=Lax`; JS can't read it, so it can't leak through
+  the `__flv_init` query channel — the cookie is the right transport.)
+- **Zero Fitz-core change, zero client change** — the browser already sends the
+  cookie; the handler just checks it.
+
+**Injected `user`, reject before the upgrade.** If you'd rather the framework
+reject anon with a **401 before the WS upgrade** and **inject a `user: User`**,
+add one global `@auth_provider` that reads the cookie header (it receives the
+full headers map) and stack `@authenticated @ws`:
+
+```
+@auth_provider
+async fn check(headers: Map<Str, Str>) -> Result<User> { /* cookie → jwt.decode → user */ }
+
+@authenticated
+@ws("/live/secure")
+async fn secure_socket(ws: WsConn<LiveFrame>, user: User) { /* user injected + validated */ }
+```
+
+Both patterns are library-only. Runnable in
+[`examples/auth-live/`](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/auth-live).
+
 ### The parser scope
 
 We ship a minimal HTML parser that covers everything our templates

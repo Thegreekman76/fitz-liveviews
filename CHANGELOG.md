@@ -5,6 +5,49 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.46.0] — 2026-08-17 — Auth on live sockets (Phase 3c)
+
+Closes the last remaining Phase 3c item: authenticating a LiveView WebSocket.
+The browser sends the same-origin **HttpOnly session cookie** on the WS upgrade
+automatically, so a `@ws` handler authenticates by reading it — **library-only,
+zero Fitz-core change** (core already had `@header(name="cookie") @ws`,
+pre-upgrade `@auth_provider`, and the cookie in the headers map).
+
+### Added
+
+- **`flv_cookie(cookie: Str?, name: Str) -> Str?`** — pull one cookie value out
+  of a raw `Cookie` header string (as read by `@header(name="cookie")`). Returns
+  `null` when the header is absent or the named cookie isn't present, so it drops
+  straight into a `match` auth gate. 4 new lib `@test`s (121 lib tests pass).
+- **`examples/auth-live/`** — a login (POST signs a JWT, sets it
+  `HttpOnly; SameSite=Lax`) + an authenticated LiveView whose socket validates
+  the cookie **before the first frame** and drops any anon connection.
+  **Headless-Chrome validated 5/5**: the authenticated tab renders + the socket
+  is live (bump → count); an anonymous WS gets **zero frames**; anon `GET /`
+  redirects to `/login`.
+- **Docs** — "Securing a live socket" in `docs/liveviews.md`, and a README
+  covering both patterns.
+
+### The two patterns (both library-only)
+
+- **Pattern A — in-loop validation (MVP):** `@header(name="cookie") @ws(...)` +
+  `flv_cookie` + `jwt.decode`; on failure `return` (silent close). The host
+  extracts the user; no global provider.
+- **Pattern C — injected `user`, reject before upgrade:** one global
+  `@auth_provider` that reads the cookie header + `@authenticated @ws(..., user:
+  User)`. Rejects anon with a **401 before the upgrade** and injects `user`.
+
+### Notes
+
+- **Known gap deferred:** the admin ABM's own `@ws` handlers read the cookie
+  only to derive the locale — they don't validate the session, so those sockets
+  are currently unauthenticated. Hardening them (wire `user_from_cookie` into the
+  loop) is a separate, deliberate slice (it changes a shipped example's runtime
+  behavior).
+- **Byte-compatible.** No compiler change; `flv_cookie` is a pure addition and
+  doesn't touch `LIVE_CLIENT_JS`, so existing pages emit identical bytes. VSCode
+  extension stays at 0.38.0.
+
 ## [v0.45.1] — 2026-08-17 — Clock demo: global `@every` ticker
 
 The `examples/clock/` server-pushed clock now uses Fitz core's **`@every(N)`
