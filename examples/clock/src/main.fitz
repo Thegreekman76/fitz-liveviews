@@ -1,0 +1,50 @@
+// Fitz LiveViews — server-pushed clock (Phase 3c: @every periodic updates).
+//
+// Run:   fitz run
+// Open http://127.0.0.1:3000/ — the time updates every second with no client
+// polling. Each connection spawns a background ticker that sleeps, re-renders,
+// and pushes. The `ws.send(...)?` ends the ticker cleanly when the tab closes.
+
+from fitz_liveviews import Html, html, live_layout, html_response, LiveFrame, diff_html, component, dispatch_component_events, dispatch_to, flv_register, flv_frame
+from Clock import Clock, Clock_render, Clock_tick
+
+
+@get("/")
+fn clock_page() -> Response {
+  let initial = component("Clock", "room")
+  return html_response(live_layout("/live/clock", "clock-app", initial))
+}
+
+
+// The @every pattern (library convention — no core decorator yet): a
+// @background fn loops on `sleep` + push, spawned per connection with the ws.
+@background
+async fn clock_tick(ws: WsConn<LiveFrame>) {
+  loop {
+    let _ = sleep(1000).await
+    let t = DateTime.now().format("%H:%M:%S")
+    let _ = dispatch_to("Clock", "room", "tick", {"now": t})
+    ws.send(flv_frame("Clock", "room"))?
+  }
+}
+
+
+@ws("/live/clock")
+async fn clock_socket(ws: WsConn<LiveFrame>) {
+  spawn(clock_tick(ws))
+  // immediate first frame so the client doesn't wait a whole second
+  let t0 = DateTime.now().format("%H:%M:%S")
+  let _ = dispatch_to("Clock", "room", "tick", {"now": t0})
+  ws.send(flv_frame("Clock", "room"))?
+  loop {
+    let r = ws.recv()
+    match r {
+      Ok(frame) => { let _ = dispatch_component_events(frame) }
+      Err(_) => { break }
+    }
+  }
+}
+
+
+@server(3000)
+fn main() => 0

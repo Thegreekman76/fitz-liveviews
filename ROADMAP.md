@@ -179,7 +179,17 @@ Compact patches over the wire, DOM state preserved on the client.
       `on_disconnect` "farewell" (e.g. a decremented presence count) reaches the
       remaining clients. Demo: `examples/presence/` (a live "N online" counter
       driven purely by connect/disconnect, headless-Chrome validated 4/4).
-- [ ] `@every(N secs)` for server-pushed periodic updates
+- [x] **`@every(N secs)` periodic updates** (v0.44.0, Phase 3c slice 3) — a
+      per-connection background ticker pushes on an interval, no client polling.
+      Library pattern (a decorator is a future core sugar): a `@background async
+      fn` loops on `sleep(N).await` + re-render + `ws.send(...)?`, spawned in the
+      `@ws` handler with `spawn(tick(ws))`. The `?` ends the ticker cleanly when
+      the socket closes. Verified `WsConn` is accepted as a `@background` param
+      and as a `spawn` argument (no core change). New helper `flv_frame(name, id)`
+      builds a full-re-render frame. Demo: `examples/clock/` (a server-pushed
+      HH:MM:SS clock, headless-Chrome validated 3/3 — the time advances every
+      second with no client interaction). For shared state, broadcast instead of
+      send (each connection's ticker still fires, idempotently).
 - [ ] Version-numbered patches to detect out-of-sync clients (currently
       silent fallback to `html`)
 

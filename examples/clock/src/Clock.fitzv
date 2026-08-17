@@ -1,0 +1,24 @@
+// Fitz LiveViews — server-pushed clock (Phase 3c @every demo).
+//
+// No buttons, no polling: the SERVER pushes the current time every second. A
+// per-connection background ticker (spawned in the @ws handler) sleeps a second,
+// dispatches a `tick` event carrying the fresh time, and sends the re-render.
+
+component Clock {
+  state { now: Str = "—" }
+
+  event tick() { now = payload["now"] }
+
+  <template>
+    <div id="clock-app" class="wrap">
+      <h1 class="t">{now}</h1>
+      <p class="hint">Server time, pushed every second via <code>@every</code>. No client polling — the server owns the tick.</p>
+    </div>
+  </template>
+
+  <style scoped>
+    .wrap { font-family: system-ui, sans-serif; max-width: 30rem; margin: 3rem auto; text-align: center; }
+    .t { font-size: 3rem; font-variant-numeric: tabular-nums; letter-spacing: .08em; margin: 0 0 .4rem; color: var(--flv-color-primary, #ce412b); }
+    .hint { color: var(--flv-text-muted, #55555c); font-size: .9rem; line-height: 1.5; }
+  </style>
+}

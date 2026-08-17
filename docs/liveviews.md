@@ -424,6 +424,51 @@ async fn presence_socket(ws: WsConn<LiveFrame>) {
 
 Runnable in [`examples/presence/`](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/presence) — a live "N online" counter with no buttons at all.
 
+### Server-pushed updates — `@every` (v0.44.0)
+
+So far every frame was a reaction to a client event. Sometimes the **server**
+should push on its own schedule — a live clock, a metric tick, a countdown. The
+pattern is a `@background` fn that loops on `sleep` + re-render + push, spawned
+per connection with the socket:
+
+```
+@background
+async fn clock_tick(ws: WsConn<LiveFrame>) {
+  loop {
+    let _ = sleep(1000).await                          // every second
+    let t = DateTime.now().format("%H:%M:%S")
+    let _ = dispatch_to("Clock", "room", "tick", {"now": t})
+    ws.send(flv_frame("Clock", "room"))?               // push the re-render
+  }
+}
+
+@ws("/live/clock")
+async fn clock_socket(ws: WsConn<LiveFrame>) {
+  spawn(clock_tick(ws))                                // ws is cloned into the task
+  loop {
+    let r = ws.recv()
+    match r { Ok(f) => { dispatch_component_events(f) }, Err(_) => { break } }
+  }
+}
+```
+
+- **`spawn(clock_tick(ws))`** hands the connection to a background task — `WsConn`
+  is accepted as a `@background` parameter and a `spawn` argument (no core change).
+- **`ws.send(...)?`** is also the cleanup: when the tab closes the send errors and
+  `?` ends the ticker task, so it doesn't leak.
+- **`flv_frame(name, id)`** builds a full-re-render frame (`patches: []`, client
+  does `outerHTML =`). For a diffed push, keep a per-loop `last` and send
+  `LiveFrame { html: now, patches: diff_html(last, now) }` instead.
+
+**Per-connection vs shared.** The ticker above uses `ws.send`, so each connection
+ticks itself — perfect for per-client views (a session timer, "your data"). For
+**shared** state, use `ws.broadcast` instead: every connection's ticker still
+fires, but the writes are idempotent and all clients stay in sync.
+
+An `@every(N)` decorator that writes the ticker + spawn for you is a possible
+future; today it's this small, explicit pattern. Runnable in
+[`examples/clock/`](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/clock).
+
 ### The parser scope
 
 We ship a minimal HTML parser that covers everything our templates

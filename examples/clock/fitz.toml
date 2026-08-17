@@ -1,0 +1,11 @@
+[package]
+name = "clock-example"
+version = "0.0.1"
+edition = "2026"
+description = "Fitz LiveViews — server-pushed clock (Phase 3c: @every periodic updates)"
+
+[bin]
+main = "src/main.fitz"
+
+[dependencies]
+fitz_liveviews = { path = "../.." }

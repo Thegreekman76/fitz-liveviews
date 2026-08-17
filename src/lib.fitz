@@ -2355,6 +2355,16 @@ fn flv_disconnect(name: Str, id: Str) -> Bool {
   return dispatch_to(name, id, "on_disconnect", {})
 }
 
+// A full-re-render frame for `name`/`id`: the component's current render with
+// no diff (`patches: []`), so the client replaces the root's outerHTML. Handy
+// for low-frequency server pushes — a lifecycle broadcast, an `@every` tick —
+// where a full swap is fine and threading a `last` snapshot to compute patches
+// isn't worth it. For high-frequency diffed updates, keep a per-loop `last` and
+// build `LiveFrame { html: now, patches: diff_html(last, now) }` yourself.
+fn flv_frame(name: Str, id: Str) -> LiveFrame {
+  return LiveFrame { html: component(name, id).raw, patches: [] }
+}
+
 // K-2 (v0.5.0, 2026-07-16) — Read + write API for component state
 // from outside a component's event handler. Complements the auto-
 // managed store via `component(name, id)` (read+render) and
@@ -2722,6 +2732,18 @@ fn lifecycle_helpers_are_silent_no_op_without_a_handler() {
   assert(not flv_disconnect("lc_none", "room"))
   // an unregistered component is also a silent false
   assert(not flv_mount("lc_never_registered", "room"))
+}
+
+@test
+fn flv_frame_builds_full_render_with_empty_patches() {
+  // Phase 3c — flv_frame(name, id) = the current render, no diff. Used by @every
+  // tickers and lifecycle broadcasts.
+  flv_register("ff_target", __P4Counter { count: 0 }, __p4_counter_render,
+               { "increment": __p4_counter_increment })
+  dispatch_to("ff_target", "room", "increment", { })
+  let frame = flv_frame("ff_target", "room")
+  assert(frame.html.contains("Count: 1"))
+  assert(len(frame.patches) == 0)
 }
 
 

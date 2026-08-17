@@ -5,6 +5,63 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.44.0] — 2026-08-17 — Phase 3c slice 3: `@every(N)` server-pushed updates
+
+The third slice of **Phase 3c**. The **server** can now push updates on an
+interval — a live clock, a metric tick, a countdown — with no client polling and
+no client interaction. Library pattern over the existing async/spawn primitives,
+**zero Fitz-core change** (verified `WsConn` is accepted as a `@background`
+parameter and as a `spawn` argument).
+
+### The pattern
+
+A `@background async fn` loops on `sleep(N).await` + re-render + push, spawned
+per connection in the `@ws` handler with the connection handle:
+
+```
+@background
+async fn clock_tick(ws: WsConn<LiveFrame>) {
+  loop {
+    let _ = sleep(1000).await
+    let t = DateTime.now().format("%H:%M:%S")
+    let _ = dispatch_to("Clock", "room", "tick", {"now": t})
+    ws.send(flv_frame("Clock", "room"))?      // ? ends the ticker when the tab closes
+  }
+}
+
+@ws("/live/clock")
+async fn clock_socket(ws: WsConn<LiveFrame>) {
+  spawn(clock_tick(ws))
+  loop { let r = ws.recv(); match r { Ok(f) => { dispatch_component_events(f) }, Err(_) => { break } } }
+}
+```
+
+The `ws.send(...)?` is the cleanup: when the socket closes, the send errors and
+`?` ends the ticker task — no orphaned loop. For **shared** state, `ws.broadcast`
+instead of `ws.send` (every connection's ticker still fires, but the writes are
+idempotent).
+
+### Added
+
+- **`flv_frame(name, id) -> LiveFrame`** — a full-re-render frame (the current
+  render, `patches: []`), so the client replaces the root's `outerHTML`. Handy
+  for low-frequency pushes (an `@every` tick, a lifecycle broadcast) where
+  threading a `last` snapshot to diff isn't worth it. New lib `@test` (114 tests).
+- **`examples/clock/`** — a server-pushed **HH:MM:SS** clock. No buttons, no
+  polling: a per-connection ticker sleeps a second, renders `DateTime.now()`, and
+  pushes. **Headless-Chrome validated 3/3** (first pushed time is HH:MM:SS · the
+  time advances every second — 4 distinct values over 3s · zero page errors).
+
+### Notes
+
+- **Spike result:** `fitz check` + `fitz run` confirm the checker accepts
+  `WsConn<T>` as a `@background` fn parameter and `ws` as a `spawn(tick(ws))`
+  argument, and the ticks arrive over the socket — so slice 3 is pure library, no
+  core change. An `@every(N)` **decorator** that generates the ticker + spawn is a
+  possible future core sugar.
+- **Pure library, byte-compatible.** No compiler change; existing examples
+  untouched (the demo is a new example). VSCode extension stays at 0.38.0.
+
 ## [v0.43.0] — 2026-08-17 — Phase 3c slice 2: lifecycle hooks (on_mount / on_disconnect)
 
 The second slice of **Phase 3c**. A component can now run code when a client
