@@ -14,9 +14,19 @@ fitz run
 
 Open <http://127.0.0.1:3000/> — anonymous, you're redirected to `/login`. Log in
 with **ada@example.com / secret**; the LiveView connects and shows *"Signed in as
-ada@example.com"*. Headless-Chrome validated **5/5** (authenticated tab renders +
-the socket is live; an anonymous WS gets **zero frames**; anon `GET /` redirects
-to `/login`).
+ada@example.com"*. Click **Sign out** and the socket sends `flv_redirect("/login")`
+so the tab navigates back. Headless-Chrome validated **6/6** (authenticated tab
+renders + the socket is live; Sign out redirects to `/login`; an anonymous WS
+gets a `flv_redirect` frame; anon `GET /` redirects to `/login`).
+
+## Redirect frame (v0.47.0)
+
+`flv_redirect(url) -> LiveFrame` is a frame the client turns into a
+`window.location = url` navigation — a **server-initiated redirect**. Here the
+anon socket bounces to `/login` instead of a silent close, and the **Sign out**
+button triggers a redirect from the socket loop. Use it for an expired session
+mid-stream, a "you were signed out", or a moved resource. (A real sign-out would
+also clear the cookie via a `POST /logout`; the redirect is the navigation.)
 
 ## Pattern A — in-loop cookie validation (the MVP)
 

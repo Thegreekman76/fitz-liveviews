@@ -10,8 +10,8 @@
 // HttpOnly cookie on the WS upgrade automatically, `@header(name="cookie")`
 // reads it, and `flv_cookie(...)` + `jwt.decode(...)` validate it.
 
-from fitz_liveviews import Html, html, live_layout, html_response, LiveFrame, diff_html, component, dispatch_component_events, dispatch_to, flv_register, flv_frame, flv_cookie
-from Secure import Secure, Secure_render, Secure_set_email, Secure_bump
+from fitz_liveviews import Html, html, live_layout, html_response, LiveFrame, diff_html, component, dispatch_component_events, dispatch_to, flv_register, flv_frame, flv_cookie, flv_redirect
+from Secure import Secure, Secure_render, Secure_set_email, Secure_bump, Secure_sign_out
 
 
 type Credentials { email: Str, password: Str }
@@ -109,7 +109,12 @@ fn home(cookie: Str?) -> Response {
 @ws("/live/secure")
 async fn secure_socket(ws: WsConn<LiveFrame>, cookie: Str?) {
   let email = match email_from_cookie(cookie) {
-    null => { return },
+    // Anon: bounce the tab to /login (D2) instead of a silent close. A browser
+    // fitz-liveviews client navigates; a raw client just gets the frame.
+    null => {
+      ws.send(flv_redirect("/login"))?
+      return
+    },
     e => e,
   }
   let _ = dispatch_to("Secure", "room", "set_email", {"email": email})
@@ -118,6 +123,13 @@ async fn secure_socket(ws: WsConn<LiveFrame>, cookie: Str?) {
     let r = ws.recv()
     match r {
       Ok(frame) => {
+        // "Sign out" button → server-initiated redirect to /login (D2). (A real
+        // sign-out would also clear the cookie via a POST /logout; here the
+        // point is the flv_redirect navigation.)
+        if (frame.event == "sign_out") {
+          ws.send(flv_redirect("/login"))?
+          break
+        }
         let _ = dispatch_component_events(frame)
         ws.send(flv_frame("Secure", "room"))?
       }

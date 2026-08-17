@@ -525,6 +525,12 @@ async fn secure_socket(ws: WsConn<LiveFrame>, cookie: Str?) {
   the socket and an anonymous client gets nothing. (`jwt.encode` at login sets
   the cookie `HttpOnly; SameSite=Lax`; JS can't read it, so it can't leak through
   the `__flv_init` query channel — the cookie is the right transport.)
+- **Reject with a redirect (v0.47.0).** Instead of a silent close, send a
+  redirect frame so the tab bounces to `/login`:
+  `ws.send(flv_redirect("/login"))?` then `return`. `flv_redirect(url)` is also
+  the way to do a **server-initiated navigation** at any time — an expired
+  session mid-stream, a "you were signed out", a moved resource: the client does
+  `window.location = url`.
 - **Zero Fitz-core change, zero client change** — the browser already sends the
   cookie; the handler just checks it.
 

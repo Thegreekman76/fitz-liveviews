@@ -316,6 +316,10 @@ let LIVE_CLIENT_JS: Str = """(function() \{
   let lastVersion = 0;
   ws.onmessage = function(e) \{
     const msg = JSON.parse(e.data);
+    // v0.47.0 — a `__flv_redirect` frame navigates the tab to `msg.html` (a URL):
+    // an expired session, a "you were logged out", or a moved resource. Handled
+    // before any DOM work, so it works even without a mounted root.
+    if (msg.event === '__flv_redirect') \{ window.location = msg.html; return; \}
     const root = document.getElementById(rootId);
     if (!root) return;
     const v = msg.version | 0;
@@ -2447,6 +2451,16 @@ fn flv_cookie(cookie: Str?, name: Str) -> Str? {
   return null
 }
 
+// Build a redirect frame (v0.47.0). Send it from a `@ws` handler to navigate the
+// client's tab to `url` — a server-initiated redirect: an expired session, a
+// "you were logged out", a moved resource. The client (`LIVE_CLIENT_JS`) does
+// `window.location = url` and ignores the rest of the frame.
+//
+//   ws.send(flv_redirect("/login"))?   // then `return` to close the socket
+fn flv_redirect(url: Str) -> LiveFrame {
+  return LiveFrame { event: "__flv_redirect", html: url }
+}
+
 // K-2 (v0.5.0, 2026-07-16) — Read + write API for component state
 // from outside a component's event handler. Complements the auto-
 // managed store via `component(name, id)` (read+render) and
@@ -2883,6 +2897,23 @@ fn flv_cookie_value_with_equals_survives() {
   let c: Str? = "tok=YWJjZA==; lang=en"
   assert(flv_cookie(c, "tok") == "YWJjZA==")
   assert(flv_cookie(c, "lang") == "en")
+}
+
+@test
+fn flv_redirect_builds_a_redirect_frame() {
+  // v0.47.0 (D2) — flv_redirect(url) is a frame the client turns into a
+  // window.location navigation.
+  let f = flv_redirect("/login")
+  assert(f.event == "__flv_redirect")
+  assert(f.html == "/login")
+}
+
+@test
+fn live_layout_includes_redirect_branch() {
+  // The client runtime handles a `__flv_redirect` frame by navigating the tab.
+  let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
+  assert(full.raw.contains("__flv_redirect"))
+  assert(full.raw.contains("window.location"))
 }
 
 @test

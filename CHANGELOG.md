@@ -5,6 +5,33 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.47.0] — 2026-08-17 — `flv_redirect` — server-initiated navigation (D2)
+
+A `@ws` handler can now navigate the client's tab — reject an anon socket with a
+redirect instead of a silent close, bounce an expired session to `/login`, or
+send a "you were signed out". Small addition to the client runtime.
+
+### Added
+
+- **`flv_redirect(url: Str) -> LiveFrame`** — a frame that the client
+  (`LIVE_CLIENT_JS`) turns into `window.location = url`. Send it from a `@ws`
+  handler (then `return`/`break` to close). +2 lib `@test`s (124 lib tests).
+- **`__flv_redirect` branch** in the client `onmessage`, handled before any DOM
+  work (so it navigates even without a mounted root). Existing frames
+  (patches/html) are unaffected — the branch only triggers on
+  `event === "__flv_redirect"`.
+- **`examples/auth-live/`** updated: the anon socket now sends
+  `flv_redirect("/login")` instead of a silent close, and a **Sign out** button
+  triggers a server-initiated redirect. **Headless-Chrome validated 6/6**
+  (authenticated renders + bump; Sign out navigates to `/login`; anon WS receives
+  the `flv_redirect` frame; anon `GET /` redirects).
+
+### Notes
+
+- The client-JS grows (a one-line branch), but the lib `@test`s are substring
+  asserts and no example is byte-snapshotted, so nothing re-baselines; existing
+  pages behave identically. VSCode extension stays at 0.38.0.
+
 ## [v0.46.1] — 2026-08-17 — Harden the admin's live sockets + `flv_cookie` robustness
 
 Follow-up to v0.46.0: closes the deferred security gap in the flagship demo and

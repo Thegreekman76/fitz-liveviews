@@ -9,6 +9,9 @@ component Secure {
 
   event set_email() { email = payload["email"] }
   event bump() { count = count + 1 }
+  // Intercepted by the @ws loop (it sends flv_redirect before this ever fires),
+  // declared so the `data-flv-click="sign_out"` binding type-checks.
+  event sign_out() { }
 
   <template>
     <div id="secure-app" class="wrap">
@@ -16,6 +19,7 @@ component Secure {
       <p class="hint">This live socket only streams to a valid session cookie — an anonymous connection is dropped before the first frame.</p>
       <p class="count">Clicked <b class="n">{count}</b> times.</p>
       <button class="btn" data-flv-click="bump">+1</button>
+      <button class="btn out" data-flv-click="sign_out">Sign out</button>
     </div>
   </template>
 
