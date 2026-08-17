@@ -333,6 +333,46 @@ The client empties every input in the submitted form that carries
 Inputs without the attribute keep their value — that is the whole
 point of Phase 3b's DOM preservation.
 
+### Live input events — `@input`, `@keydown`, debounce (v0.42.0)
+
+Beyond click/submit, the client runtime wires **live input** events so a field
+can drive the server *as you type* — a search box, a validated field, a
+submit-on-Enter. In a `.fitzv` you write them as `@event` bindings; the SSR
+emitter lowers each to `data-flv-<event>`.
+
+| Binding | Fires on | Payload | Use it for |
+| --- | --- | --- | --- |
+| `@input` → `data-flv-input` | every keystroke | `value` (post-key) + form fields | live search / as-you-type filters |
+| `@change` → `data-flv-change` | native `change` (blur/commit) | `value` | selects, toggles, cascade filters |
+| `@keydown` → `data-flv-keydown` | keydown | `value` (pre-key) + `key` | key actions (submit-on-Enter, Escape) |
+
+Two plain attributes tune them (no `@`, they pass straight through):
+
+- **`data-flv-debounce="300"`** — coalesce a keystroke burst with a per-element
+  timer, so the socket sees **one** frame ~300 ms after the user pauses instead
+  of one per key. Absent or `0` sends immediately. Applies to `input`/`keydown`.
+- **`data-flv-keyfilter="Enter,Escape"`** — restrict `@keydown` to the listed
+  `event.key`s (Phoenix's `phx-key`), e.g. submit-on-Enter without a `<form>`.
+
+```html
+<!-- debounced live search: one frame ~300ms after you stop typing -->
+<input @input="on_search" data-flv-debounce="300" value="{query}" />
+
+<!-- submit on Enter only -->
+<input @keydown="on_submit" data-flv-keyfilter="Enter" value="{draft}" />
+```
+
+The handler reads `payload["value"]` (and `payload["key"]` for keydown):
+
+```
+event on_search() { query = payload["value"] }
+```
+
+**`@input` vs `@keydown`:** on `keydown` the field value is *pre-key* (the char
+isn't in `.value` yet), so use `@input` when you need the typed value and
+`@keydown` (+ `data-flv-keyfilter`) for key-driven actions. A runnable
+debounced filter lives in [`examples/live-search/`](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/live-search).
+
 ### The parser scope
 
 We ship a minimal HTML parser that covers everything our templates

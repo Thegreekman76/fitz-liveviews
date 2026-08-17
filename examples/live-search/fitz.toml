@@ -1,0 +1,11 @@
+[package]
+name = "live-search-example"
+version = "0.0.1"
+edition = "2026"
+description = "Fitz LiveViews — debounced live search (Phase 3c: data-flv-input + debounce)"
+
+[bin]
+main = "src/main.fitz"
+
+[dependencies]
+fitz_liveviews = { path = "../.." }

@@ -5,6 +5,51 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.42.0] — 2026-08-16 — Phase 3c slice 1: live input events + debounce
+
+The first slice of **Phase 3c** (real-world LiveView polish). The client runtime
+gains live-input event wiring — as-you-type filters, key-driven actions, and
+per-element debounce — all in the embedded client JS, **zero Fitz-core change**.
+
+### Added
+
+- **`data-flv-input`** — the client now listens for the `input` event, firing on
+  every keystroke and packaging the field value under `payload['value']` (plus
+  the enclosing form and any `data-flv-value-*`). Mirrors the existing `change`
+  handler. A `.fitzv` writes `@input="on_search"`, which the SSR emitter already
+  lowers to `data-flv-input="on_search"`.
+- **`data-flv-keydown`** — fires on `keydown`, carrying the pressed key under
+  `payload['key']` (and the pre-key value under `payload['value']`). An optional
+  **`data-flv-keyfilter="Enter,Escape"`** restricts it to the listed
+  `event.key`s — e.g. submit-on-Enter without a form. (Note: on keydown the field
+  value is *pre-key*; use `data-flv-input` when you need the value after the
+  keystroke.)
+- **`data-flv-debounce="300"`** — coalesces a keystroke burst with a per-element
+  timer (a `WeakMap<Element,timeoutId>` in the client runtime), so a live-search
+  field sends **one** frame ~300 ms after the user stops typing rather than one
+  per key. Absent or `0` sends immediately. Applies to `data-flv-input` and
+  `data-flv-keydown`.
+- **`examples/live-search/`** — a debounced as-you-type filter over a fruit list.
+  Typing narrows the list server-side (`{#if it.contains(query)}`); the diff
+  engine patches only the `<ul>`. **Headless-Chrome validated 6/6** (initial 20
+  items · no send mid-burst · a 3-keystroke burst coalesces to **one**
+  `on_search` · list patched to the 2 matches · value round-trips · zero page
+  errors).
+
+### Notes
+
+- **Pure library.** No compiler change: `@input`/`@keydown` in a `.fitzv` already
+  parse as generic `@event` bindings and lower to `data-flv-<event>` in the SSR
+  emitter (verified against Fitz core; works as far back as the 0.29.x line).
+  Compatible with the same core the library already required.
+- **Byte-compatible.** Only the injected `<script>` runtime grows; the LiveView
+  root HTML and every WS `html`/`patches` frame are unchanged, so existing
+  examples' `fitz run` ↔ binary smokes stay identical. 5 new lib `@test`s assert
+  the handlers/attributes are present (110 lib tests pass).
+- **Next in Phase 3c:** `@on_mount`/`@on_disconnect` lifecycle (slice 2) and
+  `@every(N secs)` server-pushed updates (slice 3). The VSCode extension stays at
+  0.38.0 — no new `.fitzv` grammar/LSP surface.
+
 ## [v0.41.4] — 2026-08-16 — Phase 11: hydration of composition + a `{#for}` region
 
 Aligns with Fitz core **v0.41.4** and adds the next hydration slice: a `{#for}`

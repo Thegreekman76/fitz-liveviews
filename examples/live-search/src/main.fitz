@@ -1,0 +1,47 @@
+// Fitz LiveViews — debounced live search (Phase 3c).
+//
+// Run:   fitz run
+// Open http://127.0.0.1:3000/ and type in the box. `data-flv-input` fires on
+// every keystroke, but `data-flv-debounce="300"` coalesces the burst — the
+// server sees a single filtered re-render ~300ms after you stop typing, and
+// the diff engine patches only the <ul> that changed.
+
+from fitz_liveviews import Html, html, live_layout, html_response, LiveFrame, diff_html, component, dispatch_component_events, flv_register
+from Search import Search, Search_render, Search_on_search
+
+
+// -----------------------------------------------------------------------------
+// HTTP GET — initial render + client runtime
+// -----------------------------------------------------------------------------
+
+@get("/")
+fn search_page() -> Response {
+  let initial = component("Search", "root")
+  return html_response(live_layout("/live/search", "search-app", initial))
+}
+
+
+// -----------------------------------------------------------------------------
+// WebSocket — event/patch cycle
+// -----------------------------------------------------------------------------
+
+@ws("/live/search")
+async fn search_socket(ws: WsConn<LiveFrame>) {
+  let last_html = component("Search", "root").raw
+  loop {
+    let frame = ws.recv()?
+    let _handled = dispatch_component_events(frame)
+    let new_html = component("Search", "root").raw
+    let patches = diff_html(last_html, new_html)
+    ws.send(LiveFrame { html: new_html, patches: patches })?
+    last_html = new_html
+  }
+}
+
+
+// -----------------------------------------------------------------------------
+// Server config
+// -----------------------------------------------------------------------------
+
+@server(3000)
+fn main() => 0

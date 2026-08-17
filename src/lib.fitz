@@ -414,6 +414,56 @@ let LIVE_CLIENT_JS: Str = """(function() \{
       ws.send(JSON.stringify(\{ event: t.dataset.flvChange, payload: payload, html: '', patches: [] \}));
     \}
   \});
+  // v0.42.0 (Phase 3c) — live input events. `data-flv-input` fires on every
+  // keystroke; `data-flv-keydown` fires on keydown and carries `payload['key']`
+  // (plus an optional `data-flv-keyfilter="Enter,Escape"` so it only fires on
+  // those keys). Both honour `data-flv-debounce="300"` (ms; absent/0 → send
+  // immediately) via a per-element timer, so a live-search field doesn't flood
+  // the socket. Note: on keydown the field value is pre-key; use `data-flv-input`
+  // when you need the value after the keystroke, `data-flv-keydown` for keys.
+  const flvDebounceTimers = new WeakMap();
+  function flvSend(el, msg) \{
+    const ms = parseInt(el.getAttribute('data-flv-debounce') || '0', 10);
+    if (!(ms > 0)) \{ ws.send(JSON.stringify(msg)); return; \}
+    const prev = flvDebounceTimers.get(el);
+    if (prev) clearTimeout(prev);
+    flvDebounceTimers.set(el, setTimeout(function() \{
+      flvDebounceTimers.delete(el);
+      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+    \}, ms));
+  \}
+  document.body.addEventListener('input', function(e) \{
+    const t = e.target.closest('[data-flv-input]');
+    if (t && ws.readyState === WebSocket.OPEN) \{
+      const payload = \{\};
+      collectValues(t, payload);
+      enrichWithComponentContext(t, payload);
+      const inputForm = t.closest('form');
+      if (inputForm) serializeForm(inputForm, payload);
+      if (t.name && t.type !== 'checkbox') payload[t.name] = t.value;
+      payload['value'] = (t.type === 'checkbox') ? (t.checked ? t.value : '') : t.value;
+      flvSend(t, \{ event: t.dataset.flvInput, payload: payload, html: '', patches: [] \});
+    \}
+  \});
+  document.body.addEventListener('keydown', function(e) \{
+    const t = e.target.closest('[data-flv-keydown]');
+    if (t && ws.readyState === WebSocket.OPEN) \{
+      const filter = t.getAttribute('data-flv-keyfilter');
+      if (filter) \{
+        const keys = filter.split(',').map(function(k) \{ return k.trim(); \});
+        if (keys.indexOf(e.key) === -1) return;
+      \}
+      const payload = \{\};
+      collectValues(t, payload);
+      enrichWithComponentContext(t, payload);
+      const keyForm = t.closest('form');
+      if (keyForm) serializeForm(keyForm, payload);
+      if (t.name && t.type !== 'checkbox') payload[t.name] = t.value;
+      payload['value'] = t.value;
+      payload['key'] = e.key;
+      flvSend(t, \{ event: t.dataset.flvKeydown, payload: payload, html: '', patches: [] \});
+    \}
+  \});
 \})();"""
 
 
@@ -541,6 +591,40 @@ fn live_layout_includes_change_handler() {
   assert(full.raw.contains("addEventListener('change'"))
   assert(full.raw.contains("data-flv-change"))
   assert(full.raw.contains("flvChange"))
+}
+
+@test
+fn live_layout_includes_input_handler() {
+  // v0.42.0 (Phase 3c) — client JS handles `data-flv-input`, firing on every
+  // keystroke and carrying the field's value under `payload['value']`. Enables
+  // live-search / as-you-type filters.
+  let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
+  assert(full.raw.contains("addEventListener('input'"))
+  assert(full.raw.contains("data-flv-input"))
+  assert(full.raw.contains("flvInput"))
+}
+
+@test
+fn live_layout_includes_keydown_handler() {
+  // v0.42.0 (Phase 3c) — `data-flv-keydown` fires on keydown, carries the
+  // pressed key under `payload['key']`, and honours an optional
+  // `data-flv-keyfilter` so it only fires on the listed keys (e.g. Enter).
+  let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
+  assert(full.raw.contains("addEventListener('keydown'"))
+  assert(full.raw.contains("data-flv-keydown"))
+  assert(full.raw.contains("flvKeydown"))
+  assert(full.raw.contains("data-flv-keyfilter"))
+  assert(full.raw.contains("payload['key']"))
+}
+
+@test
+fn live_layout_includes_input_debounce() {
+  // v0.42.0 (Phase 3c) — `data-flv-debounce="300"` (ms) delays the send via a
+  // per-element timer, so a live-search field doesn't flood the socket.
+  let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
+  assert(full.raw.contains("data-flv-debounce"))
+  assert(full.raw.contains("WeakMap"))
+  assert(full.raw.contains("setTimeout"))
 }
 
 @test

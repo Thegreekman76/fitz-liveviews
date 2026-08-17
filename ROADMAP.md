@@ -139,8 +139,20 @@ Compact patches over the wire, DOM state preserved on the client.
 
 - [ ] Template control flow `{#for x in xs}...{/for}`,
       `{#if cond}...{/if}` — needs a mini template engine
-- [ ] `data-flv-input`, `data-flv-change`, `data-flv-keydown` handlers
-- [ ] Debouncing configuration on inputs (client-side)
+- [x] **Live input events** (v0.42.0, Phase 3c slice 1) — the client runtime now
+      wires `data-flv-input` (fires on every keystroke, value under
+      `payload['value']`) and `data-flv-keydown` (fires on keydown, carries
+      `payload['key']`, honours an optional `data-flv-keyfilter="Enter"` so it
+      only fires on the listed keys). `data-flv-change` already shipped in
+      v0.7.0. Pure library (client-JS only, zero core change) — `@input`/
+      `@keydown` in a `.fitzv` already lower to `data-flv-<event>` in the SSR
+      emitter. Demo: `examples/live-search/` (debounced as-you-type filter,
+      headless-Chrome validated 6/6).
+- [x] **Debouncing on inputs** (v0.42.0, Phase 3c slice 1) — `data-flv-debounce="300"`
+      (ms) coalesces a keystroke burst via a per-element timer (a module-level
+      `WeakMap<Element,timeoutId>`), so a live-search field sends one frame after
+      the user pauses instead of one per key. Absent or `0` = send immediately
+      (byte-compatible for elements that don't opt in).
 - [x] **Keyed diffing** (v0.16.0) — `diff_html` matches list children by
       `data-flv-key` (LCS reconciliation) instead of by position, emitting
       `insert_keyed`/`move_keyed`/`remove_keyed` + by-key content patches. A
