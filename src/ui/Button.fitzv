@@ -113,5 +113,10 @@ component button {
       animation: flv-btn-spin .6s linear infinite;
     }
     @keyframes flv-btn-spin { to { transform: rotate(360deg); } }
+    /* FLV-05 — comfortable tap target on touch devices; desktop stays compact. */
+    @media (pointer: coarse) {
+      .flv-btn { min-height: var(--flv-touch-target, 44px); }
+      .flv-btn[data-size="sm"] { padding: .5rem .85rem; }
+    }
   </style>
 }

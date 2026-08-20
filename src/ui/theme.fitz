@@ -30,6 +30,10 @@ fn ui_theme() -> Html {
   --flv-text-muted: #55555c;
   --flv-radius-md:   8px;
   --flv-shadow-card: 0 6px 20px rgba(0, 0, 0, .12);
+  /* FLV-05 — minimum touch target on coarse pointers (WCAG 2.5.5 / Apple
+     HIG). Interactive components clamp to this under `@media (pointer:
+     coarse)` so phones get big taps without bloating desktop. */
+  --flv-touch-target: 44px;
 \}
 :root[data-theme="dark"] \{
   --flv-color-muted: #7a7a82;

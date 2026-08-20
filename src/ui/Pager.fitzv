@@ -70,5 +70,12 @@ component pager {
       border-color: var(--flv-color-primary, #ce412b);
     }
     .pg-active:hover { background: var(--flv-color-primary, #ce412b); }
+    /* FLV-05 — big enough to tap with a thumb on phones. */
+    @media (pointer: coarse) {
+      .pg-btn {
+        min-height: var(--flv-touch-target, 44px);
+        min-width: var(--flv-touch-target, 44px);
+      }
+    }
   </style>
 }

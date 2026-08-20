@@ -5,6 +5,44 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.48.0] — 2026-08-20 — Mobile T3: `live_layout_with` + touch targets (FLV-01 + FLV-05)
+
+Two of the three T3 (mobile-first) quick wins from the MatHelp norte
+(`docs/norte-mathelp.md`). With FITZ-02 (static serving) closed in fitz core
+v0.51.0, a Fitz app now installs as a PWA and has comfortable tap targets;
+the remaining T3 item is FLV-04 (reconnect + state replay, Costo L).
+
+### Added
+- **`live_layout_with(opts: LayoutOpts, ws_path, root_id, initial) -> Html`**
+  (FLV-01) — a customizable, mobile-friendly document shell. `type LayoutOpts
+  { title, lang, head_extra, body_class, theme, theme_color }` sets `<html
+  lang>` + `data-theme` + `<title>` (escaped) + host `<head>` extras (manifest,
+  favicon, CSS), with a default `<head>` tuned for phones (`viewport-fit=cover`
+  for notches, `theme-color`, `format-detection: telephone=no`) — WITHOUT the
+  admin chrome of `app_shell`. Ideal for a game/public app that owns the whole
+  document.
+- **`--flv-touch-target` token** (default `44px`) + `@media (pointer: coarse)`
+  `min-height`/`min-width` clamps on `Button` / `Pager` / `Tabs` /
+  `SortableHeader` (FLV-05) — thumb-friendly ≥ 44px targets on touch devices
+  (WCAG 2.5.5 / Apple HIG), while desktop stays compact.
+- VSCode snippet `get-layout` for `live_layout_with`.
+
+### Changed
+- **`live_layout(...)` now delegates to `live_layout_with(LayoutOpts {}, ...)`**
+  — additive: every existing caller keeps working and gains `<html lang="en">`
+  (a11y) plus the mobile-friendly `<head>`.
+
+### Docs
+- `docs/liveviews.md` — "Customizing the document" section + API table row.
+- `docs/ui-components.md` — "Mobile readiness — touch targets" section +
+  `--flv-touch-target` token.
+
+### Tests
+- 5 new `@test` (`live_layout_with_*`); the existing
+  `live_layout_wraps_in_full_html_document` re-pointed to the delegated output.
+  `fitz test` — **129 passed**. Touch CSS verified by rendering each component
+  and asserting `pointer: coarse` + the token survive the scoped-CSS expansion.
+
 ## [v0.47.0] — 2026-08-17 — `flv_redirect` — server-initiated navigation (D2)
 
 A `@ws` handler can now navigate the client's tab — reject an anon socket with a

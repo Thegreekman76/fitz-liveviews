@@ -38,5 +38,10 @@ component sortable_header {
   <style scoped>
     .flv-th-sort { cursor: pointer; user-select: none; }
     .flv-th-sort:hover { color: var(--flv-color-primary, #ce412b); }
+    /* FLV-05 — the sort header is the tappable element of a grid; give it a
+       comfortable target on touch (the DataGrid header shrinks on mobile). */
+    @media (pointer: coarse) {
+      .flv-th-sort { min-height: var(--flv-touch-target, 44px); }
+    }
   </style>
 }

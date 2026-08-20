@@ -419,12 +419,35 @@ they render un-themed too). Two ways to theme them:
   --flv-text:          var(--text);
   --flv-radius-md:     8px;
   --flv-shadow-card:   0 10px 30px rgba(0, 0, 0, .25);
+  --flv-touch-target:  44px;   /* FLV-05 — min tap size on touch */
 }
 ```
 
 Unit tests for all three live in
 [`examples/ui-gallery/tests/components_test.fitz`](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/ui-gallery/tests)
 (`fitz test` from the gallery).
+
+### Mobile readiness — touch targets (FLV-05)
+
+The interactive components (`Button`, `Pager`, `Tabs`, `SortableHeader`)
+clamp to **≥ 44px** on touch devices — the WCAG 2.5.5 / Apple HIG minimum
+that keeps a 9-year-old's thumb from mis-tapping. It only applies under
+`@media (pointer: coarse)`, so desktop stays compact:
+
+```css
+@media (pointer: coarse) {
+  .flv-btn { min-height: var(--flv-touch-target, 44px); }
+}
+```
+
+The size comes from the `--flv-touch-target` token (default `44px`);
+override it once in your `:root` to make every control bigger or smaller
+on touch. `DataGrid` already collapses to stacked cards below 640px
+(`data-label` column labels), so it needs no per-cell sizing.
+
+For the document shell, `live_layout_with(LayoutOpts { ... }, ...)`
+([LiveViews guide](liveviews.md)) ships a mobile-friendly `<head>`
+(`viewport-fit=cover`, `theme-color`) by default.
 
 ### Breadcrumbs — navigation trail
 

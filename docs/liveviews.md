@@ -24,6 +24,8 @@ the LiveView root's `outerHTML` on each patch.
 | `type LiveFrame { event, payload, html }`                 | Envelope used by the WebSocket in both directions              |
 | `let LIVE_CLIENT_JS`                                      | The vanilla JS runtime (~30 LoC, embedded automatically)       |
 | `fn live_layout(ws_path, root_id, initial) -> Html`       | Wraps initial HTML with the `<script>` tag                     |
+| `fn live_layout_with(opts, ws_path, root_id, initial) -> Html` | Same, with a customizable mobile-friendly shell (FLV-01)  |
+| `type LayoutOpts { title, lang, head_extra, body_class, theme, theme_color }` | Options for `live_layout_with`             |
 | `fn html_response(h) -> Response`                         | Turns `Html` into a `Response` with `Content-Type: text/html`  |
 
 ## Design decisions locked for Phase 2
@@ -95,6 +97,41 @@ This is what a browser hitting `/` gets. `live_layout` bundles the
 first render with the JS `<script>`; `html_response` sets
 `Content-Type: text/html` so the browser renders it instead of
 displaying JSON.
+
+#### Customizing the document — `live_layout_with` (FLV-01)
+
+`live_layout` is the zero-config path. When you need a custom title,
+`<html lang>`, a theme, or `<head>` extras (a `<link rel=manifest>`, a
+favicon, an app `<style>`, Open Graph meta), use `live_layout_with` with
+a `LayoutOpts`. Unlike `app_shell`, it produces a **minimal** document —
+no admin sidebar/topbar chrome — ideal for a game or a public app that
+owns the whole page.
+
+```fitz
+let opts = LayoutOpts {
+  title: "MatHelp",
+  lang: locale,                                  // "es-AR", "en", …
+  theme: "auto",                                 // <html data-theme>
+  theme_color: "#7c3aed",                        // browser UI tint
+  body_class: "game",
+  head_extra: html("""
+    <link rel="manifest" href="/static/manifest.webmanifest">
+    <link rel="icon" href="/static/favicon.ico">
+    <style>{ui_theme().raw}</style>
+  """),
+}
+return html_response(live_layout_with(opts, "/live/game", "game", initial))
+```
+
+The default `<head>` is already mobile-friendly: `viewport-fit=cover`
+(so the layout extends under notches), a `theme-color`, and
+`format-detection: telephone=no`. `live_layout(...)` delegates to
+`live_layout_with(LayoutOpts {}, ...)`, so every existing caller gains
+`<html lang="en">` (accessibility) and the mobile head for free.
+
+> **PWA note:** serve the `manifest.webmanifest`, favicon and CSS as
+> static files with `@server(static_dir="./public", static_prefix="/static")`
+> (Fitz core ≥ v0.51.0) — one binary + Postgres, no nginx.
 
 ### 4. WebSocket handler
 

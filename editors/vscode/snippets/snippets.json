@@ -76,6 +76,23 @@
     "description": "GET handler that embeds a LiveView (fragment, no full document) inside your own shell/layout"
   },
 
+  "@get handler (custom mobile layout)": {
+    "prefix": "get-layout",
+    "body": [
+      "@get(\"${1:/path}\")",
+      "fn ${2:handler}() -> Response {",
+      "  let opts = LayoutOpts {",
+      "    title: \"${3:My App}\",",
+      "    lang: \"${4:en}\",",
+      "    theme_color: \"${5:#0f172a}\",",
+      "    head_extra: html(\"${6:<link rel=\\\"manifest\\\" href=\\\"/static/manifest.webmanifest\\\">}\"),",
+      "  }",
+      "  return html_response(live_layout_with(opts, \"/live/${7:path}\", \"${8:root-id}\", render(${9:initial_state})))",
+      "}"
+    ],
+    "description": "GET handler with live_layout_with — custom title/lang/theme + mobile-friendly head (FLV-01)"
+  },
+
   "@ws handler": {
     "prefix": "ws",
     "body": [

@@ -490,6 +490,60 @@ let LIVE_CLIENT_JS: Str = """(function() \{
 // LiveView layout
 // -----------------------------------------------------------------------------
 
+// Layout options for `live_layout_with` (FLV-01). Every field is optional;
+// the defaults produce a minimal, mobile-friendly document (NO admin chrome
+// — unlike `app_shell`, which bakes a sidebar/topbar/breadcrumbs shell).
+//
+//   title        <title> text.
+//   lang         <html lang="...">.
+//   head_extra   extra <head> content: theme boot script, <link rel=manifest>,
+//                favicon, app <style>, Open Graph meta, etc. Rendered after
+//                the built-in mobile meta.
+//   body_class   class(es) on <body> (theme hooks, page-level styling).
+//   theme        <html data-theme="..."> ("auto" | "light" | "dark").
+//   theme_color  <meta name="theme-color"> — the browser UI / status-bar tint.
+type LayoutOpts {
+  title: Str = "Fitz LiveView"
+  lang: Str = "en"
+  head_extra: Html = html("")
+  body_class: Str = ""
+  theme: Str = "auto"
+  theme_color: Str = "#0f172a"
+}
+
+// Wraps the initial HTML render with the client-side runtime <script>, with a
+// customizable, mobile-friendly document shell (FLV-01). Sets `<html lang>` +
+// `<title>` + host `head_extra`, and a `<head>` default tuned for phones
+// (`viewport-fit=cover` for notches, `theme-color`, `format-detection` off) —
+// WITHOUT the admin chrome of `app_shell`. Ideal for a game/app that owns the
+// whole document but is not an admin panel.
+//
+// `live_layout(...)` delegates here with the classic defaults, so it is
+// additive — existing callers keep working and gain the mobile-friendly head.
+//
+// Same contract as `live_layout`: `initial`'s outermost tag must carry
+// `id="{root_id}"`, and the matching `@ws(ws_path)` handler recv/sends
+// `LiveFrame`s.
+fn live_layout_with(opts: LayoutOpts, ws_path: Str, root_id: Str, initial: Html) -> Html {
+  let js = LIVE_CLIENT_JS
+  return html("""<!doctype html>
+<html lang="{opts.lang}" data-theme="{opts.theme}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="{opts.theme_color}">
+<meta name="format-detection" content="telephone=no">
+<title>{flv(opts.title)}</title>
+{opts.head_extra.raw}
+</head>
+<body class="{opts.body_class}">
+{initial.raw}
+<script data-flv-ws="{ws_path}" data-flv-root="{root_id}">{js}</script>
+</body>
+</html>""")
+}
+
+
 // Wraps the initial HTML render with the client-side runtime <script>.
 // Return the result from your @get(...) handler; the matching @ws(...)
 // handler at `ws_path` should recv/send LiveFrame messages.
@@ -500,20 +554,12 @@ let LIVE_CLIENT_JS: Str = """(function() \{
 //              the outermost tag of `initial`. Patches replace this
 //              element's outerHTML.
 //   initial  — the first server render of the view.
+//
+// Delegates to `live_layout_with` with the default `LayoutOpts` — a minimal
+// mobile-friendly shell. For a custom title / lang / head / theme-color, call
+// `live_layout_with(LayoutOpts { ... }, ...)` directly.
 fn live_layout(ws_path: Str, root_id: Str, initial: Html) -> Html {
-  let js = LIVE_CLIENT_JS
-  return html("""<!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fitz LiveView</title>
-</head>
-<body>
-{initial.raw}
-<script data-flv-ws="{ws_path}" data-flv-root="{root_id}">{js}</script>
-</body>
-</html>""")
+  return live_layout_with(LayoutOpts {}, ws_path, root_id, initial)
 }
 
 
@@ -720,13 +766,65 @@ fn live_layout_wraps_in_full_html_document() {
   // Phase 3b polish + kanban prep — live_layout wraps the initial
   // render in a full HTML5 document with proper <head> so mobile
   // gets width=device-width and desktop gets a valid doctype.
+  // FLV-01 — `live_layout` now delegates to `live_layout_with`, so the
+  // `<html>` tag carries the default `lang="en"` (a11y) + `data-theme`.
   let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
   assert(full.raw.contains("<!doctype html>"))
-  assert(full.raw.contains("<html>"))
+  assert(full.raw.contains("<html lang="))
   assert(full.raw.contains("<head>"))
-  assert(full.raw.contains("<body>"))
+  assert(full.raw.contains("<body"))
   assert(full.raw.contains("<meta name=\"viewport\" content=\"width=device-width"))
   assert(full.raw.contains("<meta charset=\"utf-8\""))
+}
+
+@test
+fn live_layout_with_sets_lang_title_and_theme() {
+  // FLV-01 — custom lang / title / theme land on the document.
+  let opts = LayoutOpts { title: "MatHelp", lang: "es-AR", theme: "dark" }
+  let full = live_layout_with(opts, "/live/x", "root", html("<div id=\"root\"></div>"))
+  assert(full.raw.contains("<html lang=\"es-AR\" data-theme=\"dark\">"))
+  assert(full.raw.contains("<title>MatHelp</title>"))
+}
+
+@test
+fn live_layout_with_head_has_mobile_defaults() {
+  // FLV-01 (T3) — the default head is mobile-friendly: notch-safe
+  // viewport, a theme-color, and no telephone auto-detection.
+  let full = live_layout_with(LayoutOpts {}, "/live/x", "root", html("<div id=\"root\"></div>"))
+  assert(full.raw.contains("viewport-fit=cover"))
+  assert(full.raw.contains("<meta name=\"theme-color\" content=\"#0f172a\">"))
+  assert(full.raw.contains("format-detection"))
+}
+
+@test
+fn live_layout_with_injects_head_extra_and_body_class() {
+  // FLV-01 — host head (manifest, favicon, CSS) + a body class.
+  let opts = LayoutOpts {
+    head_extra: html("<link rel=\"manifest\" href=\"/static/manifest.webmanifest\">"),
+    body_class: "game",
+    theme_color: "#7c3aed",
+  }
+  let full = live_layout_with(opts, "/live/x", "root", html("<div id=\"root\"></div>"))
+  assert(full.raw.contains("rel=\"manifest\" href=\"/static/manifest.webmanifest\""))
+  assert(full.raw.contains("<body class=\"game\">"))
+  assert(full.raw.contains("content=\"#7c3aed\""))
+}
+
+@test
+fn live_layout_with_escapes_title() {
+  // FLV-01 — the title is escaped with `flv` (parallel to app_shell).
+  let opts = LayoutOpts { title: "A & B <x>" }
+  let full = live_layout_with(opts, "/live/x", "root", html("<div id=\"root\"></div>"))
+  assert(full.raw.contains("<title>A &amp; B &lt;x&gt;</title>"))
+}
+
+@test
+fn live_layout_with_still_wires_ws_and_root() {
+  // FLV-01 — same runtime contract as live_layout.
+  let full = live_layout_with(LayoutOpts {}, "/live/counter", "app", html("<div id=\"app\"></div>"))
+  assert(full.raw.contains("data-flv-ws=\"/live/counter\""))
+  assert(full.raw.contains("data-flv-root=\"app\""))
+  assert(full.raw.contains("new WebSocket"))
 }
 
 @test

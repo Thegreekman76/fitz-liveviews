@@ -1,11 +1,12 @@
 // auth.fitz — login page, login POST (sets the session cookie), logout.
 //
-// Login can't be a native `<form method=POST>` because Fitz `@post`
-// handlers deserialize a JSON body into a `type`, not form-urlencoded
-// data. So the login page posts via `fetch(..., JSON)`; the browser
-// stores the `Set-Cookie` from that response automatically (same-origin),
-// then the page redirects to `/`. (A future core enhancement — accepting
-// form-urlencoded bodies — would let this be a plain form.)
+// NOTE (2026-08): Fitz `@post` handlers now DO accept
+// `application/x-www-form-urlencoded` (deserialized into the same `type`
+// as JSON), so this login could be a native `<form method=POST>` with no
+// JS. This example still posts via `fetch(..., JSON)` for now; it's a
+// candidate to simplify to a plain form. The browser stores the
+// `Set-Cookie` from the response automatically (same-origin), then the
+// page redirects to `/`.
 //
 // Handlers here register onto the main router automatically (W16); the
 // main module only needs `import auth`.

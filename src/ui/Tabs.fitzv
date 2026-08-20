@@ -42,5 +42,12 @@ component tabs {
       color: var(--flv-color-primary, #ce412b);
       border-bottom-color: var(--flv-color-primary, #ce412b);
     }
+    /* FLV-05 — tabs are a primary nav; make them thumb-friendly on touch. */
+    @media (pointer: coarse) {
+      .flv-tab {
+        min-height: var(--flv-touch-target, 44px);
+        display: inline-flex; align-items: center;
+      }
+    }
   </style>
 }
