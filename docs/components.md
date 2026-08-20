@@ -395,11 +395,34 @@ is safe because events only travel over the socket: nothing can mutate
 the placeholder instance, and the live render replaces it on the first
 event.
 
-Known limitation: per-connection instances are never evicted from the
-store (no disconnect hook, and `Map` has no `remove` in Fitz core yet).
-Each connection leaks one small state entry per component — fine at
-showcase scale; an `flv_drop_instance(...)` cleanup API is planned once
-core grows `Map.remove`.
+### Eviction & TTL (FLV-03, v0.49.0)
+
+Per-connection instances are **not** evicted on disconnect — that would
+break the [reconnect replay](liveviews.md#reconnection--state-replay-flv-04)
+(a client that reconnects within the grace window expects its state to
+still be there). Instead the store is kept bounded two ways:
+
+- **`flv_evict(name, id) -> Bool`** — explicit removal when you KNOW a
+  session is done (a logout, an explicit "close"). Returns `true` if it
+  existed. Leaves the component registered for new instances.
+- **`flv_sweep_idle(max_idle_secs) -> Int`** — a TTL sweep. Every render
+  and dispatch touches an instance's last-activity timestamp; the sweep
+  evicts any instance idle beyond `max_idle_secs` and returns the count.
+  A reconnecting client re-renders (touches), so it is spared as long as
+  it returns within the window; a closed tab that never comes back is
+  reclaimed. Wire it to an `@every` job:
+
+  ```fitz
+  @every(60)
+  async fn reap() { let _ = flv_sweep_idle(1800) }   // drop 30-min-idle instances
+  ```
+
+- **`flv_store_stats() -> Map<Str, Int>`** — `{ "instances": N }`, to
+  monitor store growth.
+
+(Requires Fitz core v0.50.0+ for `Map.remove`.) `flv_disconnect(name, id)`
+still fires the component's `on_disconnect` hook, but no longer implies
+eviction.
 
 ## What the framework does not (yet) provide
 

@@ -113,6 +113,31 @@
     "description": "WebSocket handler with the event/patch cycle"
   },
 
+  "@ws handler (reconnect-ready with state replay)": {
+    "prefix": "ws-reconnect",
+    "body": [
+      "@ws(\"/live/${1:path}\")",
+      "async fn ${2:socket}(ws: WsConn<LiveFrame>) {",
+      "  let init = ws.recv()?                 // first frame is __flv_init",
+      "  let cid = flv_session_id(init)        // stable id — survives reconnects (FLV-04)",
+      "  let _ = flv_mount(\"${3:Component}\", cid)",
+      "  ws.send(flv_frame(\"$3\", cid))?         // initial render — or replay after a drop",
+      "  loop {",
+      "    match ws.recv() {",
+      "      Ok(frame) => {",
+      "        dispatch_component_events(frame)",
+      "        $0",
+      "        ws.send(flv_frame(\"$3\", cid))?",
+      "      }",
+      "      Err(_) => { break }",
+      "    }",
+      "  }",
+      "  let _ = flv_disconnect(\"$3\", cid)      // fires on_disconnect; does NOT evict",
+      "}"
+    ],
+    "description": "Reconnect-ready @ws handler: stable session id + state replay (FLV-04). Store-backed component required."
+  },
+
   "Broadcast handler (chat-style)": {
     "prefix": "broadcast",
     "body": [

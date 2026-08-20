@@ -626,9 +626,15 @@ Explicitly NOT supported (documented so you know what to avoid):
 - **Race on newly-connected clients during broadcast.** If a client
   finishes its HTTP `GET` and then receives a broadcast patch that was
   diffed from an older server snapshot, the patches may not apply
-  cleanly. The `html` fallback recovers, but silently — no explicit
-  version-numbering is in Phase 3b. Real production apps would want
-  a version protocol; queue it up for a future phase.
+  cleanly. Since v0.45.0 an opt-in **version protocol** (`flv_versioned`)
+  stamps frames so the client detects a gap and takes a full `html`
+  resync instead of applying stale patches (the same mechanism that
+  drives reconnect replay — see "Reconnection & state replay").
+- **Reconnect: DOM/domain state only.** Reconnection + state replay
+  (v0.48.0, FLV-04) rehydrates the store-backed state, but ephemeral UI
+  state (focus, scroll, unsent input) is lost on the full resync, and a
+  process restart clears the in-memory store. Persist anything critical.
+  Outbox backpressure and multi-instance coordination are still future.
 
 ## LiveComponents (Phase 4)
 
@@ -677,6 +683,78 @@ tenant, a role. Two ways, depending on where the context lives:
     // ... normal events ...
   }
   ```
+
+## Reconnection & state replay (FLV-04)
+
+Mobile connections drop — a tunnel, a locked screen, a suspended tab. Since
+v0.48.0 the client runtime **reconnects automatically** and can **replay the
+LiveView's state** so the user picks up where they left off.
+
+**Reconnect is automatic — no code change.** `LIVE_CLIENT_JS` now recreates
+the socket on `onclose` with exponential backoff + jitter (250ms → capped at
+10s), resetting the delay after a successful connection. An intentional
+navigation (`flv_redirect`, or `beforeunload`) does **not** reconnect. Every
+existing app un-freezes on its own after a blip.
+
+**State replay is opt-in — use the component store + a stable id.** Local
+per-connection state (`let state = ...` inside the handler) dies with the
+socket, so a reconnect starts fresh. To *replay*, keep state in the component
+store (`component(...)` / `component_with(...)`) keyed by a **stable session
+id**. The client generates one per tab, keeps it in `sessionStorage` (so it
+survives the drop *and* a reload), and sends it in every `__flv_init` as
+`__flv_session`. Read it with **`flv_session_id(init)`** instead of minting a
+fresh `Uuid.v4()` per socket:
+
+```fitz
+@ws("/live/game")
+async fn socket(ws: WsConn<LiveFrame>) {
+  let init = ws.recv()?                 // first frame is __flv_init
+  let cid = flv_session_id(init)        // STABLE across reconnects
+  let _ = flv_mount("Game", cid)
+  ws.send(flv_frame("Game", cid))?      // initial render — or replay after a drop
+  loop {
+    match ws.recv() {
+      Ok(frame) => {
+        dispatch_component_events(frame)
+        ws.send(flv_frame("Game", cid))?
+      }
+      Err(_) => { break }
+    }
+  }
+  let _ = flv_disconnect("Game", cid)   // fires on_disconnect; does NOT evict
+}
+```
+
+On reconnect the same `__flv_session` arrives, `flv_session_id` returns the
+same `cid`, the store still holds the state (it is not evicted on disconnect —
+see [components.md](components.md) for eviction/TTL), and `flv_frame(...)`
+re-renders the current state. The client applies it as a full `html` resync —
+the version-gap detector already forces one because the server's per-endpoint
+version counter is ahead of the reconnected client's `lastVersion`.
+
+**What survives:** domain state kept in the store (or re-derived from Postgres).
+**What may not:** ephemeral UI state (focus, scroll, unsent input) — the DOM is
+replaced wholesale on the resync. Persist anything you must not lose.
+
+**If the process restarted** (deploy, crash), the in-memory store is gone, so
+the reconnect gets a fresh instance. Persist critical state to the DB and
+re-derive it in the handler for a true "resume" across restarts.
+
+### Manual smoke (sockets are flaky in CI)
+
+The reconnect loop is verified manually — automated socket tests are flaky:
+
+1. `fitz run` a reconnect-ready app (store + `flv_session_id`), open it, and
+   interact so the component state changes (e.g. increment a counter).
+2. In DevTools → Network, throttle to **Offline** (or stop/restart the server,
+   or kill the tunnel). The socket closes; the DOM freezes.
+3. Watch the console/network: within ~250ms–10s the client reconnects (a new
+   WS with a new `__flv_init` carrying the **same** `__flv_session`).
+4. Confirm the view rehydrates to its previous state (a full `html` resync) and
+   events work again. `sessionStorage` shows the `flv:sid:...` key persisting.
+
+The state-replay logic itself is covered by an automated, socket-free test
+(`flv04_reconnect_replays_state_from_store` in `src/lib.fitz`).
 
 ## Ready-made components
 

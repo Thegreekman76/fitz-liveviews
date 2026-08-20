@@ -5,6 +5,59 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.49.0] — 2026-08-20 — Reconnect + state replay + eviction (FLV-04 + FLV-03) — closes T3
+
+The last (and biggest) T3 item: LiveViews now survive a dropped connection.
+The client reconnects automatically and can replay the LiveView's state, and
+the component store is finally bounded (explicit eviction + a TTL sweep). With
+this, **T3 (mobile-first) is closed end to end** — a Fitz app installs as a PWA
+(FITZ-02 static serving in core v0.51.0), has comfortable touch targets
+(v0.48.0), and rides out a signal blip.
+
+### Added
+- **Automatic reconnection** (FLV-04) — `LIVE_CLIENT_JS` recreates the socket
+  on `onclose` with exponential backoff + jitter (250ms → capped 10s; reset on
+  a successful connection). No code change needed — every app un-freezes after a
+  blip. An intentional navigation (`flv_redirect` / `beforeunload`) does not
+  reconnect.
+- **State replay** (FLV-04) — a stable per-tab session id (generated once, kept
+  in `sessionStorage`, sent in every `__flv_init` as `__flv_session`). Read it
+  with **`flv_session_id(init) -> Str`** instead of minting a fresh `Uuid.v4()`
+  per socket, and key your component instance by it: on reconnect the store
+  still holds the state, so a full `html` resync (forced by the existing
+  version-gap detector) replays it. Also `flv_is_init(frame) -> Bool`.
+- **Eviction + TTL** (FLV-03, needs core v0.50.0 `Map.remove`) —
+  `flv_evict(name, id) -> Bool` (explicit removal), `flv_sweep_idle(secs) -> Int`
+  (a TTL sweep you wire to `@every`; every render/dispatch touches an instance so
+  active/reconnecting ones are spared), and `flv_store_stats() -> Map<Str, Int>`
+  (`{ "instances": N }`).
+
+### Changed
+- **`flv_disconnect` no longer implies eviction** — it still fires the
+  component's `on_disconnect` hook, but the instance stays in the store so a
+  reconnect within the window can replay it. Bound the store with `flv_evict` /
+  `flv_sweep_idle` instead.
+
+### Docs
+- `docs/liveviews.md` — new "Reconnection & state replay" section (with the
+  canonical reconnect-ready `@ws` shape + the manual smoke procedure); "Known
+  limitations" refreshed.
+- `docs/components.md` — new "Eviction & TTL" section (replaces the stale "never
+  evicted" note).
+- VSCode snippet `ws-reconnect` for the reconnect-ready handler.
+
+### Tests
+- 11 new `@test` (client-JS structure, `flv_session_id` / `flv_is_init`, a
+  socket-free state-replay test, and evict / stats / sweep). `fitz test` —
+  **140 passed**. The socket-level reconnect is verified manually (documented) —
+  automated socket tests are flaky.
+
+### Notes
+- **Follow-up**: migrating the admin/counter examples to full UI-state replay
+  (moving their local per-connection state into the store). Today they already
+  benefit from reconnect (they un-freeze and re-query Postgres); only the local
+  UI state (search, sort, in-progress edit) resets on reconnect.
+
 ## [v0.48.0] — 2026-08-20 — Mobile T3: `live_layout_with` + touch targets (FLV-01 + FLV-05)
 
 Two of the three T3 (mobile-first) quick wins from the MatHelp norte

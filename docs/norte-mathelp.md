@@ -51,11 +51,11 @@ Filas `FITZ-*` viven en `fitz/docs/norte-mathelp.md`.
 |----|----------|-----------------------------------------|---------------------|-------------|-------|--------|----------------------|
 | 1  | FITZ-01  | Módulo `rand` (fitz core)               | Confirmado          | Bloqueante  | M     | Ninguno| —                    |
 | 2  | FITZ-09  | Codegen `-> T?` (fitz core)             | Confirmado (repro)  | Alto        | S     | Bajo   | **cierra FLV-10**    |
-| 9  | FLV-04   | Reconnect + state replay                | Confirmado          | Alto        | L     | Medio  | **T3**               |
+| 9  | FLV-04   | Reconnect + state replay                | Ya resuelto (v0.49.0)| Alto       | L→M   | Medio  | **cierra T3**        |
 | 10 | FLV-09   | Capítulo `docs/i18n.md`                  | Confirmado          | Alto        | S     | Ninguno| FITZ-03, FITZ-05, FLV-01 |
 | 12 | FLV-01   | Layout customizable (`live_layout_with`)| Ya resuelto         | Medio       | S     | Ninguno| —                    |
 | 13 | FITZ-13  | `Map.remove` (fitz core)                | Ya resuelto (v0.50.0)| Medio      | S     | Bajo   | **desbloquea FLV-03**|
-| 14 | FLV-03   | Eviction / TTL de instancias            | Confirmado (desbloqueado)| Medio  | M     | Bajo   | ~~FITZ-13~~ (listo)  |
+| 14 | FLV-03   | Eviction / TTL de instancias            | Ya resuelto (v0.49.0)| Medio      | M     | Bajo   | ~~FITZ-13~~ (listo)  |
 | 15 | FLV-10   | `flv_cookie` no compila a nativo        | Ya resuelto (FITZ-09)| **Alto**   | —     | —      | ~~FITZ-09~~ (cerrado v0.49.0) |
 | 16 | FLV-07   | `{#elseif}` (código en fitz core `src/view/`) | Confirmado    | Medio       | S     | Bajo   | —                    |
 | 17 | FLV-05   | Touch targets ≥ 44px                    | Ya resuelto         | Medio       | S     | Bajo   | **T3**               |
@@ -109,8 +109,21 @@ Impacto ∈ `Bloqueante` · `Alto` · `Medio` · `Bajo` · Costo ∈ `S` (horas)
 
 ### FLV-04 · Reconnect + state replay
 
-- [ ] Implementado
-- **Estado:** Confirmado.
+- [x] Implementado (2026-08-20, v0.49.0) — **cierra T3 entero.** Cliente (`LIVE_CLIENT_JS`):
+  `connect()` re-invocable + `ws.onclose` con backoff exponencial + jitter (250ms → cap 10s, reset al
+  reconectar), **session id estable** por tab en `sessionStorage` (sobrevive el drop Y un reload),
+  enviado en `__flv_init` como `__flv_session`; no reconecta tras navegación intencional (`__flv_redirect`
+  / `beforeunload`). Server: helper `flv_session_id(frame) -> Str` (lee `__flv_session`, fallback
+  `Uuid.v4().to_str()`) + `flv_is_init(frame)`. **El replay sale casi gratis**: el version-gap (ya
+  existente) fuerza full `html` resync al reconectar, y el store persiste entre conexiones (no evicta en
+  disconnect — coordinado con FLV-03). Docs: `docs/liveviews.md` sección "Reconnection & state replay" +
+  procedimiento de smoke manual. 8 `@test` (7 de estructura del JS + helpers, 1 de replay puro socket-free
+  `flv04_reconnect_replays_state_from_store`). **Decisiones (D1-D5) confirmadas**: id client-side +
+  sessionStorage (cero cambios a fitz core), full HTML resync, backoff 250ms→10s+jitter, replay desde el
+  store si vive / fresco si el proceso reinició, MVP acotado. **Follow-up documentado**: migrar el admin/
+  counter a replay-completo del UI state (hoy el reconnect ya los descongela + re-query DB; solo el UI
+  state local resetea).
+- **Estado:** Ya resuelto.
 - **Evidencia:** `README.md:49-51` (reliability debt: "reconnect with state replay"). El runtime JS
   (`LIVE_CLIENT_JS`, `src/lib.fitz:219+`) crea el socket una vez (`:224`); solo `onmessage` (`:317`) y
   `onopen` (`:344`). Grep `onclose|reconnect|backoff|retry` → 0. El `__flv_init` (`:344-351`) solo transporta
@@ -226,8 +239,15 @@ Impacto ∈ `Bloqueante` · `Alto` · `Medio` · `Bajo` · Costo ∈ `S` (horas)
 
 ### FLV-03 · Eviction / TTL de instancias
 
-- [ ] Implementado
-- **Estado:** Confirmado. **Bloqueada por FITZ-13** (`Map.remove` en fitz core).
+- [x] Implementado (2026-08-20, v0.49.0) — desbloqueado por `Map.remove` (FITZ-13, v0.50.0), coordinado
+  con FLV-04. `flv_evict(name, id) -> Bool` (removal explícito), `flv_sweep_idle(max_idle_secs) -> Int`
+  (TTL sweep — cada render/dispatch toca `COMPONENT_LAST_SEEN` con `DateTime.now().timestamp()`, el sweep
+  evicta lo idle más allá del umbral, un reconnect re-renderiza → se salva), `flv_store_stats() ->
+  Map<Str, Int>` (`{ "instances": N }`). **`flv_disconnect` NO evicta** (preserva el replay de FLV-04) —
+  solo dispara `on_disconnect`. El barrido lo cablea el user a un `@every(N)`. Doc `components.md` sección
+  "Eviction & TTL" (comment stale "never evicted" reemplazado). 3 `@test` (evict/stats/sweep). **`component_ttl`
+  per-componente** = refinamiento futuro (hoy `flv_sweep_idle` global cubre el caso).
+- **Estado:** Ya resuelto.
 - **Evidencia:** `src/lib.fitz:2124` (`COMPONENT_STATE_STORE`), `:2206-2210` ("never evicted ... `Map` has no
   `remove` yet"); `docs/components.md:398-402`. **`flv_disconnect` SÍ existe** (`:2377-2379`) pero solo dispara
   `on_disconnect` — **no borra la entrada** (falta `Map.remove`). La doc "no disconnect hook" está desactualizada.
@@ -370,13 +390,12 @@ No es tema del framework en sí, **pero FLV-10 es su manifestación más visible
 `examples/admin`, y cualquier app que dependa del framework) no compila a nativo por el bug de codegen de `T?`
 del core (FITZ-09). Se cierra cuando cierre FITZ-09 + FITZ-14 (differ) en el core. Ver `fitz/docs/norte-mathelp.md`.
 
-### T3 · Mobile como ciudadano de primera
-Del lado de **fitz-liveviews**: **FLV-04** (reconnect — el único que queda, Costo L), ~~**FLV-01**~~
-(viewport/theme-color en el head default — **cerrado v0.48.0**), ~~**FLV-05**~~ (touch targets —
-**cerrado v0.48.0**). **FLV-06** ya resuelto. Del lado del core: ~~**FITZ-02**~~ (static → app instalable —
-**cerrado v0.51.0**). Con FLV-01/FLV-05/FITZ-02 cerrados, **T3 queda a un solo ítem: FLV-04 (reconnect)**.
-Una app Fitz en un celular ya se instala como PWA y tiene targets táctiles cómodos; falta que sobreviva un
-corte de señal (reconnect + replay).
+### T3 · Mobile como ciudadano de primera — ✅ CERRADO
+~~**FLV-04**~~ (reconnect + state replay — **cerrado v0.49.0**), ~~**FLV-01**~~ (viewport/theme-color —
+**cerrado v0.48.0**), ~~**FLV-05**~~ (touch targets — **cerrado v0.48.0**), **FLV-06** ya resuelto. Del
+lado del core: ~~**FITZ-02**~~ (static → app instalable — **cerrado v0.51.0**). **T3 entero cerrado**: una
+app Fitz en un celular se instala como PWA, tiene targets táctiles cómodos, y sobrevive un corte de señal
+(reconnecta con backoff + replaya su estado). Justo donde LiveViews debía brillar.
 
 ---
 
@@ -387,12 +406,14 @@ corte de señal (reconnect + replay).
 (docs i18n, S)` (pendiente). **FLV-10 ya se cerró** cuando el core arregló FITZ-09 (v0.49.0) — `flv_cookie`
 y `examples/admin` compilan a nativo. Queda solo `FLV-09` de este hito.
 
-**Hito 2 — Eliminar las trampas.**
-`FLV-02 (warning por `<style>`/`<script>`, al menos el nivel warning)` + `FITZ-13 (`Map.remove`, core)` →
-`FLV-03 (eviction)`.
+**Hito 2 — Eliminar las trampas.** (parcial)
+`FLV-02 (warning por `<style>`/`<script>`, al menos el nivel warning)` (pendiente) + ~~`FITZ-13 (`Map.remove`,
+core)`~~ ✅ **v0.50.0** → ~~`FLV-03 (eviction)`~~ ✅ **v0.49.0**. Queda solo `FLV-02` de este hito.
 
-**Hito 3 — El trabajo de verdad.**
-`FLV-04 (reconnect + state replay, L)`. La pieza que separa demo de producto. Smoke manual, planificar con tiempo.
+**Hito 3 — El trabajo de verdad.** ✅ CERRADO
+~~`FLV-04 (reconnect + state replay)`~~ ✅ **v0.49.0**. La pieza que separaba demo de producto. Resultó Costo
+**M** (no L): el version-gap + la persistencia del store ya construían casi todo el replay; solo faltaba
+reconnect + id estable, 100% client-side + un helper.
 
 **Hito 4 — Futuro.**
 `FLV-07 ({#elseif}, core)` + `FLV-08 (dispatch_to_all)`. Bajo, sin urgencia.

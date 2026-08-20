@@ -221,7 +221,26 @@ let LIVE_CLIENT_JS: Str = """(function() \{
   const wsPath = s.dataset.flvWs;
   const rootId = s.dataset.flvRoot;
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const ws = new WebSocket(proto + '//' + location.host + wsPath);
+  // FLV-04 — a stable per-tab session id so a reconnect re-attaches to the
+  // SAME server-side LiveView instance (its state survives the socket drop,
+  // and the @ws handler keys the component store by this id). Generated once
+  // and kept in sessionStorage, so it also survives a manual page reload.
+  function flvGenId() \{
+    try \{ if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); \} catch (e) \{\}
+    return 'flv-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+  \}
+  const sessionKey = 'flv:sid:' + wsPath + '|' + rootId;
+  let sessionId;
+  try \{
+    sessionId = sessionStorage.getItem(sessionKey);
+    if (!sessionId) \{ sessionId = flvGenId(); sessionStorage.setItem(sessionKey, sessionId); \}
+  \} catch (e) \{ sessionId = flvGenId(); \}
+  // FLV-04 — reconnect state. `ws` is reassigned by connect(); every DOM
+  // listener reads it lazily, so recreating the socket is transparent to them.
+  let ws;
+  let lastVersion = 0;        // persists across reconnects (forces a resync on gap)
+  let reconnectDelay = 250;   // exponential backoff, capped at 10s
+  let stopped = false;        // set when we navigate away on purpose (no reconnect)
   const decoder = document.createElement('textarea');
   function decodeHtml(str) \{
     decoder.innerHTML = str;
@@ -313,43 +332,63 @@ let LIVE_CLIENT_JS: Str = """(function() \{
   // the wrong version — skip the patches and take the full `html` resync. A
   // version of 0 (unversioned) preserves the old behavior for senders that don't
   // stamp with `flv_versioned(...)`.
-  let lastVersion = 0;
-  ws.onmessage = function(e) \{
-    const msg = JSON.parse(e.data);
-    // v0.47.0 — a `__flv_redirect` frame navigates the tab to `msg.html` (a URL):
-    // an expired session, a "you were logged out", or a moved resource. Handled
-    // before any DOM work, so it works even without a mounted root.
-    if (msg.event === '__flv_redirect') \{ window.location = msg.html; return; \}
-    const root = document.getElementById(rootId);
-    if (!root) return;
-    const v = msg.version | 0;
-    const gap = v > 0 && v !== lastVersion + 1;
-    if (!gap && msg.patches && msg.patches.length > 0) \{
-      try \{
-        applyPatches(root, msg.patches);
-        if (v > 0) lastVersion = v;
-        return;
-      \} catch (err) \{
+  // FLV-04 — connect() creates the socket and wires its handlers. It is called
+  // once on boot and again on every reconnect. Recreating `ws` is invisible to
+  // the DOM listeners below, which read the (reassigned) module-scope `ws`.
+  function connect() \{
+    ws = new WebSocket(proto + '//' + location.host + wsPath);
+    ws.onmessage = function(e) \{
+      const msg = JSON.parse(e.data);
+      // v0.47.0 — a `__flv_redirect` frame navigates the tab to `msg.html` (a URL):
+      // an expired session, a "you were logged out", or a moved resource. Handled
+      // before any DOM work, so it works even without a mounted root. We stop
+      // reconnecting first — the socket close it triggers is intentional.
+      if (msg.event === '__flv_redirect') \{ stopped = true; window.location = msg.html; return; \}
+      const root = document.getElementById(rootId);
+      if (!root) return;
+      const v = msg.version | 0;
+      const gap = v > 0 && v !== lastVersion + 1;
+      if (!gap && msg.patches && msg.patches.length > 0) \{
+        try \{
+          applyPatches(root, msg.patches);
+          if (v > 0) lastVersion = v;
+          return;
+        \} catch (err) \{
+        \}
       \}
-    \}
-    if (msg.html) \{
-      root.outerHTML = msg.html;
-      if (v > 0) lastVersion = v;
-    \}
-  \};
-  // v0.10.0 — on connect, hand the @ws handler the connection's query params as
-  // a `__flv_init` event. Fitz-core `@ws` can't expose the handshake query or
-  // headers, so this is how a live socket learns per-connection context baked
-  // into its `ws_path` by the SSR page (e.g. `?lang=en`).
-  ws.onopen = function() \{
-    const qi = wsPath.indexOf('?');
-    const payload = \{\};
-    if (qi >= 0) \{
-      const qs = new URLSearchParams(wsPath.slice(qi));
-      for (const kv of qs.entries()) payload[kv[0]] = kv[1];
-    \}
-    ws.send(JSON.stringify(\{ event: '__flv_init', payload: payload, html: '', patches: [] \}));
-  \};
+      if (msg.html) \{
+        root.outerHTML = msg.html;
+        if (v > 0) lastVersion = v;
+      \}
+    \};
+    // v0.10.0 — on connect, hand the @ws handler the connection's query params as
+    // a `__flv_init` event. Fitz-core `@ws` can't expose the handshake query or
+    // headers, so this is how a live socket learns per-connection context baked
+    // into its `ws_path` by the SSR page (e.g. `?lang=en`). FLV-04 — it also
+    // carries `__flv_session`, the stable instance id, so the handler re-attaches
+    // to the existing component state (state replay) instead of starting fresh.
+    ws.onopen = function() \{
+      reconnectDelay = 250;   // reset backoff after a successful connection
+      const qi = wsPath.indexOf('?');
+      const payload = \{\};
+      if (qi >= 0) \{
+        const qs = new URLSearchParams(wsPath.slice(qi));
+        for (const kv of qs.entries()) payload[kv[0]] = kv[1];
+      \}
+      payload['__flv_session'] = sessionId;
+      ws.send(JSON.stringify(\{ event: '__flv_init', payload: payload, html: '', patches: [] \}));
+    \};
+    // FLV-04 — reconnect with exponential backoff + jitter (250ms → 10s). We do
+    // NOT reconnect after an intentional navigation (`stopped`). The server's
+    // per-endpoint version counter is ahead of our `lastVersion`, so the first
+    // frame after reconnect is a full `html` resync (state replay) via onmessage.
+    ws.onclose = function() \{
+      if (stopped) return;
+      const jitter = Math.floor(Math.random() * 250);
+      setTimeout(connect, reconnectDelay + jitter);
+      reconnectDelay = Math.min(reconnectDelay * 2, 10000);
+    \};
+  \}
   function collectValues(el, payload) \{
     for (const attr of el.attributes) \{
       if (attr.name.startsWith('data-flv-value-')) \{
@@ -483,6 +522,10 @@ let LIVE_CLIENT_JS: Str = """(function() \{
       flvSend(t, \{ event: t.dataset.flvKeydown, payload: payload, html: '', patches: [] \});
     \}
   \});
+  // FLV-04 — don't fight a real page navigation: the close it triggers must
+  // not schedule a reconnect.
+  window.addEventListener('beforeunload', function() \{ stopped = true; \});
+  connect();
 \})();"""
 
 
@@ -2225,12 +2268,27 @@ let COMPONENT_STATE_STORE: Map<Str, Any> = {}
 // `"{endpoint}"` → last version stamped. See `flv_versioned`.
 let __FLV_VERSION_COUNTERS: Map<Str, Int> = {}
 
+// FLV-03 — per-instance last-activity timestamp (Unix epoch seconds), keyed
+// like the store (`"{name}:{id}"`). Touched on every render/dispatch so a TTL
+// sweep (`flv_sweep_idle`) can evict abandoned instances while a reconnecting
+// client (which re-renders → re-touches) keeps its state. This is what lets the
+// store not grow forever without evicting on disconnect (which would break the
+// FLV-04 reconnect replay window).
+let COMPONENT_LAST_SEEN: Map<Str, Int> = {}
+
 
 // -----------------------------------------------------------------------------
 // Registry API
 // -----------------------------------------------------------------------------
 
 fn flv_state_key(name: Str, id: Str) -> Str => "{name}:{id}"
+
+// FLV-03 — record activity on an instance so the TTL sweep spares it. Called on
+// every render and dispatch; a reconnect re-renders and thus re-touches.
+fn flv_touch(name: Str, id: Str) -> Null {
+  COMPONENT_LAST_SEEN[flv_state_key(name, id)] = DateTime.now().timestamp()
+  return null
+}
 
 // Register a component. Call once per component name at program boot,
 // before any `@get` handler renders a `component(...)` reference.
@@ -2268,6 +2326,7 @@ fn component(name: Str, id: Str) -> Html {
   if (not COMPONENT_STATE_STORE.has(key)) {
     COMPONENT_STATE_STORE[key] = reg.initial_state
   }
+  let _ = flv_touch(name, id)   // FLV-03 — spare this instance from the TTL sweep
   let state = COMPONENT_STATE_STORE[key]
   // `reg.render_fn(state)` would be parsed as a method call, so we
   // bind the field to a local first to force the fn-value dispatch.
@@ -2301,17 +2360,21 @@ fn component(name: Str, id: Str) -> Html {
 //     only travel over the socket, so nothing can mutate the placeholder
 //     instance before the live render takes over with the real id.
 //
-// Known limitation (documented, not enforced): per-connection instances are
-// never evicted from COMPONENT_STATE_STORE — there is no disconnect hook and
-// `Map` has no `remove` yet. Each connection leaks one small state entry per
-// component. Fine at showcase scale; an `flv_drop_instance(...)` cleanup API
-// is planned once Fitz core grows `Map.remove`.
+// Eviction (FLV-03, v0.49.0): per-connection instances are NOT evicted on
+// disconnect — that would break the FLV-04 reconnect replay (a client that
+// reconnects within the grace window expects its state to still be there).
+// Instead the store is bounded by (a) `flv_evict(name, id)` for explicit
+// cleanup, and (b) `flv_sweep_idle(secs)` — a TTL sweep you wire to an
+// `@every(N)` job that evicts instances idle beyond `secs`. Every render/dispatch
+// touches the instance, so an active or reconnecting one is spared. See
+// `docs/components.md`.
 fn component_with(name: Str, id: Str, initial: Any) -> Html {
   let key = flv_state_key(name, id)
   let reg = COMPONENT_REGISTRY[name]
   if (not COMPONENT_STATE_STORE.has(key)) {
     COMPONENT_STATE_STORE[key] = initial
   }
+  let _ = flv_touch(name, id)   // FLV-03 — spare this instance from the TTL sweep
   let state = COMPONENT_STATE_STORE[key]
   let render_fn = reg.render_fn
   let inner: Html = render_fn(state)
@@ -2362,6 +2425,7 @@ fn dispatch_component_events(frame: LiveFrame) -> Bool {
   if (not COMPONENT_STATE_STORE.has(key)) {
     COMPONENT_STATE_STORE[key] = reg.initial_state
   }
+  let _ = flv_touch(name, id)   // FLV-03 — activity spares this instance from the sweep
   let state = COMPONENT_STATE_STORE[key]
   let new_state = handler(state, frame.payload)
   COMPONENT_STATE_STORE[key] = new_state
@@ -2421,6 +2485,7 @@ fn dispatch_to(component_name: Str, instance_id: Str, event: Str, payload: Map<S
   if (not COMPONENT_STATE_STORE.has(key)) {
     COMPONENT_STATE_STORE[key] = reg.initial_state
   }
+  let _ = flv_touch(component_name, instance_id)   // FLV-03 — spare from the sweep
   let state = COMPONENT_STATE_STORE[key]
   let new_state = handler(state, payload)
   COMPONENT_STATE_STORE[key] = new_state
@@ -2484,6 +2549,90 @@ fn flv_disconnect(name: Str, id: Str) -> Bool {
 // build `LiveFrame { html: now, patches: diff_html(last, now) }` yourself.
 fn flv_frame(name: Str, id: Str) -> LiveFrame {
   return LiveFrame { html: component(name, id).raw, patches: [] }
+}
+
+// FLV-03 — explicitly evict an instance's state (and its activity timestamp)
+// from the store. Returns true if it existed. Use it when you KNOW a session is
+// done — a logout, an explicit "close" — or let `flv_sweep_idle` do it on a TTL.
+// Leaves the registry untouched (the component stays available for new
+// instances). Requires Fitz core v0.50.0+ (`Map.remove`).
+fn flv_evict(name: Str, id: Str) -> Bool {
+  let key = flv_state_key(name, id)
+  let _ = COMPONENT_LAST_SEEN.remove(key)
+  return COMPONENT_STATE_STORE.remove(key)
+}
+
+// FLV-03 — a snapshot of the store's size, for monitoring instance growth.
+// Returns `{ "instances": <live instance count> }`.
+fn flv_store_stats() -> Map<Str, Int> {
+  return { "instances": COMPONENT_STATE_STORE.len() }
+}
+
+// FLV-03 — TTL sweep: evict every instance idle for more than `max_idle_secs`
+// (no render or dispatch in that window). Returns how many were evicted. Wire it
+// to an `@every(N)` job so the store can't grow forever:
+//
+//   @every(60)
+//   async fn reap() { let _ = flv_sweep_idle(1800) }   // drop 30-min-idle instances
+//
+// A reconnecting client re-renders (which touches its instance), so it is spared
+// as long as it returns within the window; abandoned instances (a closed tab
+// that never comes back) are reclaimed. This is what lets the store stay bounded
+// without evicting on disconnect — which would break the FLV-04 reconnect replay.
+fn flv_sweep_idle(max_idle_secs: Int) -> Int {
+  let now = DateTime.now().timestamp()
+  let evicted = 0
+  // `.keys()` is a snapshot, so mutating the maps inside the loop is safe.
+  for key in COMPONENT_LAST_SEEN.keys() {
+    let seen = COMPONENT_LAST_SEEN[key]
+    if (now - seen > max_idle_secs) {
+      let _ = COMPONENT_STATE_STORE.remove(key)
+      let _ = COMPONENT_LAST_SEEN.remove(key)
+      evicted = evicted + 1
+    }
+  }
+  return evicted
+}
+
+// FLV-04 — true when a frame is the client's initial handshake (`__flv_init`),
+// which LIVE_CLIENT_JS sends once on connect AND again on every reconnect. Use
+// it to (re)derive the session id and replay the current render.
+fn flv_is_init(frame: LiveFrame) -> Bool {
+  return frame.event == "__flv_init"
+}
+
+// FLV-04 — the stable per-tab session id the client sends inside `__flv_init`
+// (see LIVE_CLIENT_JS: kept in `sessionStorage`, so it survives a socket drop
+// and a page reload). Use it as the component INSTANCE id so a reconnect
+// re-attaches to the SAME server-side state — the component's state persists in
+// `COMPONENT_STATE_STORE`, so re-rendering it is the state replay. Falls back to
+// a fresh `Uuid.v4()` for an old client or a missing payload (the previous
+// "fresh id per socket" behaviour, i.e. no replay).
+//
+// Canonical reconnect-ready `@ws` shape:
+//   @ws("/live/game")
+//   async fn socket(ws: WsConn<LiveFrame>) {
+//     let init = ws.recv()?                 // first frame is `__flv_init`
+//     let cid = flv_session_id(init)        // stable across reconnects
+//     let _ = flv_mount("Game", cid)
+//     ws.send(flv_frame("Game", cid))?      // initial render — or replay after a drop
+//     loop {
+//       match ws.recv() {
+//         Ok(frame) => {
+//           dispatch_component_events(frame)
+//           ws.send(flv_frame("Game", cid))?
+//         }
+//         Err(_) => { break }
+//       }
+//     }
+//     let _ = flv_disconnect("Game", cid)   // fires on_disconnect; does NOT evict
+//   }
+fn flv_session_id(frame: LiveFrame) -> Str {
+  if (frame.payload.has("__flv_session")) {
+    let sid = frame.payload["__flv_session"]
+    if (sid != "") { return sid }
+  }
+  return Uuid.v4().to_str()
 }
 
 // Stamp a frame with the next monotonic version for `endpoint` (v0.45.0). Every
@@ -3021,6 +3170,139 @@ fn live_layout_includes_version_gap_detection() {
   let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
   assert(full.raw.contains("lastVersion"))
   assert(full.raw.contains("msg.version"))
+}
+
+@test
+fn live_layout_includes_reconnect_with_backoff() {
+  // FLV-04 — the client reconnects on close with exponential backoff (250ms →
+  // 10s), via a re-callable connect().
+  let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
+  assert(full.raw.contains("ws.onclose"))
+  assert(full.raw.contains("function connect()"))
+  assert(full.raw.contains("reconnectDelay"))
+  assert(full.raw.contains("10000"))
+  assert(full.raw.contains("setTimeout(connect"))
+}
+
+@test
+fn live_layout_sends_stable_session_id() {
+  // FLV-04 — a per-tab session id (sessionStorage) is generated and sent in
+  // __flv_init so a reconnect re-attaches to the same server-side instance.
+  let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
+  assert(full.raw.contains("sessionStorage"))
+  assert(full.raw.contains("__flv_session"))
+  assert(full.raw.contains("crypto.randomUUID"))
+}
+
+@test
+fn live_layout_does_not_reconnect_after_intentional_navigation() {
+  // FLV-04 — a __flv_redirect or beforeunload sets `stopped`, so the close it
+  // triggers does not schedule a reconnect.
+  let full = live_layout("/live/x", "root", html("<div id=\"root\"></div>"))
+  assert(full.raw.contains("stopped = true"))
+  assert(full.raw.contains("beforeunload"))
+}
+
+@test
+fn flv_session_id_reads_stable_id_from_init() {
+  // FLV-04 — flv_session_id returns the client's __flv_session when present.
+  let init = LiveFrame { event: "__flv_init", payload: { "__flv_session": "sid-abc" } }
+  assert(flv_session_id(init) == "sid-abc")
+}
+
+@test
+fn flv_session_id_falls_back_when_missing() {
+  // No __flv_session (old client / non-init frame) → a fresh non-empty id.
+  let f = LiveFrame { event: "__flv_init", payload: {} }
+  let id = flv_session_id(f)
+  assert(id != "")
+  // Two calls without a client id yield different fresh ids.
+  assert(flv_session_id(f) != flv_session_id(f))
+}
+
+@test
+fn flv_session_id_ignores_empty_string() {
+  let f = LiveFrame { event: "__flv_init", payload: { "__flv_session": "" } }
+  assert(flv_session_id(f) != "")
+}
+
+@test
+fn flv_is_init_detects_the_handshake() {
+  assert(flv_is_init(LiveFrame { event: "__flv_init" }))
+  assert(not flv_is_init(LiveFrame { event: "increment" }))
+}
+
+// Test helpers for flv04_reconnect_replays_state_from_store.
+type __FLV04Counter {
+  count: Int = 0
+}
+fn __flv04_render(state: __FLV04Counter) -> Html {
+  return html("<div>count={state.count}</div>")
+}
+fn __flv04_inc(state: __FLV04Counter, payload: Map<Str, Str>) -> __FLV04Counter {
+  return __FLV04Counter { count: state.count + 1 }
+}
+
+@test
+fn flv04_reconnect_replays_state_from_store() {
+  // FLV-04 — the state-replay mechanism, socket-free (sockets are flaky in CI;
+  // the manual reconnect smoke is documented in docs/liveviews.md). State keyed
+  // by a STABLE session id persists in COMPONENT_STATE_STORE across
+  // "connections": a reconnect (same __flv_session) re-renders the CURRENT state,
+  // not the initial one. That IS the replay.
+  flv_register("flv04c", __FLV04Counter { count: 0 }, __flv04_render, { "inc": __flv04_inc })
+  let init = LiveFrame { event: "__flv_init", payload: { "__flv_session": "sess-A" } }
+  let cid = flv_session_id(init)
+  // Two increments during "connection 1".
+  let _ = dispatch_component_events(LiveFrame { event: "inc", payload: { "component_name": "flv04c", "instance_id": cid } })
+  let _ = dispatch_component_events(LiveFrame { event: "inc", payload: { "component_name": "flv04c", "instance_id": cid } })
+  // "Connection 2" (reconnect, same session id) — render replays count=2.
+  let replay = component("flv04c", cid)
+  assert(replay.raw.contains("count=2"))
+  // A different session id is an independent instance — starts fresh.
+  let other = component("flv04c", "sess-B")
+  assert(other.raw.contains("count=0"))
+}
+
+@test
+fn flv_evict_removes_instance_state() {
+  // FLV-03 — flv_evict drops the instance from the store; a re-render re-seeds.
+  flv_register("flv03e", __FLV04Counter { count: 0 }, __flv04_render, { "inc": __flv04_inc })
+  let _ = component("flv03e", "i1")
+  let _ = dispatch_to("flv03e", "i1", "inc", {})
+  assert(component("flv03e", "i1").raw.contains("count=1"))
+  assert(flv_evict("flv03e", "i1"))        // existed → evicted
+  assert(not flv_evict("flv03e", "i1"))    // already gone
+  assert(component("flv03e", "i1").raw.contains("count=0"))  // fresh again
+}
+
+@test
+fn flv_store_stats_counts_instances() {
+  // FLV-03 — flv_store_stats reports the live instance count (relative, since
+  // the store is process-global across tests).
+  let before = flv_store_stats()["instances"]
+  flv_register("flv03s", __FLV04Counter { count: 0 }, __flv04_render, {})
+  let _ = component("flv03s", "a")
+  let _ = component("flv03s", "b")
+  let after = flv_store_stats()["instances"]
+  assert(after >= before + 2)
+  let _ = flv_evict("flv03s", "a")
+  assert(flv_store_stats()["instances"] < after)
+}
+
+@test
+fn flv_sweep_idle_evicts_stale_and_spares_fresh() {
+  // FLV-03 — the TTL sweep reclaims idle instances but spares just-touched ones.
+  flv_register("flv03w", __FLV04Counter { count: 0 }, __flv04_render, { "inc": __flv04_inc })
+  let _ = component("flv03w", "s1")
+  let _ = dispatch_to("flv03w", "s1", "inc", {})
+  // A generous TTL keeps a just-active instance alive.
+  let _ = flv_sweep_idle(100000)
+  assert(component("flv03w", "s1").raw.contains("count=1"))
+  // A negative TTL treats everything as idle → evicts it; the re-render re-seeds.
+  let n = flv_sweep_idle(-1)
+  assert(n >= 1)
+  assert(component("flv03w", "s1").raw.contains("count=0"))
 }
 
 
