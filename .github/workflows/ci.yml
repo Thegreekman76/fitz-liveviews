@@ -3,6 +3,13 @@
 # Fitz itself is installed via `cargo install --git` from the language
 # repo. The compiled binary is cached across runs so subsequent CI is
 # fast (first run takes ~4 min for the cold build, ~30 sec after that).
+#
+# IMPORTANT: the cache key is fixed, and the install step only runs when the
+# binary is absent — so the cached `fitz` is frozen at whatever version first
+# built it. When the library starts using a NEW fitz-core feature (e.g. FLV-03
+# uses `Map.remove` from core v0.50.0), BUMP the cache key (`-vN` → `-v(N+1)`)
+# so CI reinstalls a fresh `fitz` from `main`. Otherwise the stale binary fails
+# to type-check `lib.fitz`.
 
 name: CI
 
@@ -28,7 +35,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             ~/.cargo/bin/fitz
-          key: cargo-fitz-${{ runner.os }}-v1
+          # Bumped v1 → v2 (v0.49.0): FLV-03 uses `Map.remove` (fitz core v0.50.0);
+          # the old cached `fitz` predates it and can't type-check `lib.fitz`.
+          key: cargo-fitz-${{ runner.os }}-v2
 
       - name: Install Fitz
         run: |

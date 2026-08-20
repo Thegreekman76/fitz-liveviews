@@ -74,7 +74,10 @@ jobs:
             examples/hydration/target
             examples/hydration-composition/target
             examples/hydration-composition-regions/target
-          key: pages-wasm-${{ runner.os }}-v7
+          # Bumped v7 → v8 (v0.49.0): the gallery type-checks `lib.fitz`, which
+          # now uses `Map.remove` (fitz core v0.50.0). See the note in ci.yml —
+          # bump this key whenever the library adopts a new fitz-core feature.
+          key: pages-wasm-${{ runner.os }}-v8
 
       - name: Install Fitz (the `fitz` CLI)
         run: |
