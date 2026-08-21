@@ -2492,6 +2492,37 @@ fn dispatch_to(component_name: Str, instance_id: Str, event: Str, payload: Map<S
   return true
 }
 
+// FLV-08 — dispatch `event` (with `payload`) to EVERY live instance of a
+// component, returning how many were reached. Iterates the store by the
+// `"{name}:{id}"` key prefix and calls `dispatch_to` for each instance id.
+//
+// Use it for server-driven cross-instance broadcasts — e.g. a "duel" mode
+// where one player's move must update every opponent's board, or a global
+// setting change that every open instance should reflect. It updates the
+// components' STATE; you still push the re-rendered frames to the clients
+// yourself (`ws.broadcast(...)` or a per-instance `flv_frame(...)`).
+//
+//   let n = dispatch_to_all("board", "opponent_moved", { "col": "3" })
+//   // ... then broadcast the fresh render to the connected clients ...
+//
+// Skips instances whose component declares no handler for `event` (they don't
+// count). `dispatch_to` only overwrites existing store entries, so iterating a
+// `.keys()` snapshot while dispatching is safe.
+fn dispatch_to_all(name: Str, event: Str, payload: Map<Str, Str>) -> Int {
+  let prefix = "{name}:"
+  let count = 0
+  for key in COMPONENT_STATE_STORE.keys() {
+    if (key.starts_with(prefix)) {
+      // The instance id is everything after the `"{name}:"` prefix.
+      let id = key.right(key.len() - prefix.len())
+      if (dispatch_to(name, id, event, payload)) {
+        count = count + 1
+      }
+    }
+  }
+  return count
+}
+
 // -----------------------------------------------------------------------------
 // Lifecycle hooks (Phase 3c, v0.43.0)
 // -----------------------------------------------------------------------------
@@ -3303,6 +3334,32 @@ fn flv_sweep_idle_evicts_stale_and_spares_fresh() {
   let n = flv_sweep_idle(-1)
   assert(n >= 1)
   assert(component("flv03w", "s1").raw.contains("count=0"))
+}
+
+@test
+fn dispatch_to_all_hits_every_instance_of_a_component() {
+  // FLV-08 — dispatch to all live instances of a component; returns the count.
+  flv_register("flv08c", __FLV04Counter { count: 0 }, __flv04_render, { "inc": __flv04_inc })
+  let _ = component("flv08c", "p1")
+  let _ = component("flv08c", "p2")
+  // A different component whose name shares a prefix must NOT be touched
+  // (the `:` in the key prefix disambiguates flv08c vs flv08cx).
+  flv_register("flv08cx", __FLV04Counter { count: 0 }, __flv04_render, { "inc": __flv04_inc })
+  let _ = component("flv08cx", "z")
+  let n = dispatch_to_all("flv08c", "inc", {})
+  assert(n == 2)
+  assert(component("flv08c", "p1").raw.contains("count=1"))
+  assert(component("flv08c", "p2").raw.contains("count=1"))
+  // The prefix-sharing component is untouched.
+  assert(component("flv08cx", "z").raw.contains("count=0"))
+}
+
+@test
+fn dispatch_to_all_unknown_event_reaches_none() {
+  // No handler for the event → dispatch_to returns false → count 0.
+  flv_register("flv08e", __FLV04Counter { count: 0 }, __flv04_render, { "inc": __flv04_inc })
+  let _ = component("flv08e", "i")
+  assert(dispatch_to_all("flv08e", "nope", {}) == 0)
 }
 
 

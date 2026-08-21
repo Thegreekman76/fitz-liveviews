@@ -10,6 +10,11 @@ Los IDs `FITZ-*` viven en `fitz/docs/norte-mathelp.md`.
 
 Documento vivo: marcá los checkboxes al implementar. IDs estables — no renumerar.
 
+> **✅ BACKLOG CERRADO (2026-08-20).** Los cuatro hitos están completos: FLV-01/05/09 (Hito 1),
+> FLV-02/03 (Hito 2), FLV-04 (Hito 3), FLV-07/08 (Hito 4). Los `FITZ-*` habilitantes se cerraron en el
+> core (v0.49.0 → v0.52.0). El resumen ejecutivo y las fichas de abajo son el registro histórico del
+> análisis; el estado real de cada ítem está en su ficha y en "Orden de ataque".
+
 > **Nota de renumeración (2026-08-20):** en el archivo del core, `FITZ-09` (Map.remove) y
 > `FITZ-10` (differ) se renumeraron a **FITZ-13** y **FITZ-14** para dejar libres los IDs que el
 > autor asignó a los hallazgos nuevos. Acá, `FLV-03` (eviction) ahora depende de **FITZ-13**.
@@ -52,15 +57,15 @@ Filas `FITZ-*` viven en `fitz/docs/norte-mathelp.md`.
 | 1  | FITZ-01  | Módulo `rand` (fitz core)               | Confirmado          | Bloqueante  | M     | Ninguno| —                    |
 | 2  | FITZ-09  | Codegen `-> T?` (fitz core)             | Confirmado (repro)  | Alto        | S     | Bajo   | **cierra FLV-10**    |
 | 9  | FLV-04   | Reconnect + state replay                | Ya resuelto (v0.49.0)| Alto       | L→M   | Medio  | **cierra T3**        |
-| 10 | FLV-09   | Capítulo `docs/i18n.md`                  | Confirmado          | Alto        | S     | Ninguno| FITZ-03, FITZ-05, FLV-01 |
+| 10 | FLV-09   | Capítulo `docs/i18n.md`                  | Ya resuelto (v0.50.0)| Alto       | S     | Ninguno| FITZ-03, FITZ-05, FLV-01 |
 | 12 | FLV-01   | Layout customizable (`live_layout_with`)| Ya resuelto         | Medio       | S     | Ninguno| —                    |
 | 13 | FITZ-13  | `Map.remove` (fitz core)                | Ya resuelto (v0.50.0)| Medio      | S     | Bajo   | **desbloquea FLV-03**|
 | 14 | FLV-03   | Eviction / TTL de instancias            | Ya resuelto (v0.49.0)| Medio      | M     | Bajo   | ~~FITZ-13~~ (listo)  |
 | 15 | FLV-10   | `flv_cookie` no compila a nativo        | Ya resuelto (FITZ-09)| **Alto**   | —     | —      | ~~FITZ-09~~ (cerrado v0.49.0) |
-| 16 | FLV-07   | `{#elseif}` (código en fitz core `src/view/`) | Confirmado    | Medio       | S     | Bajo   | —                    |
+| 16 | FLV-07   | `{#elseif}` (código en fitz core `src/view/`) | Ya resuelto (core v0.52.0)| Medio  | S     | Bajo   | —                    |
 | 17 | FLV-05   | Touch targets ≥ 44px                    | Ya resuelto         | Medio       | S     | Bajo   | **T3**               |
-| 18 | FLV-02   | Warning por `<style>`/`<script>` en root | Confirmado         | Medio       | M     | Bajo   | —                    |
-| 23 | FLV-08   | `dispatch_to_all`                       | Confirmado          | Bajo        | M     | Bajo   | —                    |
+| 18 | FLV-02   | Warning por `<style>`/`<script>` en root | Ya resuelto (`.fitzv`, core v0.52.0)| Medio | M | Bajo | (runtime = follow-up)|
+| 23 | FLV-08   | `dispatch_to_all`                       | Ya resuelto (v0.50.0)| Bajo       | M     | Bajo   | —                    |
 
 Estado ∈ `Confirmado` · `Parcial` · `Refutado` · `Ya resuelto`
 Impacto ∈ `Bloqueante` · `Alto` · `Medio` · `Bajo` · Costo ∈ `S` (horas) · `M` (días) · `L` (semana+)
@@ -155,8 +160,21 @@ Impacto ∈ `Bloqueante` · `Alto` · `Medio` · `Bajo` · Costo ∈ `S` (horas)
 
 ### FLV-09 · Capítulo `docs/i18n.md`
 
-- [ ] Implementado
-- **Estado:** Confirmado.
+- [x] Implementado (2026-08-20, v0.50.0) — nuevo `docs/i18n.md` con el camino oficial: (1) cookie de
+  idioma + `normalize_locale`; (2) leer el locale en `@get`/`@post` con **`@cookie(name=...)`** (FITZ-05) y
+  en `@ws` con **`@header(name="cookie")` + `locale_from_cookie`** (el parser reusable, porque `@cookie` no
+  entra en la aridad de `@ws` — ver gap abajo); (3) `<html lang>` via `LayoutOpts`/`app_shell`; (4)
+  `/lang/{code}` con `Response { cookies: [Cookie {...}], headers: { Location } }` + 303; (5) `t(locale,
+  key)` como responsabilidad del host + interpolación de conteos en el diccionario. **La advertencia** en
+  negrita: el locale al `@ws` va por la cookie del handshake, NO `__flv_init`. Todos los ejemplos de código
+  type-checkean contra el `fitz` actual. Nav en `mkdocs.yml` + cross-links desde `ui-components.md` y
+  `liveviews.md`. Cierra **T1** del lado del framework.
+  **Gap del core descubierto** (anotado para `fitz/docs/norte-mathelp.md` → FITZ-05): `@cookie` sobre `@ws`
+  falla el checker de aridad ("@ws expects 1 param + 1 per @header" — no cuenta `@cookie`). FITZ-05 fase A
+  prometía `@ws`; el binding runtime/codegen puede estar, pero la aridad del checker no lo incluye. Workaround
+  actual (documentado): `@header(name="cookie")` + parseo manual. Fix del core = sumar `@cookie` al conteo de
+  `check_ws_handler`.
+- **Estado:** Ya resuelto.
 - **Evidencia:** `docs/ui-components.md:100` ("i18n-agnostic"). No existe `docs/i18n.md`. El patrón vive solo
   en el admin: cookie + `locale_from_cookie` (`examples/admin/src/i18n.fitz:13-34`), `<html lang>`
   (`shell.fitz:126`), `/lang/{code}` con `Set-Cookie` + 303 (`auth.fitz:107-125`), y el locale al `@ws` por
@@ -278,8 +296,16 @@ Impacto ∈ `Bloqueante` · `Alto` · `Medio` · `Bajo` · Costo ∈ `S` (horas)
 
 ### FLV-07 · `{#elseif}` (código en fitz core `src/view/`)
 
-- [ ] Implementado
-- **Estado:** Confirmado para `{#elseif}`. `@submit` **refutado** (ya existe).
+- [x] Implementado (2026-08-20, fitz core v0.52.0) — `{#if a}...{#elseif b}...{#else}...{/if}` en el parser
+  de templates `.fitzv`. **Azúcar puro en el parser** (`d:\fitz\src\view\parser.rs`): `{#elseif b}`
+  desazucara a `{#else}{#if b}...{/if}` — un `{#if}` anidado en `else_children`. **Cero cambios en AST,
+  expand, checker ni los dos emisores** (SSR + client-WASM) — todos ya recorren `else_children`
+  recursivamente. Enum nuevo `BranchTerm { Close, Else, ElseIf }` + `parse_if_from_cond` recursivo. 4 unit
+  tests del parser (desugar, cadena de 3, sin else final, stray `{#elseif}` error) + smoke SSR end-to-end
+  (chain A/B/C/F según score) + el ejemplo `examples/view/control-flow` sumó una rama `{#elseif}` y **compila
+  a WASM real** (`wasm-pack :-) Done`). El `@submit` de la ficha original ya existía (refutado). Doc en el
+  cap 36 del guide del core.
+- **Estado:** Ya resuelto (implementado en fitz core v0.52.0).
 - **Evidencia (`{#elseif}` falta):** grep `elseif|elif|else.?if` en `src/**/*.fitzv` → 0. Solo
   `{#if}`/`{#else}`/`{#for}` (`src/ui/Card.fitzv:24-34`). Para encadenar hay que anidar
   (`src/ui/form_layout_helpers.fitz:53`).
@@ -333,8 +359,20 @@ Impacto ∈ `Bloqueante` · `Alto` · `Medio` · `Bajo` · Costo ∈ `S` (horas)
 
 ### FLV-02 · Warning por `<style>`/`<script>` en el root diffeado
 
-- [ ] Implementado
-- **Estado:** Confirmado (silencio por omisión, no guard explícito).
+- [x] Implementado (nivel `.fitzv`, 2026-08-20, fitz core v0.52.0) — **error claro y dirigido** cuando un
+  `<style>`/`<script>` aparece dentro de un `<template>` de un `.fitzv`. Hallazgo que reencuadró la ficha:
+  a nivel `.fitzv` NO había full-replace silencioso — ya erraba, pero con un mensaje confuso ("unexpected
+  trailing tokens after expression (template interpolation)", porque el `{` del CSS dispara el parser de
+  interpolación). El fix (`d:\fitz\src\view\parser.rs::parse_element`, ~15 LoC): interceptar el tag
+  `style`/`script` justo tras leerlo y erra con un mensaje que apunta al workaround (CSS en `<style scoped>`
+  a nivel componente, o en `head_extra`; estilos state-dependent con class/style interpolados). 2 unit tests.
+  Los comentarios HTML (`<!-- -->`) ya se manejaban (se descartan, no rompen). **El checker de `.fitzv` no
+  tiene mecanismo de warnings** (solo `Vec<CheckError>`) — por eso es un error, no un warning, y es el fit
+  correcto (nunca funcionó). **La otra mitad — la deuda del diff engine runtime de fitz-liveviews**
+  (`src/lib.fitz:1684`, `<style>`/`<script>` en HTML *renderizado* → `diff_html` cae a full-replace sin
+  aviso) — queda diferida (caso raro: inyectar `<style>` vía render fn; el soporte completo del `<style>` en
+  el root es un follow-up mayor).
+- **Estado:** Ya resuelto (nivel `.fitzv` — error claro; runtime diff-engine = follow-up).
 - **Evidencia:** `docs/liveviews.md:568-577` (no soportados en el root: comentarios, comillas simples,
   `<script>`, `<style>`, CDATA/DOCTYPE). `parse_element` (`src/lib.fitz:999-1042`) no tiene chequeo; el texto
   interno con `<`/`{` rompe el descenso. `diff_html` (`:1684-1701`) hace `return []` cuando el árbol no colapsa
@@ -360,8 +398,15 @@ Impacto ∈ `Bloqueante` · `Alto` · `Medio` · `Bajo` · Costo ∈ `S` (horas)
 
 ### FLV-08 · `dispatch_to_all`
 
-- [ ] Implementado
-- **Estado:** Confirmado (prioridad baja).
+- [x] Implementado (2026-08-20, v0.50.0) — `dispatch_to_all(name, event, payload) -> Int` en `src/lib.fitz`:
+  itera `COMPONENT_STATE_STORE` por el prefijo de key `"{name}:"` (el `:` desambigua `board` de `boardx`),
+  extrae el id con `key.right(key.len() - prefix.len())`, y hace `dispatch_to(name, id, event, payload)` a
+  cada instancia, devolviendo cuántas alcanzó (skipea las que no declaran handler del evento). Para
+  broadcasts server-driven cross-instance (modo duelo, cambio de setting global). Actualiza el estado; el
+  push de los renders a los clientes lo hace el user (`ws.broadcast`). Iterar un snapshot de `.keys()` es
+  seguro (`dispatch_to` solo sobreescribe values, no agrega/quita keys). 2 `@test` (hits-all con
+  disambiguación de prefijo + evento desconocido → 0). Doc en `components.md`.
+- **Estado:** Ya resuelto.
 - **Evidencia:** `docs/components.md:409-411` (pendiente, sin tachar). Grep `fn dispatch_to_all` → 0. Existe
   `dispatch_component_events` (una instancia) y `ws.broadcast` (`:2355,2364` — fan-out de socket, sin routing
   por instancia).
@@ -380,10 +425,11 @@ Impacto ∈ `Bloqueante` · `Alto` · `Medio` · `Bajo` · Costo ∈ `S` (horas)
 
 ## Épicos transversales
 
-### T1 · La cadena del i18n
-Del lado de **fitz-liveviews**: **FLV-01** (`<html lang>` sin reimplementar el shell; parcial por `app_shell`) +
-**FLV-09** (documentar el camino oficial). Del lado del core: **FITZ-03** (`fs`), **FITZ-04** (locale), **FITZ-05**
-(cookies). El `docs/i18n.md` queda mejor tras FITZ-03/05 pero se arranca hoy. **Un épico único con dueño.**
+### T1 · La cadena del i18n — ✅ CERRADO
+Del lado de **fitz-liveviews**: ~~**FLV-01**~~ (`<html lang>` via `live_layout_with` — **v0.48.0**) +
+~~**FLV-09**~~ (`docs/i18n.md`, el camino oficial — **v0.50.0**). Del lado del core: ~~**FITZ-03**~~ (`fs`),
+~~**FITZ-04**~~ (locale), ~~**FITZ-05**~~ (cookies) — todos cerrados. La cadena entera del i18n está armada y
+documentada. (Gap residual del core anotado: `@cookie` sobre `@ws` — workaround `@header(name="cookie")`.)
 
 ### T2 · Paridad `fitz run` ↔ `fitz build`
 No es tema del framework en sí, **pero FLV-10 es su manifestación más visible**: `flv_cookie` (y por extensión
@@ -401,22 +447,25 @@ app Fitz en un celular se instala como PWA, tiene targets táctiles cómodos, y 
 
 ## Orden de ataque sugerido (re-priorizado 2026-08-20)
 
-**Hito 1 — Quick wins que MatHelp usa desde el día 1.** (parcial)
-~~`FLV-01 (layout mínimo, S)`~~ ✅ **v0.48.0** + ~~`FLV-05 (touch targets, S)`~~ ✅ **v0.48.0** + `FLV-09
-(docs i18n, S)` (pendiente). **FLV-10 ya se cerró** cuando el core arregló FITZ-09 (v0.49.0) — `flv_cookie`
-y `examples/admin` compilan a nativo. Queda solo `FLV-09` de este hito.
+**Hito 1 — Quick wins que MatHelp usa desde el día 1.** ✅ CERRADO
+~~`FLV-01 (layout mínimo, S)`~~ ✅ **v0.48.0** + ~~`FLV-05 (touch targets, S)`~~ ✅ **v0.48.0** +
+~~`FLV-09 (docs i18n, S)`~~ ✅ **v0.50.0** (`docs/i18n.md` con el camino oficial `@cookie`/`@header`).
+**FLV-10 ya se cerró** cuando el core arregló FITZ-09 (v0.49.0) — `flv_cookie` y `examples/admin` compilan a
+nativo.
 
-**Hito 2 — Eliminar las trampas.** (parcial)
-`FLV-02 (warning por `<style>`/`<script>`, al menos el nivel warning)` (pendiente) + ~~`FITZ-13 (`Map.remove`,
-core)`~~ ✅ **v0.50.0** → ~~`FLV-03 (eviction)`~~ ✅ **v0.49.0**. Queda solo `FLV-02` de este hito.
+**Hito 2 — Eliminar las trampas.** ✅ CERRADO (nivel `.fitzv`)
+~~`FLV-02 (warning por `<style>`/`<script>`)`~~ ✅ **core v0.52.0** (error claro a nivel `.fitzv`; el
+diff-engine runtime queda como follow-up) + ~~`FITZ-13 (`Map.remove`, core)`~~ ✅ **v0.50.0** →
+~~`FLV-03 (eviction)`~~ ✅ **v0.49.0**.
 
 **Hito 3 — El trabajo de verdad.** ✅ CERRADO
 ~~`FLV-04 (reconnect + state replay)`~~ ✅ **v0.49.0**. La pieza que separaba demo de producto. Resultó Costo
 **M** (no L): el version-gap + la persistencia del store ya construían casi todo el replay; solo faltaba
 reconnect + id estable, 100% client-side + un helper.
 
-**Hito 4 — Futuro.**
-`FLV-07 ({#elseif}, core)` + `FLV-08 (dispatch_to_all)`. Bajo, sin urgencia.
+**Hito 4 — Futuro.** ✅ CERRADO
+~~`FLV-07 ({#elseif}, core)`~~ ✅ **core v0.52.0** (sugar del parser, desugar a `{#if}` anidado en el else) +
+~~`FLV-08 (dispatch_to_all)`~~ ✅ **v0.50.0** (broadcast cross-instance por prefijo de key del store).
 
 ---
 

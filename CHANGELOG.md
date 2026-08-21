@@ -5,6 +5,40 @@ UI library for Fitz. Uses [Keep a Changelog](https://keepachangelog.com/en/1.1.0
 format. Older phase progress is tracked in [`ROADMAP.md`](ROADMAP.md);
 this file summarises what shipped at each release.
 
+## [v0.50.0] — 2026-08-20 — `dispatch_to_all` + i18n guide (FLV-08 + FLV-09) — closes Hito 4 & T1
+
+Closes the last two items of the MatHelp norte: server-driven broadcast to every
+instance of a component (FLV-08), and the official i18n guide (FLV-09).
+
+### Added
+- **`dispatch_to_all(name, event, payload) -> Int`** (FLV-08) — broadcast a
+  server-driven event to **every** live instance of a component (a global setting
+  flip, a duel mode, a "kick everyone"). Iterates `COMPONENT_STATE_STORE` by the
+  key prefix `"{name}:"` (the `:` disambiguates `board` from `boardx`), extracts
+  each id with `key.right(key.len() - prefix.len())`, and calls
+  `dispatch_to(name, id, event, payload)` per instance — returning how many it
+  reached (instances without a handler for the event are skipped). It updates the
+  state; pushing the re-rendered HTML to each client is still yours
+  (`ws.broadcast`). Iterating a snapshot of `.keys()` is safe — `dispatch_to`
+  only overwrites values, it never adds/removes keys. Documented in
+  `components.md`.
+
+### Docs
+- New **`docs/i18n.md`** (FLV-09) — the official internationalization path, so you
+  don't reverse-engineer it from the Admin ABM: a language cookie, reading the
+  locale in `@get`/`@post` (`@cookie(name=...)`) **and** `@ws`
+  (`@header(name="cookie")` + `locale_from_cookie` — the handshake cookie, NOT
+  `__flv_init`), `<html lang>` via `LayoutOpts`, a `/lang/{code}` switch route
+  (`Response { cookies: [Cookie {...}] }` + 303), and the `t(locale, key)`
+  dictionary (host-owned). Every code sample type-checks against the current
+  `fitz`. Added to the mkdocs nav + cross-linked from `ui-components.md` and
+  `liveviews.md`. **Closes the T1 (i18n) epic.**
+
+### Notes
+- Discovered a Fitz-core gap (noted for FITZ-05): `@cookie` is not counted in
+  the `@ws` handler arity check, so on `@ws` you read the locale via
+  `@header(name="cookie")` (documented). `@cookie` works on `@get`/`@post`.
+
 ## [v0.49.0] — 2026-08-20 — Reconnect + state replay + eviction (FLV-04 + FLV-03) — closes T3
 
 The last (and biggest) T3 item: LiveViews now survive a dropped connection.

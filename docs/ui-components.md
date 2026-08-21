@@ -97,7 +97,9 @@ from fitz_liveviews.ui.Divider import divider, divider_render
 from fitz_liveviews.ui.ExpansionPanel import expansion_panel, expansion_panel_render
 ```
 
-They're **i18n-agnostic** (the host passes already-localized text), styled with
+They're **i18n-agnostic** (the host passes already-localized text — see the
+[i18n guide](i18n.md) for the official cookie + `t(locale, key)` pattern),
+styled with
 `<style scoped>` that reads `--flv-*` theme tokens (with literal fallbacks), and
 render identically under `fitz run` and the `fitz build` binary. The
 [Admin ABM](https://github.com/Thegreekman76/fitz-liveviews/tree/main/examples/admin)

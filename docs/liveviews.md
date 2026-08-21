@@ -668,6 +668,13 @@ tenant, a role. Two ways, depending on where the context lives:
   }
   ```
 
+  Since Fitz core v0.49.0 you can read a single cookie declaratively with
+  `@cookie(name="...")` on the `@ws` handler instead of parsing the raw
+  header — the recommended path for the active locale. The full pattern
+  (cookie + `<html lang>` + `/lang/{code}` + `t(locale, key)`) is in the
+  [i18n guide](i18n.md), including *the* trap: the locale reaches the
+  socket through the handshake cookie, **not** `__flv_init`.
+
 - **Query-string context** — bake it into the `ws_path` of `live_embed(...)`
   (e.g. `"/live/grid?tenant=acme"`). On connect the client sends those query
   params as a **`__flv_init`** event (lib v0.10.0), so the handler reads them

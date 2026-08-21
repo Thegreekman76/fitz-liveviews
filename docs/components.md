@@ -429,9 +429,13 @@ eviction.
 - ~~**Per-instance init payload.**~~ *Done in v0.11.0.*
   `component_with(name, id, initial)` seeds an instance with its own
   initial state — see "Per-connection instances" above.
-- **`dispatch_to_all(name, event, payload)`** for bulk actions across
-  every registered instance. Today you loop by hand over instance
-  ids you tracked yourself.
+- ~~**`dispatch_to_all(name, event, payload)`** for bulk actions across
+  every registered instance.~~ *Done in v0.50.0 (FLV-08).* Dispatches
+  `event` to every live instance of `name` (iterating the store by key
+  prefix) and returns the count reached — for server-driven
+  cross-instance broadcasts (a "duel" mode, a global setting change).
+  It updates the instances' state; push the fresh renders to clients
+  yourself (`ws.broadcast(...)`).
 - ~~**Implicit registration from decorators.**~~ *Done in Fitz core
   v0.20.1.* `@live_component` + `@render_for` + `@on` auto-generate
   the boot registration.

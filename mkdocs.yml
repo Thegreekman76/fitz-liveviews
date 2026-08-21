@@ -51,6 +51,7 @@ nav:
       - UI components (catalog): ui-components.md
       - Companion UI — benefits: companion-ui-benefits.md
       - Styling & theming: styling.md
+      - Internationalization (i18n): i18n.md
       - Client-WASM (offline widgets): client-wasm.md
       - Hydration (SSR → client): hydration.md
       - Deploy: deploy.md
